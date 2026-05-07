@@ -1,0 +1,176 @@
+/* ================================================================== */
+/*  LinkedIn Toolkit — Content Script Styles                          */
+/*  Unobtrusive overlays that don't break LinkedIn's layout           */
+/* ================================================================== */
+
+/* ------------------------------------------------------------------ */
+/*  Toast notifications                                               */
+/* ------------------------------------------------------------------ */
+
+#litk-toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.litk-toast {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #fff;
+  background: #333;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateX(120%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  max-width: 360px;
+  word-break: break-word;
+}
+
+.litk-toast--visible {
+  transform: translateX(0);
+}
+
+.litk-toast--success {
+  background: #0a8043;
+}
+
+.litk-toast--error {
+  background: #c62828;
+}
+
+.litk-toast--info {
+  background: #0077b5;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Search result checkboxes                                          */
+/* ------------------------------------------------------------------ */
+
+.litk-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  z-index: 10;
+  accent-color: #0077b5;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.litk-checkbox:hover {
+  transform: scale(1.15);
+}
+
+/* Adjust card padding so checkbox doesn't overlap content */
+.reusable-search__result-container:has(.litk-checkbox) {
+  padding-left: 36px !important;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Floating action bar                                               */
+/* ------------------------------------------------------------------ */
+
+.litk-action-bar {
+  position: fixed;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1a1a2e;
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  z-index: 99998;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.litk-action-bar--visible {
+  bottom: 24px;
+}
+
+.litk-action-bar__count {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.litk-action-bar__btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.litk-action-bar__btn:hover {
+  transform: translateY(-1px);
+}
+
+.litk-action-bar__btn:active {
+  transform: translateY(0);
+}
+
+.litk-action-bar__btn--export {
+  background: #0077b5;
+  color: #fff;
+}
+
+.litk-action-bar__btn--export:hover {
+  background: #005f8d;
+}
+
+.litk-action-bar__btn--clear {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.litk-action-bar__btn--clear:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Profile export button                                             */
+/* ------------------------------------------------------------------ */
+
+.litk-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 6px 14px;
+  background: #0077b5;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1.4;
+}
+
+.litk-export-btn:hover {
+  background: #005f8d;
+}
+
+.litk-export-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

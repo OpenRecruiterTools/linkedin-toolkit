@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn Toolkit — Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #1d1d1f;
+      background: #f5f5f5;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 24px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    .setting {
+      margin-bottom: 16px;
+    }
+
+    .setting label {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .setting label .val {
+      font-weight: 400;
+      color: #0077b5;
+    }
+
+    .setting .desc {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .toggle-row label {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary { background: #0077b5; color: #fff; }
+    .btn-primary:hover { background: #005f8d; }
+
+    .btn-secondary { background: #e8e8e8; color: #333; }
+    .btn-secondary:hover { background: #d4d4d4; }
+
+    .btn-danger { background: #c62828; color: #fff; }
+    .btn-danger:hover { background: #a71e1e; }
+
+    .status {
+      font-size: 12px;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+    .status--ok { color: #0a8043; }
+    .status--err { color: #c62828; }
+
+    .version {
+      text-align: center;
+      font-size: 11px;
+      color: #ccc;
+      margin-top: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      margin-top: 8px;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>LinkedIn Toolkit Settings</h1>
+    <p class="subtitle">Configure automation delays, rate limits, and business hours.</p>
+
+    <h2>Timing</h2>
+
+    <div class="setting">
+      <label>Minimum delay between actions <span class="val" id="val-min">8s</span></label>
+      <input type="range" id="cfg-minDelayMs" min="3000" max="30000" step="1000">
+      <div class="desc">Lower bound for the random pause between automated actions.</div>
+    </div>
+
+    <div class="setting">
+      <label>Maximum delay between actions <span class="val" id="val-max">15s</span></label>
+      <input type="range" id="cfg-maxDelayMs" min="5000" max="60000" step="1000">
+      <div class="desc">Upper bound for the random pause between automated actions.</div>
+    </div>
+
+    <h2>Rate Limits</h2>
+
+    <div class="setting">
+      <label>Max actions per hour <span class="val" id="val-hour">40</span></label>
+      <input type="range" id="cfg-maxPerHour" min="5" max="100" step="5">
+      <div class="desc">Total API calls allowed per hour before automatic cooldown.</div>
+    </div>
+
+    <div class="setting">
+      <label>Max invites per day <span class="val" id="val-invites">25</span></label>
+      <input type="range" id="cfg-maxInvitesPerDay" min="5" max="100" step="5">
+      <div class="desc">LinkedIn officially limits to ~100/week. Stay conservative.</div>
+    </div>
+
+    <div class="setting">
+      <label>Max messages per day <span class="val" id="val-messages">50</span></label>
+      <input type="range" id="cfg-maxMessagesPerDay" min="5" max="200" step="5">
+      <div class="desc">Direct messages sent per day. Lower is safer.</div>
+    </div>
+
+    <h2>Business Hours</h2>
+
+    <div class="setting">
+      <label>Start hour <span class="val" id="val-start">9</span></label>
+      <input type="range" id="cfg-windowStartHour" min="0" max="23" step="1">
+    </div>
+
+    <div class="setting">
+      <label>End hour <span class="val" id="val-end">18</span></label>
+      <input type="range" id="cfg-windowEndHour" min="1" max="24" step="1">
+    </div>
+
+    <div class="toggle-row">
+      <label>Weekdays only (no weekend automation)</label>
+      <input type="checkbox" id="cfg-windowWeekdaysOnly">
+    </div>
+
+    <h2>Data</h2>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="btn-export">Export Settings (JSON)</button>
+      <button class="btn btn-secondary" id="btn-import">Import Settings</button>
+      <button class="btn btn-danger" id="btn-clear">Clear All Data</button>
+    </div>
+
+    <textarea id="import-area" style="display:none;" placeholder="Paste exported JSON here..."></textarea>
+
+    <div class="btn-row" id="import-actions" style="display:none;">
+      <button class="btn btn-primary" id="btn-import-confirm">Apply Import</button>
+      <button class="btn btn-secondary" id="btn-import-cancel">Cancel</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-save">Save Settings</button>
+    </div>
+
+    <div class="version" id="version"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
