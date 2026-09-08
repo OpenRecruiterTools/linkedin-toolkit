@@ -7,3 +7,6 @@ coverage/
 *.pem
 
 .superpowers/
+
+# Local commit-message scratch file
+.git-msg

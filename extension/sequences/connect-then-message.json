@@ -1,0 +1,26 @@
+{
+  "name": "Connect, then message",
+  "description": "Invite, then branch: message the people who accept, keep following the ones who don't.",
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 3600000 },
+    {
+      "type": "invite",
+      "note": "Hi {{firstName|there}} — I work in the same corner of the market as {{company}} and would like to stay in touch."
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "body": "Thanks for connecting, {{firstName|there}}. I'm curious how {{company}} is handling this year — happy to swap notes if it's useful, and equally happy to just stay in touch."
+          }
+        ],
+        "else": [{ "type": "wait", "waitMs": 604800000 }, { "type": "follow" }]
+      }
+    }
+  ]
+}
