@@ -8,5 +8,9 @@ coverage/
 
 .superpowers/
 
+# Internal design notes: specs and plans live outside the repo, not on npm or
+# in a release zip. See CONTRIBUTING.md.
+docs/superpowers/
+
 # Local commit-message scratch file
 .git-msg

@@ -98,6 +98,14 @@ Say what it returns, what it costs in quota, and anything that would make a mode
 - ✓ "Everyone following a company page. Paged: pass the returned nextStart as start. Each result
   spends search quota from the daily cap of 1,000."
 
+### Design notes live outside the repo
+
+`docs/` is documentation for people using and contributing to the toolkit. Internal design notes —
+specs, implementation plans, workstream reports — are kept outside the repository and are
+gitignored (`docs/superpowers/`, `.superpowers/`); they name work and products that are nobody
+else's business, and everything a contributor actually needs belongs in `docs/actions.md`,
+`docs/safety.md` or a comment next to the code.
+
 ## Commits and PRs
 
 Conventional commits: `feat(sequences):`, `fix(extension):`, `docs:`, `test(mcp-server):`,
