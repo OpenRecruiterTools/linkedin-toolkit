@@ -1,0 +1,103 @@
+name: Extractor request
+description: Ask for a new LinkedIn data source, or claim one to build
+labels: [extractor, enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An "extractor" turns one LinkedIn endpoint into a typed action and an MCP tool — company
+        followers, hashtag followers, recommendations, saved items, and so on.
+
+        **This is the best first contribution to the repo.** It touches four files and there is a
+        guide: [docs/build-an-extractor.md](../blob/main/docs/build-an-extractor.md). If you are
+        willing to build it, say so at the bottom and it is yours.
+
+  - type: input
+    id: what
+    attributes:
+      label: What data
+      placeholder: Everyone following a company page
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where you see it in the LinkedIn UI
+      description: The page and the click that shows it. Someone has to find the endpoint behind it.
+      placeholder: Company page → Followers tab → "See all"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What you would do with it
+      description: >
+        Concretely. "It would be nice" does not help prioritise; "it is the highest-intent cold
+        list you can build for a niche" does.
+    validations:
+      required: true
+
+  - type: input
+    id: action
+    attributes:
+      label: Proposed action name
+      description: Namespaced, matching the convention in docs/actions.md.
+      placeholder: company.followers
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed result shape
+      description: >
+        Reuse an existing shared type if you possibly can — `Profile`, `Company`, `Engager`,
+        `Thread`, `Message`. A result that is "a list of people" should be `Profile[]` even if the
+        endpoint returns something richer; put the extra fields on the profile. Every new type is a
+        thing five other files have to learn.
+      render: typescript
+      placeholder: |
+        { profiles: Profile[], nextStart?: number }
+
+  - type: textarea
+    id: endpoint
+    attributes:
+      label: The Voyager endpoint, if you have found it
+      description: >
+        DevTools → Network → filter `voyager`, then do the thing by hand. Paste the path and the
+        query parameters. **Do not paste a response containing real people's data.**
+      render: text
+      placeholder: GET /voyager/api/organization/followers?q=organization&organization={urn}&start=0&count=50
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Account tier needed
+      description: >
+        A tool that fails only for free accounts, silently, is worse than one that does not exist.
+        If it needs a paid seat that must be documented.
+      options:
+        - Free account
+        - Premium
+        - Sales Navigator
+        - Recruiter
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This data is visible to me in the LinkedIn UI while logged in, and the page itself fetches it
+          required: true
+        - label: This does not require an endpoint LinkedIn does not surface to users
+          required: true
+
+  - type: checkboxes
+    id: claim
+    attributes:
+      label: Building it
+      options:
+        - label: I would like to build this — please assign it to me

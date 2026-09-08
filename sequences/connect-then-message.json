@@ -1,0 +1,47 @@
+{
+  "name": "Connect then message",
+  "description": "The shortest respectable sequence: an invite with a note, one message on acceptance, one polite close. Four touches total. Use it when you have volume and no time.",
+  "audience": "A cold list where the value proposition does the work and personalisation beyond first name and company is not realistic.",
+  "tags": ["general", "short", "volume"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — I work with {{title|people in your role}} on the same problem you're likely sitting on at {{company|your company}}. Worth being connected either way.",
+        "{{firstName|Hi}} — connecting because I spend my week with {{title|people doing your job}} and yours is a company I keep hearing about. No agenda."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. Quick context: I help {{title|teams like yours}} cut the manual half of this work. Is that even on your list at {{company|your company}} right now?",
+              "Good to be connected, {{firstName|there}}. I'll be direct — is the manual side of this still eating your team's week at {{company|your company}}, or have you solved it?"
+            ]
+          },
+          { "type": "wait", "waitMs": 518400000 },
+          {
+            "type": "message",
+            "variants": [
+              "Reading the silence as a no for now, {{firstName|there}} — completely fair. I'll leave it there. Shout if the picture changes at {{company|your company}}.",
+              "I'll stop here, {{firstName|there}}. If this becomes a real problem at {{company|your company}} later, my inbox is open."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

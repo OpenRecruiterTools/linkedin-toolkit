@@ -1,0 +1,57 @@
+{
+  "name": "Speaker invite",
+  "description": "Invites someone to speak at an event. States the date, the audience and the format in the first message, because a speaker's first three questions are always when, to whom, and how long.",
+  "audience": "People whose work makes a talk obvious: they have shipped the thing your audience wants to hear about.",
+  "tags": ["events", "community", "speaking"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — I programme an event for {{title|people in your field}} and your work at {{company|your company}} is exactly what the audience keeps asking for. Connecting with an invitation.",
+        "Hi {{firstName|there}} — putting together a lineup and would like you on it. Connecting so I can send the detail properly."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Specifics: around 200 practitioners, 25-minute talk plus questions, travel covered, and you keep the recording. Would you take the slot?",
+              "Detail first, {{firstName|there}}: 200-odd in the room, 25 minutes, expenses covered, recording is yours. Interested in principle?"
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to work around the date, or take a panel instead of a talk if that's easier on your diary.",
+              "If a full talk is too much, {{firstName|there}}, a panel seat is thirty minutes of your day and no prep. Either works for us."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll close the lineup this week, {{firstName|there}} — no problem if the timing's wrong. I'll ask again for the next one.",
+              "Finalising the programme, {{firstName|there}}. If it's a no this time I'll come back for the next edition."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

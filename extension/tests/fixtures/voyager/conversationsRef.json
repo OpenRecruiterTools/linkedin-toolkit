@@ -1,0 +1,73 @@
+{
+  "data": {
+    "data": {
+      "messengerConversationsByCategories": {
+        "metadata": { "$type": "com.linkedin.messenger.ConversationsMetadata" },
+        "elements": [
+          {
+            "entityUrn": "urn:li:msg_conversation:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123)",
+            "categories": ["INBOX"],
+            "read": false,
+            "unreadCount": 1,
+            "lastActivityAt": 1757200000000,
+            "*conversationParticipants": [
+              "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000)",
+              "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000)"
+            ],
+            "*messages": "urn:li:msg_messageCollection:2-abc123",
+            "$type": "com.linkedin.messenger.Conversation"
+          }
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.graphql.Query"
+    }
+  },
+  "included": [
+    {
+      "entityUrn": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000)",
+      "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+      "participantType": {
+        "member": {
+          "firstName": { "text": "Ada" },
+          "lastName": { "text": "Lovelace" },
+          "headline": { "text": "Chief Analyst at Analytical Engines" },
+          "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+        }
+      },
+      "$type": "com.linkedin.messenger.MessagingParticipant"
+    },
+    {
+      "entityUrn": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000)",
+      "hostIdentityUrn": "urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000",
+      "participantType": {
+        "member": {
+          "firstName": { "text": "Sam" },
+          "lastName": { "text": "Seller" },
+          "profileUrl": "https://www.linkedin.com/in/samseller",
+          "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+        }
+      },
+      "$type": "com.linkedin.messenger.MessagingParticipant"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+      "publicIdentifier": "adalovelace",
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:msg_messageCollection:2-abc123",
+      "*elements": ["urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123-m2)"],
+      "$type": "com.linkedin.restli.common.CollectionResponse"
+    },
+    {
+      "entityUrn": "urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123-m2)",
+      "deliveredAt": 1757200000000,
+      "body": { "text": "Sounds interesting, can we book a call?" },
+      "*sender": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000)",
+      "$type": "com.linkedin.messenger.Message"
+    }
+  ]
+}

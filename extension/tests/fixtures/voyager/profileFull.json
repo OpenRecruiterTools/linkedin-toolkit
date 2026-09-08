@@ -1,0 +1,187 @@
+{
+  "data": {
+    "entityUrn": "urn:li:collectionResponse:h+8sx11rs192/FZmfVG8ZBDNVLdADKGLf0Gt4ye9Vk4=",
+    "paging": {
+      "count": 10,
+      "start": 0,
+      "links": []
+    },
+    "*elements": [
+      "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000"
+    ],
+    "$type": "com.linkedin.restli.common.CollectionResponse"
+  },
+  "included": [
+    {
+      "paging": {
+        "total": 2,
+        "start": 0,
+        "count": 10,
+        "links": [],
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.common.FullPaging"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionMetadata"
+      },
+      "entityUrn": "urn:li:collectionResponse:YO2Hi2nasz3Yva+lDOdS0TSMOmSpk/IHwYZYSFYzrxc=",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.identity.profile.FullProfileTreasuryMediaItemsInjection"
+      ],
+      "elements": [],
+      "$type": "com.linkedin.restli.common.CollectionResponse"
+    },
+    {
+      "entityUrn": "urn:li:fsd_geo:103644278",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.identity.profile.CountryGeo"
+      ],
+      "defaultLocalizedName": "United Kingdom",
+      "$type": "com.linkedin.voyager.dash.common.Geo"
+    },
+    {
+      "countryUrn": "urn:li:fsd_geo:103644278",
+      "defaultLocalizedNameWithoutCountryName": "London",
+      "*country": "urn:li:fsd_geo:103644278",
+      "entityUrn": "urn:li:fsd_geo:104116203",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.identity.profile.Geo"
+      ],
+      "defaultLocalizedName": "London, United Kingdom",
+      "$type": "com.linkedin.voyager.dash.common.Geo"
+    },
+    {
+      "entityUrn": "urn:li:fsd_industry:131",
+      "name": "Software Development",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.common.Industry"
+      ],
+      "$type": "com.linkedin.voyager.dash.common.Industry"
+    },
+    {
+      "multiLocalePhoneticLastName": null,
+      "industryV2Urn": null,
+      "objectUrn": "urn:li:member:900100",
+      "multiLocaleLastName": {
+        "en_US": "Lovelace"
+      },
+      "pronounUnion": null,
+      "multiLocaleFirstNamePronunciationHint": {},
+      "multiLocaleLastNamePronunciationHint": {},
+      "tempStatusExpiredAtUnion": null,
+      "multiLocaleFirstName": {
+        "en_US": "Ada"
+      },
+      "multiLocaleTempStatus": null,
+      "contentRestrictedAnnotation": null,
+      "companyNameOnProfileTopCardShown": true,
+      "state": null,
+      "publicIdentifier": "adalovelace",
+      "trackingId": "rdTF0yi6T+SDhGRgmDSc3g==",
+      "phoneticFirstName": null,
+      "multiLocaleSummary": {
+        "en_US": "Analyst, engine builder, occasional poet of machines."
+      },
+      "firstNamePronunciationHint": null,
+      "lastNamePronunciationHint": null,
+      "versionTag": "219666446",
+      "firstName": "Ada",
+      "profilePicture": {
+        "a11yText": "Ada Lovelace",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "multiLocaleMaidenName": null,
+      "multiLocaleHeadline": {
+        "en_US": "Chief Analyst at Analytical Engines"
+      },
+      "lastName": "Lovelace",
+      "memorialized": false,
+      "multiLocalePhoneticFirstName": null,
+      "volunteerCauses": null,
+      "*industry": "urn:li:fsd_industry:131",
+      "showPremiumSubscriberBadge": true,
+      "tempStatusEmoji": null,
+      "maidenName": null,
+      "geoLocationBackfilled": false,
+      "multiLocaleFullNamePronunciationAudio": {},
+      "phoneticLastName": null,
+      "premium": true,
+      "entityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+      "headline": "Chief Analyst at Analytical Engines",
+      "fullNamePronunciationAudio": null,
+      "summary": "Analyst, engine builder, occasional poet of machines.",
+      "supportedLocales": [
+        {
+          "country": "US",
+          "language": "en",
+          "$recipeTypes": [
+            "com.linkedin.voyager.dash.deco.common.Locale"
+          ],
+          "$type": "com.linkedin.common.Locale"
+        }
+      ],
+      "address": null,
+      "locationName": null,
+      "multiLocaleAddress": null,
+      "educationOnProfileTopCardShown": false,
+      "industryUrn": "urn:li:fsd_industry:131",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.identity.profile.FullProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "geoLocation": {
+        "*geo": "urn:li:fsd_geo:104116203",
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfileGeoLocation"
+        ],
+        "geoUrn": "urn:li:fsd_geo:104116203",
+        "$type": "com.linkedin.voyager.dash.identity.profile.ProfileGeoLocation"
+      },
+      "tempStatus": null,
+      "*profileTreasuryMediaProfile": "urn:li:collectionResponse:YO2Hi2nasz3Yva+lDOdS0TSMOmSpk/IHwYZYSFYzrxc=",
+      "location": {
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfileLocation"
+        ],
+        "countryCode": "US",
+        "$type": "com.linkedin.voyager.dash.identity.profile.ProfileLocation"
+      },
+      "primaryLocale": {
+        "country": "US",
+        "language": "en",
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.common.Locale"
+        ],
+        "$type": "com.linkedin.common.Locale"
+      }
+    }
+  ]
+}

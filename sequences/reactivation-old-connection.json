@@ -1,0 +1,55 @@
+{
+  "name": "Reactivation — dormant contact",
+  "description": "For people you knew once and have not spoken to in years. Acknowledges the gap instead of pretending it isn't there, and asks about them before mentioning anything of your own.",
+  "audience": "Lapsed connections, old colleagues, and prospects that went quiet more than a year ago. Where the person is already a first-degree connection the engine skips the invite step.",
+  "tags": ["network", "reactivation", "warm"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — it's been a while and I'd rather not lose the thread entirely. Reconnecting properly.",
+        "Hi {{firstName|there}} — long overdue. Reconnecting so I actually see what you're up to at {{company|your company}} these days."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — far too long. I see you're at {{company|somewhere new}} now. How did that come about, and is it what you hoped?",
+              "Good to be back in touch, {{firstName|there}}. {{company|Where you are now}} looks like a proper change from when we last spoke — how's it going?"
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "No agenda beyond catching up, {{firstName|there}} — though I'd happily swap notes over a coffee or a call if you're up for it.",
+              "{{firstName|Hi}} — worth half an hour to actually catch up properly? Happy to work around you."
+            ]
+          },
+          { "type": "wait", "waitMs": 864000000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave it there, {{firstName|there}} — good to be connected again either way. All the best with {{company|the new place}}.",
+              "Signing off, {{firstName|there}}. Glad we're back in touch even if the diary doesn't allow more."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

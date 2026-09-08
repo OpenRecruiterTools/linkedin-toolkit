@@ -1,0 +1,124 @@
+{
+  "data": {
+    "data": {
+      "messengerConversationsByCategoryQuery": {
+        "metadata": {
+          "$type": "com.linkedin.messenger.ConversationsMetadata"
+        },
+        "elements": [
+          {
+            "entityUrn": "urn:li:msg_conversation:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123)",
+            "categories": ["INBOX"],
+            "read": false,
+            "unreadCount": 1,
+            "lastActivityAt": 1757200000000,
+            "conversationParticipants": [
+              {
+                "entityUrn": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000)",
+                "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+                "participantType": {
+                  "member": {
+                    "firstName": { "text": "Ada" },
+                    "lastName": { "text": "Lovelace" },
+                    "headline": { "text": "Chief Analyst at Analytical Engines" },
+                    "profileUrl": "https://www.linkedin.com/in/adalovelace",
+                    "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                  }
+                },
+                "$type": "com.linkedin.messenger.MessagingParticipant"
+              },
+              {
+                "entityUrn": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000)",
+                "hostIdentityUrn": "urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000",
+                "participantType": {
+                  "member": {
+                    "firstName": { "text": "Sam" },
+                    "lastName": { "text": "Seller" },
+                    "headline": { "text": "Founder at Loom Recruiting" },
+                    "profileUrl": "https://www.linkedin.com/in/samseller",
+                    "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                  }
+                },
+                "$type": "com.linkedin.messenger.MessagingParticipant"
+              }
+            ],
+            "messages": {
+              "elements": [
+                {
+                  "entityUrn": "urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123-m2)",
+                  "deliveredAt": 1757200000000,
+                  "body": { "text": "Sounds interesting, can we book a call?" },
+                  "sender": {
+                    "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+                    "participantType": {
+                      "member": {
+                        "firstName": { "text": "Ada" },
+                        "lastName": { "text": "Lovelace" },
+                        "profileUrl": "https://www.linkedin.com/in/adalovelace",
+                        "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                      }
+                    },
+                    "$type": "com.linkedin.messenger.MessagingParticipant"
+                  },
+                  "$type": "com.linkedin.messenger.Message"
+                }
+              ],
+              "$type": "com.linkedin.restli.common.CollectionResponse"
+            },
+            "$type": "com.linkedin.messenger.Conversation"
+          },
+          {
+            "entityUrn": "urn:li:msg_conversation:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-def456)",
+            "categories": ["INBOX"],
+            "read": true,
+            "unreadCount": 0,
+            "lastActivityAt": 1756900000000,
+            "conversationParticipants": [
+              {
+                "entityUrn": "urn:li:msg_conversationParticipant:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,urn:li:fsd_profile:ACoAAA000000BOBBRIGHT00000000000000000)",
+                "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000BOBBRIGHT00000000000000000",
+                "participantType": {
+                  "member": {
+                    "firstName": { "text": "Bob" },
+                    "lastName": { "text": "Bright" },
+                    "headline": { "text": "Head of Platform at Difference Engine Co" },
+                    "profileUrl": "https://www.linkedin.com/in/bobbright",
+                    "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                  }
+                },
+                "$type": "com.linkedin.messenger.MessagingParticipant"
+              }
+            ],
+            "messages": {
+              "elements": [
+                {
+                  "entityUrn": "urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-def456-m1)",
+                  "deliveredAt": 1756900000000,
+                  "body": { "text": "Not interested, please remove me." },
+                  "sender": {
+                    "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000BOBBRIGHT00000000000000000",
+                    "participantType": {
+                      "member": {
+                        "firstName": { "text": "Bob" },
+                        "lastName": { "text": "Bright" },
+                        "profileUrl": "https://www.linkedin.com/in/bobbright",
+                        "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                      }
+                    },
+                    "$type": "com.linkedin.messenger.MessagingParticipant"
+                  },
+                  "$type": "com.linkedin.messenger.Message"
+                }
+              ],
+              "$type": "com.linkedin.restli.common.CollectionResponse"
+            },
+            "$type": "com.linkedin.messenger.Conversation"
+          }
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.graphql.Query"
+    }
+  },
+  "included": []
+}

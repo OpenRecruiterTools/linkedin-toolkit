@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # better-sqlite3 is the only native module in the project and the one
+      # thing that can fail at `npm install` on a user's machine. A green test
+      # run does not prove it loaded — the suite can pass on a prebuilt binary
+      # that was never actually opened. Open one.
+      - name: better-sqlite3 loads and answers
+        working-directory: mcp-server
+        run: node -e "console.log(require('better-sqlite3')(':memory:').prepare('select 1 as one').get())"
+
+      # openapi.json and tools.json are generated from src/contract.ts and are
+      # committed, so a contract change that nobody regenerated ships a lying
+      # API document. Regenerate and insist nothing moved.
+      - name: OpenAPI and tools.json are current
+        run: |
+          npm run build -w mcp-server
+          npm run gen -w mcp-server
+          git diff --exit-code -- mcp-server/openapi.json mcp-server/tools.json \
+            || { echo "::error::mcp-server/openapi.json or tools.json is stale. Run 'npm run gen -w mcp-server' and commit the result."; exit 1; }
+
+  sequences:
+    name: sequence templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Zero dependencies on purpose — this runs before anything is installed.
+      - name: Validate every sequence template
+        run: node sequences/validate.mjs
+
+      - name: Bundled copy in the extension is current
+        run: node scripts/copy-sequences.mjs && git diff --exit-code -- extension/sequences
+
+  python:
+    name: python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        run: pip install -e "clients/python[test]"
+
+      - name: Test
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        run: pytest clients/python
+
+      - name: Skipped
+        if: hashFiles('clients/python/pyproject.toml') == ''
+        run: echo "No clients/python/pyproject.toml yet — nothing to test."
+
+  no-headless-browser:
+    name: no headless browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A non-negotiable from the spec: no Playwright, Puppeteer, or CDP anywhere in the
+      # repository, including tests and examples. The whole value proposition is that this is
+      # not a browser bot. This job fails the build if one gets added.
+      # Code and manifests only. Prose is allowed to name these tools — the docs, the issue
+      # templates and CONTRIBUTING all have to say which ones are forbidden.
+      - name: Fail on browser automation dependencies
+        run: |
+          TARGETS=""
+          for d in extension mcp-server clients examples sequences skills scripts; do
+            [ -d "$d" ] && TARGETS="$TARGETS $d"
+          done
+          TARGETS="$TARGETS package.json package-lock.json"
+
+          if grep -rniE '\b(playwright|puppeteer|puppeteer-core|selenium|webdriver|chrome-remote-interface)\b' \
+               --include='*.json' --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' \
+               --include='*.py' --include='*.toml' --include='*.txt' \
+               --exclude-dir=node_modules --exclude-dir=dist \
+               $TARGETS ; then
+            echo "::error::Browser automation dependency found. This project never uses a headless browser, including in tests and examples — see docs/why-browser-agents-fail-on-linkedin.md"
+            exit 1
+          fi
+          echo "Clean."

@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (must already exist)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve tag
+        id: tag
+        run: echo "value=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Validate sequence templates
+        run: node sequences/validate.mjs
+
+      # The extension has no build step, so the zip is the source folder. Users load it
+      # unpacked via chrome://extensions — deliberately not the Chrome Web Store, whose policy
+      # forbids extensions facilitating third-party ToS violations.
+      #
+      # One script builds it, here and on a maintainer's laptop: it adds the README.txt a
+      # person who downloaded a zip actually needs, and it fails the build if a test folder or
+      # node_modules leaks in. A hand-written `zip -r` here could do neither.
+      - name: Package the extension
+        run: npm ci && node scripts/zip-extension.mjs
+
+      - name: Build the MCP server
+        run: npm run build -w mcp-server
+
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: ${{ steps.tag.outputs.value }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.value, '-') }}
+          files: dist/*.zip
+          body: |
+            ## Install
+
+            **Extension** — download the `linkedin-toolkit-extension-*.zip` below, unzip it, then
+            open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and
+            pick the unzipped folder.
+
+            **Server** — `npx linkedin-toolkit-mcp`. The first run prints a pairing token; paste it
+            into the extension popup → Settings → Local bridge.
+
+            Full setup, including the config block for your agent:
+            [docs/agents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md)
+
+            ---
+
+      # Publishing is optional so that a fork, or this repo before the npm token exists, still
+      # produces a usable release.
+      - name: Check for an npm token
+        id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "NPM_TOKEN is not set — skipping npm publish."
+          fi
+
+      - name: Publish linkedin-toolkit-mcp
+        if: steps.npm.outputs.publish == 'true'
+        run: npm publish -w mcp-server --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

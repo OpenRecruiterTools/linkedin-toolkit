@@ -1,0 +1,43 @@
+{
+  "data": {
+    "data": {
+      "feedDashProfileUpdatesByMemberShareFeed": {
+        "metadata": {
+          "paginationToken": "page-2-token",
+          "$type": "com.linkedin.voyager.dash.feed.FeedMetadata"
+        },
+        "paging": { "start": 0, "count": 10, "total": 1 },
+        "*elements": [
+          "urn:li:fsd_update:(urn:li:activity:7000000000000000001,PROFILE_FEED,EMPTY,DEFAULT,false)"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.graphql.Query"
+    }
+  },
+  "included": [
+    {
+      "entityUrn": "urn:li:fsd_update:(urn:li:activity:7000000000000000001,PROFILE_FEED,EMPTY,DEFAULT,false)",
+      "preDashEntityUrn": "urn:li:fs_updateV2:(urn:li:activity:7000000000000000001,PROFILE_FEED,EMPTY,DEFAULT,false)",
+      "createdAt": 1757000000000,
+      "commentary": {
+        "text": {
+          "text": "We are hiring two analysts this quarter.",
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "$type": "com.linkedin.voyager.dash.feed.component.commentary.CommentaryComponent"
+      },
+      "*socialDetail": "urn:li:fsd_socialDetail:(urn:li:activity:7000000000000000001,urn:li:activity:7000000000000000001,urn:li:highlightedReply:-)",
+      "$type": "com.linkedin.voyager.dash.feed.Update"
+    },
+    {
+      "entityUrn": "urn:li:fsd_socialDetail:(urn:li:activity:7000000000000000001,urn:li:activity:7000000000000000001,urn:li:highlightedReply:-)",
+      "totalSocialActivityCounts": {
+        "numLikes": 42,
+        "numComments": 7,
+        "$type": "com.linkedin.voyager.dash.social.SocialActivityCounts"
+      },
+      "$type": "com.linkedin.voyager.dash.feed.SocialDetail"
+    }
+  ]
+}

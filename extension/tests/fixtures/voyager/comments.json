@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.feed.Comment",
+      "entityUrn": "urn:li:comment:(activity:7000000000000000001,1)",
+      "createdAt": 1757100000000,
+      "commentV2": {
+        "text": "This is exactly the problem we hit last quarter."
+      },
+      "commenter": {
+        "com.linkedin.voyager.feed.MemberActor": {
+          "miniProfile": {
+            "firstName": "Bob",
+            "lastName": "Bright",
+            "publicIdentifier": "bobbright",
+            "occupation": "CTO at Beta Systems",
+            "entityUrn": "urn:li:fs_miniProfile:ACoAAAbob"
+          }
+        }
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 12
+  }
+}

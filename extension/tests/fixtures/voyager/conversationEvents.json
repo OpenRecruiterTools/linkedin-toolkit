@@ -1,0 +1,49 @@
+{
+  "data": {
+    "data": {
+      "messengerMessagesByConversation": {
+        "elements": [
+          {
+            "entityUrn": "urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123-m2)",
+            "deliveredAt": 1757200000000,
+            "body": { "text": "Sounds interesting, can we book a call?" },
+            "sender": {
+              "hostIdentityUrn": "urn:li:fsd_profile:ACoAAA000000ADALOVELACE0000000000000000",
+              "participantType": {
+                "member": {
+                  "firstName": { "text": "Ada" },
+                  "lastName": { "text": "Lovelace" },
+                  "profileUrl": "https://www.linkedin.com/in/adalovelace",
+                  "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                }
+              },
+              "$type": "com.linkedin.messenger.MessagingParticipant"
+            },
+            "$type": "com.linkedin.messenger.Message"
+          },
+          {
+            "entityUrn": "urn:li:msg_message:(urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000,2-abc123-m1)",
+            "deliveredAt": 1757100000000,
+            "body": { "text": "Hi Ada — worth a quick chat about analysis tooling?" },
+            "sender": {
+              "hostIdentityUrn": "urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000",
+              "participantType": {
+                "member": {
+                  "firstName": { "text": "Sam" },
+                  "lastName": { "text": "Seller" },
+                  "profileUrl": "https://www.linkedin.com/in/samseller",
+                  "$type": "com.linkedin.messenger.MessagingParticipantType.Member"
+                }
+              },
+              "$type": "com.linkedin.messenger.MessagingParticipant"
+            },
+            "$type": "com.linkedin.messenger.Message"
+          }
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.graphql.Query"
+    }
+  },
+  "included": []
+}

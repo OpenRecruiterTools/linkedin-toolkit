@@ -1,0 +1,60 @@
+{
+  "name": "linkedin-toolkit",
+  "version": "2.0.0",
+  "description": "Typed client and agent-framework tool adapters for the LinkedIn Toolkit local HTTP API.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "linkedin",
+    "agent",
+    "tools",
+    "openai",
+    "langchain",
+    "vercel-ai"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "gen": "tsx scripts/gen.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "ai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "^0.3.40",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

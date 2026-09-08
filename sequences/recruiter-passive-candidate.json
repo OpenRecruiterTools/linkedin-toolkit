@@ -1,0 +1,57 @@
+{
+  "name": "Recruiter — passive candidate",
+  "description": "For people who are not looking. Leads with respect for the fact that they are happy where they are, names the role only after acceptance, and exits gracefully. Slow on purpose.",
+  "audience": "Employed, senior, not signalling any interest in moving. Long tenure, no open-to-work badge.",
+  "tags": ["recruiting", "passive", "slow"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 172800000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — I recruit in your space and your track record at {{company|your company}} is the kind I keep as a reference point. Not pitching anything; happy to be connected.",
+        "{{firstName|Hi}} — I work on {{title|roles like yours}} searches and wanted to connect properly rather than appear in your inbox one day out of nowhere."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 1209600000,
+        "then": [
+          { "type": "wait", "waitMs": 259200000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. I'm not going to ask if you're looking — you're clearly doing well at {{company|your company}}. Would you be open to hearing about one role a quarter, when it's genuinely relevant?",
+              "Appreciate it, {{firstName|there}}. Rather than pitch you: what would a role have to look like for you to even take the call? I'll only come back when I have that."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "One specific thing, {{firstName|there}}: I'm on a search where the team is roughly what {{company|your company}} looked like three years ago. Want the two-line version, or shall I leave it?",
+              "{{firstName|Hi}} — I have one brief that made me think of you. Happy to send two lines and you can ignore it. Yes or no is a fine answer."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave you be, {{firstName|there}}. You know where I am if the ground shifts at {{company|your company}}.",
+              "Closing the loop, {{firstName|there}} — no more from me. I'll keep an eye out and reach out only when something is genuinely worth your time."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 1209600000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

@@ -1,0 +1,101 @@
+{
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "entityResultAttributes": null,
+          "bserpPaginationContext": null,
+          "totalResultCount": 37,
+          "searchAlert": null,
+          "blockedQueryError": null,
+          "secondaryFilterCluster": null,
+          "$recipeTypes": [
+            "com.linkedin.dfce49e2c6bb412fb4161cbbc7190d0d"
+          ],
+          "lazyRightRail": null,
+          "queryType": "EXPLORE",
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata",
+          "primaryResultType": "PEOPLE",
+          "paginationToken": null,
+          "primaryFilterCluster": null,
+          "blockedQuery": false,
+          "entityActionButtonStyle": null,
+          "searchId": "d3d9cfec-70d4-4161-b127-9c00acd5dfa0",
+          "filterAppliedCount": 0,
+          "clusterTitleFontSize": null,
+          "simpleInsightAttributes": null,
+          "desktopNavigationPanelTrackingId": null,
+          "knowledgeCardRightRail": null
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 37,
+          "$recipeTypes": [
+            "com.linkedin.81b214c2cdd4f02cdb7d827958d2f3a1"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "$recipeTypes": [
+          "com.linkedin.5f1d22f924ecb6a031ee124b8b767900"
+        ],
+        "elements": [],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+      ],
+      "$type": "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+    },
+    "extensions": {
+      "webMetadata": {}
+    }
+  },
+  "included": [
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0009FIXTUREPROFILE0009xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0005FIXTUREPROFILE0005xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx",
+      "profilePicture": {
+        "a11yText": "Bob Bright",
+        "displayImageReference": {
+          "vectorImage": {
+            "rootUrl": "https://media.licdn.com/dms/image/v2/bobbright/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "height": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "height": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    }
+  ]
+}

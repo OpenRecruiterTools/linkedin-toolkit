@@ -1,0 +1,57 @@
+{
+  "name": "Hiring manager intro",
+  "description": "For a candidate approaching a hiring manager directly, bypassing the queue. Leads with proof of work rather than interest in the role, since the manager's problem is signal, not volume.",
+  "audience": "Hiring managers at companies with a live role you can genuinely do. Ten to twenty targets, each one researched.",
+  "tags": ["jobseeker", "candidate", "direct"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — you're hiring for something I've done twice before. Rather than go through the portal I thought I'd connect and say so directly.",
+        "Hi {{firstName|there}} — I've built exactly the thing your open role describes. Connecting to make the case in two lines rather than a cover letter."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. The relevant part: I've shipped this twice, most recently owning it end to end at {{company|my last company}}. Happy to send two links rather than a CV. Worth a look?",
+              "Short version, {{firstName|there}}: I've done the job in the ad, twice. Two links tell the story better than my CV — shall I send them?"
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to go through the normal process if you'd rather; I just didn't want the application to be one of two hundred with no context attached.",
+              "If the process is the process, {{firstName|there}}, no problem — I'll apply properly. I'd just rather you knew the name when it lands."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave you to it, {{firstName|there}}. Good luck with the search — and if the shortlist doesn't work out, I'm still here.",
+              "Last message, {{firstName|there}}. Genuinely good luck with the hire. Keep me in mind if it reopens."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Recruiter — active candidate",
+  "description": "For people who are visibly looking. Faster than the passive sequence, leads with the role, and asks for a call by the second message because their attention is finite and contested.",
+  "audience": "Open-to-work badge, recent redundancy post, \"currently exploring\" headline, or applicants who went quiet.",
+  "tags": ["recruiting", "active", "fast"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — saw you're open to what's next. I'm recruiting for a {{title|role}} that looks close to your background. Connecting so I can send the detail.",
+        "{{firstName|Hi}} — I have a live brief that lines up with your experience at {{company|your last company}}. Happy to send it over if you connect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 432000000,
+        "then": [
+          { "type": "wait", "waitMs": 86400000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. The short version: {{title|the role}}-level, product team of about 40, hybrid, and they move fast on decisions. Want the full brief and the salary band?",
+              "Here's the honest summary, {{firstName|there}}: strong team, messy legacy stack, genuine autonomy, band is competitive. Shall I send the full spec?"
+            ]
+          },
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — do you have 15 minutes this week? Faster for me to answer your questions live than to guess which ones matter.",
+              "Worth a quick call, {{firstName|there}}? 15 minutes and you'll know whether this is a yes or a no. I'd rather you decided fast either way."
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "Last nudge, {{firstName|there}} — they're interviewing this week. Say the word and I'll get you in; otherwise I'll close this off and keep you in mind for the next one.",
+              "{{firstName|Hi}} — I'll assume this one isn't right and stop. Tell me what you actually want next and I'll only come back when I have it."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 432000000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

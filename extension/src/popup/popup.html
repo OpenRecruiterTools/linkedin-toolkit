@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedIn Toolkit</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="app-head">
+      <div class="app-title">
+        LinkedIn Toolkit
+        <small id="app-version">local-first · your browser only</small>
+      </div>
+      <div class="head-status" id="head-status"></div>
+    </header>
+
+    <nav class="tabbar" id="tabbar" role="tablist" aria-label="Sections"></nav>
+
+    <main class="view" id="view" role="tabpanel"></main>
+
+    <footer class="app-foot">
+      <span>Copilot mode queues agent writes for approval.</span>
+      <button type="button" class="btn btn--link" id="open-options">Options</button>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
