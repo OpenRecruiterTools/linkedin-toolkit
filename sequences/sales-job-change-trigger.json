@@ -1,0 +1,55 @@
+{
+  "name": "Sales — job change trigger",
+  "description": "Fires on someone starting a new role. New leaders have budget, a mandate, and ninety days to show something. The fastest sequence here, because the window closes.",
+  "audience": "Anyone whose profile shows a job change in the last 90 days — the `changed_job_90d` signal on a list or Research Pack.",
+  "tags": ["sales", "trigger", "fast", "intent"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Congratulations on the move to {{company|the new role}}, {{firstName|there}}. First ninety days are the interesting ones. Connecting to follow how it goes.",
+        "{{firstName|Hi}} — saw you'd started at {{company|the new place}}. Congratulations. Connecting; I work with people doing exactly what you've just taken on."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 432000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. What did you walk into? Everyone I speak to in your seat inherits either no process or too much of it — rarely anything in between.",
+              "Genuine question while it's still fresh, {{firstName|there}}: what surprised you most in the first month at {{company|the new place}}?"
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — if you're rebuilding this from scratch anyway, I can show you what the good version looks like. Fifteen minutes, no slides.",
+              "Since you're deciding what to keep and what to rip out, {{firstName|there}} — worth fifteen minutes? Easier to help before the stack is locked in."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "Last one, {{firstName|there}} — you're clearly busy, which is exactly right for month three. I'll check back later in the year.",
+              "I'll get out of your way, {{firstName|there}}. Good luck with the first ninety. Shout when the dust settles."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

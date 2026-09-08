@@ -1,0 +1,57 @@
+{
+  "name": "Agency business development",
+  "description": "For agencies and consultancies pitching a service. Leads with a result for a comparable client rather than a capabilities list, and offers something free that is actually free.",
+  "audience": "Decision makers at companies matching the profile of your last three good clients — same size, same sector, same problem.",
+  "tags": ["agency", "services", "sales"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — we do this work for companies that look a lot like {{company|yours}}. Connecting rather than cold-pitching; you can judge the work later.",
+        "Hi {{firstName|there}} — we've just finished a project for a company almost identical to {{company|yours}}. Happy to connect and share what came out of it."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 259200000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Concrete rather than vague: for a company your size we cut this from a six-week cycle to under two. Is that a number that would matter at {{company|your company}}?",
+              "The only useful thing I can tell you, {{firstName|there}}: last client, same size as {{company|you}}, went from six weeks to two. Relevant, or solving a different problem?"
+            ]
+          },
+          { "type": "wait", "waitMs": 518400000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to do a short teardown of your current setup and send it over. Free, no call required, yours to keep whatever you decide.",
+              "Offer, {{firstName|there}}: we'll review what you have now and write up what we'd change. No charge, no meeting needed. Want it?"
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll stop here, {{firstName|there}}. The offer doesn't expire — come back when there's budget or a deadline.",
+              "Leaving it, {{firstName|there}}. When this becomes urgent at {{company|your company}}, we'll still be here."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

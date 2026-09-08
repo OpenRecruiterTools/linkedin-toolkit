@@ -1,0 +1,57 @@
+{
+  "name": "Community invite",
+  "description": "Recruits people into a community, newsletter, or working group. Sells membership by naming who is already inside and what happens there, never by describing the community as \"a place to connect\".",
+  "audience": "Practitioners who would make the community better by being in it — not a broad list. Quality of the room is the product.",
+  "tags": ["community", "content", "network"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — I run a small group of {{title|people doing what you do}} and it would be better with you in it. Connecting to explain properly.",
+        "Hi {{firstName|there}} — putting together a group of practitioners in your field and your name came up twice. Happy to connect and tell you what it actually is."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. What it is: about eighty practitioners, one thread a week where somebody posts a real problem, and a call once a month. No vendors, no recruiters. Want an invite?",
+              "The honest description, {{firstName|there}}: eighty people, one genuinely hard question a week, monthly call, nobody selling anything. Shall I send you in?"
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to send last month's thread so you can judge the standard before joining anything.",
+              "Want to lurk first, {{firstName|there}}? I'll forward the last two discussions and you can decide from there."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave the door open, {{firstName|there}} — no expiry on the invite. Come find me whenever.",
+              "Standing invitation, {{firstName|there}}. That's the last you'll hear from me about it."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

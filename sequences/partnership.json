@@ -1,0 +1,57 @@
+{
+  "name": "Partnership outreach",
+  "description": "For proposing an integration, a co-marketing push, or a referral arrangement. Leads with the overlap in customers, not with what you want, and asks for the right person early rather than pitching the wrong one.",
+  "audience": "Partnerships, BD, and product leads at companies selling to the same buyer as you without competing for the same budget.",
+  "tags": ["partnership", "bd", "integration"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — we sell to the same buyer as {{company|your company}} without competing for the same budget. Worth being connected on that basis alone.",
+        "Hi {{firstName|there}} — our customers keep asking whether we work with {{company|you}}. Connecting so I can find out whether we should."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Concretely: our users end up in {{company|your product}} straight after they finish with us, and the handover is manual. That looks like an integration to me. Who owns that on your side?",
+              "Here's the overlap, {{firstName|there}}: same buyer, sequential workflow, no integration between us. Are you the right person for that conversation, or can you point me at them?"
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to bring a one-page version: the overlap, what we'd each build, and what it's worth. Half an hour whenever suits.",
+              "I can put the whole thing on one page before we speak, {{firstName|there}} — scope, effort, and the number. Want me to send it?"
+            ]
+          },
+          { "type": "wait", "waitMs": 864000000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll park this, {{firstName|there}}. If partnerships come back onto the roadmap at {{company|your company}}, we'd still be a good fit.",
+              "Closing the loop, {{firstName|there}}. Not a no, just not now — I'll come back in a couple of quarters."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

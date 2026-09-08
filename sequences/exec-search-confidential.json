@@ -1,0 +1,54 @@
+{
+  "name": "Executive search — confidential",
+  "description": "Low-volume, high-discretion. Never names the client, never mentions a role in the invite note, and asks for a private channel before any detail moves. Built for searches where a leak is the failure mode.",
+  "audience": "Senior operators — C-level, VP, founder-adjacent — on a confidential mandate. Small lists only, ten to thirty people.",
+  "tags": ["recruiting", "executive", "confidential", "slow"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 172800000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — I run leadership searches in your sector and would value being connected. Nothing to ask you for today.",
+        "Hi {{firstName|there}} — I work on a small number of senior mandates each year, and yours is a name that comes up. Happy to connect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 1209600000,
+        "then": [
+          { "type": "wait", "waitMs": 259200000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thank you, {{firstName|there}}. I'm running a confidential mandate I can't describe here. If it's of any interest, is there a private email or number I can use?",
+              "{{firstName|Hi}} — I have a search I'd rather not outline on this platform. Would you be open to a fifteen-minute call, entirely off the record?"
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "No pressure at all, {{firstName|there}}. If the timing is wrong I'll simply close the file. If it's the discretion you're weighing, I'm happy to give references first.",
+              "Understood if this isn't a moment for it, {{firstName|there}}. Say the word and I'll not raise it again — or give me a time and I'll call you."
+            ]
+          },
+          { "type": "wait", "waitMs": 864000000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave it there, {{firstName|there}}. If you know someone the description might fit better, an introduction is worth more to me than a yes.",
+              "Closing this off, {{firstName|there}}. If a name comes to mind who ought to hear about it, I'd be grateful for the pointer."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 1209600000 }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}
