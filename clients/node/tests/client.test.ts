@@ -322,10 +322,21 @@ describe('health and tools', () => {
     }
   });
 
-  it('hands back a copy, so a caller mutating a definition cannot poison the next call', () => {
+  it('hands back a deep copy, so a caller mutating a nested schema cannot poison the next call', () => {
     const instance = client();
-    instance.tools()[0].parameters.type = 'poisoned';
-    expect(instance.tools()[0].parameters.type).toBe('object');
+    const first = instance.tools();
+    const search = first.find((tool) => tool.name === 'linkedin_search_people')!;
+    search.parameters.type = 'poisoned';
+    (search.parameters.properties as Record<string, Record<string, unknown>>).keywords.type =
+      'poisoned';
+    (search.parameters.required as string[]).push('poisoned');
+
+    const second = instance.tools().find((tool) => tool.name === 'linkedin_search_people')!;
+    expect(second.parameters.type).toBe('object');
+    expect((second.parameters.properties as Record<string, Record<string, unknown>>).keywords.type).toBe(
+      'string',
+    );
+    expect(second.parameters.required).toEqual(['keywords']);
   });
 
   it('adds dry_run to write tools only', () => {

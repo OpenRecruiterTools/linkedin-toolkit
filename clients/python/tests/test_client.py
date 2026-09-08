@@ -232,3 +232,15 @@ def test_the_research_pack_timeout_reaches_httpx(client):
     assert client.call_tool("linkedin_research_pack", {"rows": []}) == {"jobId": "j_1"}
     assert route.called
     assert route.calls.last.request.extensions["timeout"]["read"] == 660.0
+
+
+def test_the_client_repr_masks_the_token():
+    from linkedin_toolkit import AsyncLinkedInToolkit
+
+    text = repr(LinkedInToolkit(base_url=BASE_URL, token="0123456789abcdef"))
+    assert "0123456789abcdef" not in text
+    assert text == "LinkedInToolkit(base_url='http://127.0.0.1:47830', token=****cdef, timeout=120.0)"
+
+    text = repr(AsyncLinkedInToolkit(base_url=BASE_URL, token="0123456789abcdef"))
+    assert text.startswith("AsyncLinkedInToolkit(")
+    assert "0123456789abcdef" not in text

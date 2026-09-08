@@ -127,8 +127,15 @@ agent = create_react_agent(model, get_tools(client))
 ```
 
 `read_only=True` drops every tool that writes to LinkedIn — the cheapest way to build a sourcing
-agent that structurally cannot send anything. It is the default for smolagents, where a `CodeAgent`
-generates loops.
+agent that structurally cannot send anything. It is worth passing for smolagents in particular,
+where a `CodeAgent` writes loops that call your tools.
+
+The argument schemas are built from the contract **recursively**: `steps` on `campaign.create` is
+an array of objects whose `type` is one of nine values and whose `branch` nests further, and that
+is what the model sees — not `list[dict]`. Enums stay enums, records stay records, and the
+signature-reading frameworks (AutoGen, ADK, LlamaIndex, Pydantic AI) get the same shape as the
+`args_schema` ones. smolagents is the exception: its input vocabulary is a fixed set of flat types,
+so the nesting is described in the field's prose instead.
 
 An integration whose framework is not installed raises an `ImportError` naming the extra, at import
 time, rather than failing somewhere deeper.

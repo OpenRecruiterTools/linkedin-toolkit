@@ -96,9 +96,13 @@ export class LinkedInToolkit extends GeneratedActions {
    * The 39 tool definitions the server advertises, with JSON Schema parameters.
    * Static data generated from `mcp-server/tools.json` — no network call, so it
    * works with the server stopped.
+   *
+   * Deep-copied: the definitions are module-level constants and the schemas
+   * nest several levels, so a shallow copy would let a caller who edited
+   * `parameters.properties.steps` change what every later caller sees.
    */
   tools(): ToolDefinition[] {
-    return TOOL_DEFINITIONS.map((tool) => ({ ...tool, parameters: { ...tool.parameters } }));
+    return structuredClone(TOOL_DEFINITIONS);
   }
 
   /** The contract version these tool definitions were generated from. */

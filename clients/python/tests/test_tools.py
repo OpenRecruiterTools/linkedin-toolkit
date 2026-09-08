@@ -38,6 +38,50 @@ def test_dry_run_is_on_write_tools_only():
     assert "dry_run" not in status["parameters"]["properties"]
 
 
+def test_dry_run_is_on_exactly_the_sixteen_write_tools():
+    """The Node client, this one and the n8n node all take this same set."""
+    writes = sorted(tool["name"] for tool in tools() if tool["write"])
+    offered = sorted(
+        tool["name"] for tool in tools() if "dry_run" in (tool["parameters"].get("properties") or {})
+    )
+    assert len(writes) == 16
+    assert offered == writes
+    assert offered == [
+        "linkedin_campaign_create",
+        "linkedin_campaign_enroll",
+        "linkedin_campaign_pause",
+        "linkedin_campaign_resume",
+        "linkedin_comment_post",
+        "linkedin_follow",
+        "linkedin_like_post",
+        "linkedin_list_add",
+        "linkedin_list_create",
+        "linkedin_queue_approve",
+        "linkedin_queue_reject",
+        "linkedin_research_pack",
+        "linkedin_send_inmail",
+        "linkedin_send_invite",
+        "linkedin_send_message",
+        "linkedin_view_profile",
+    ]
+
+
+def test_the_generated_methods_take_dry_run_on_exactly_those_actions():
+    """`config.set` and friends are writes in the contract's sense but send nothing to LinkedIn."""
+    import inspect
+
+    from linkedin_toolkit import ACTION_METHODS, LinkedInToolkit
+
+    write_actions = {tool["action"] for tool in tools() if tool["write"]}
+    for action, method in ACTION_METHODS.items():
+        parameters = inspect.signature(getattr(LinkedInToolkit, method)).parameters
+        assert ("dry_run" in parameters) is (action in write_actions), action
+
+    for action in ("config.set", "list.remove", "list.delete", "list.importCsv", "campaign.delete"):
+        method = getattr(LinkedInToolkit, ACTION_METHODS[action])
+        assert "dry_run" not in inspect.signature(method).parameters, action
+
+
 def test_an_unknown_tool_raises():
     with pytest.raises(KeyError):
         tool_by_name("linkedin_not_a_tool")

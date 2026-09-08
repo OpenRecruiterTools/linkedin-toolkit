@@ -153,7 +153,7 @@ export const ACTIONS: ActionSpec[] = [
     "operation": "set",
     "displayName": "Set",
     "description": "Run the `config.set` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
-    "write": true,
+    "write": false,
     "required": [],
     "optional": [
       {
@@ -326,15 +326,6 @@ export const ACTIONS: ActionSpec[] = [
         "description": "The Webhook URL parameter.",
         "type": "string",
         "default": ""
-      },
-      {
-        "name": "config_set_dry_run",
-        "key": "dry_run",
-        "displayName": "Dry Run",
-        "type": "boolean",
-        "required": false,
-        "default": false,
-        "description": "Preview the write without queueing or sending it."
       }
     ]
   },

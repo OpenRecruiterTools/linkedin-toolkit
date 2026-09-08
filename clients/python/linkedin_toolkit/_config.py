@@ -22,9 +22,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-__all__ = ["DEFAULT_BASE_URL", "ResolvedConfig", "resolve_config", "toolkit_home"]
+__all__ = ["DEFAULT_BASE_URL", "ResolvedConfig", "mask_token", "resolve_config", "toolkit_home"]
 
 DEFAULT_BASE_URL = "http://127.0.0.1:47830"
+
+
+def mask_token(token: Optional[str]) -> str:
+    """``****a1b2``. The pairing token drives the whole toolkit, and a repr ends
+    up in tracebacks, notebooks and bug reports — the last four characters are
+    enough to tell two tokens apart and not enough to use one."""
+    if not token:
+        return "None"
+    return f"****{token[-4:]}" if len(token) > 4 else "****"
 
 
 @dataclass(frozen=True)
@@ -34,6 +43,12 @@ class ResolvedConfig:
     #: Which of the five sources supplied the URL, for diagnostics.
     base_url_source: str
     token_source: str
+
+    def __repr__(self) -> str:
+        return (
+            f"ResolvedConfig(base_url={self.base_url!r}, token={mask_token(self.token)}, "
+            f"base_url_source={self.base_url_source!r}, token_source={self.token_source!r})"
+        )
 
 
 def toolkit_home(env: Optional[Mapping[str, str]] = None) -> Path:

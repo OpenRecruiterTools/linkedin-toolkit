@@ -194,7 +194,13 @@ export function buildActions(): { actions: ActionSpec[]; resources: string[] } {
     const required = new Set<string>(schema.required ?? []);
     const key = actionKey(action);
     const tool = toolByAction.get(action);
-    const write = Boolean(tool?.write) || action === 'config.set';
+    // `dry_run` follows the server's **write tools**, not the contract's wider
+    // `WRITE_ACTIONS`. `config.set`, `list.remove`, `list.delete`,
+    // `list.importCsv` and `campaign.delete` are all writes in the contract's
+    // sense but none of them sends anything to LinkedIn, so previewing one is
+    // meaningless. The 16 tools the server marks `write` are the honest set,
+    // and it is the same set both client packages use.
+    const write = Boolean(tool?.write);
 
     const fields = Object.entries(properties).map(([name, spec]) =>
       field(name, spec, document, required.has(name), key),

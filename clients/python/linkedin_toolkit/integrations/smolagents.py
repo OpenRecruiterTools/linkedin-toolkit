@@ -7,11 +7,12 @@
     agent = CodeAgent(tools=get_tools(LinkedInToolkit(), read_only=True),
                       model=InferenceClientModel())
 
-``read_only=True`` is the default here, and deliberately so: ``CodeAgent``
+``read_only`` defaults to ``False`` here as it does everywhere else — one
+signature across seven wrappers is worth more than one clever default — but
+pass ``read_only=True`` unless you have watched this for a while. ``CodeAgent``
 writes Python that calls your tools in a loop, and generated code calling
 ``linkedin_send_invite`` is the one shape where you would rather not be relying
-on the approval queue to save you. Pass ``read_only=False`` when you have
-watched it for a while.
+on the approval queue to save you.
 
 ``pip install "linkedin-toolkit[smolagents]"``
 """
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from ._common import missing_dependency, python_annotation, run_tool
+from ._common import missing_dependency, run_tool, smolagents_inputs
 
 try:  # pragma: no cover - exercised by test_integrations
     from smolagents import Tool
@@ -29,42 +30,11 @@ except ImportError as cause:  # pragma: no cover
 
 __all__ = ["get_tools", "make_tool"]
 
-#: smolagents accepts a fixed vocabulary of input types.
-_INPUT_TYPES = {
-    str: "string",
-    int: "integer",
-    float: "number",
-    bool: "boolean",
-    list: "array",
-    dict: "object",
-}
-
-
-def _inputs(tool: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    schema: dict[str, Any] = tool.get("parameters") or {}
-    properties: dict[str, Any] = schema.get("properties") or {}
-    required = set(schema.get("required") or [])
-
-    inputs: dict[str, dict[str, Any]] = {}
-    for name, spec in properties.items():
-        annotation = python_annotation(spec)
-        origin = getattr(annotation, "__origin__", annotation)
-        description = spec.get("description") or name
-        if "enum" in spec:
-            description = f"{description} — one of {', '.join(map(str, spec['enum']))}"
-        inputs[name] = {
-            "type": _INPUT_TYPES.get(origin, "any"),
-            "description": description,
-            "nullable": name not in required,
-        }
-    return inputs
-
-
 def make_tool(client: Any, tool: dict[str, Any]) -> "Tool":
     class _LinkedInToolkitTool(Tool):
         name = tool["name"]
         description = tool["description"]
-        inputs = _inputs(tool)
+        inputs = smolagents_inputs(tool)
         output_type = "string"
 
         def forward(self, **kwargs: Any) -> str:
@@ -78,7 +48,7 @@ def get_tools(
     client: Any,
     include: Optional[list[str]] = None,
     exclude: Optional[list[str]] = None,
-    read_only: bool = True,
+    read_only: bool = False,
 ) -> list["Tool"]:
     return [
         make_tool(client, tool)

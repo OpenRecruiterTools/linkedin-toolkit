@@ -7,9 +7,10 @@ import { toolByName, toolInputSchema } from '../contract.js';
 import type { ToolDefinition } from '../types.js';
 
 /**
- * Narrow the tool set handed to a model. `include` wins over `exclude`.
- * `readOnly: true` drops every tool that writes to LinkedIn, which is the
- * cheapest way to build a sourcing agent that structurally cannot send anything.
+ * Narrow the tool set handed to a model. The three are applied in order and
+ * compose: `include` selects, then `exclude` removes from that selection, then
+ * `readOnly` drops every tool that writes to LinkedIn — which is the cheapest
+ * way to build a sourcing agent that structurally cannot send anything.
  */
 export type ToolFilter = {
   include?: string[];

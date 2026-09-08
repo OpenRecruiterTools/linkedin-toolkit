@@ -26,7 +26,7 @@ export abstract class GeneratedActions {
   }
 
   /** `config.set` — Call the `config.set` action. */
-  configSet(params: ParamsOf<'config.set'> & { dry_run?: boolean } = {} as ParamsOf<'config.set'> & { dry_run?: boolean }): Promise<ResultOf<'config.set'>> {
+  configSet(params: ParamsOf<'config.set'> = {} as ParamsOf<'config.set'>): Promise<ResultOf<'config.set'>> {
     return this.call('config.set', params);
   }
 
@@ -166,7 +166,7 @@ export abstract class GeneratedActions {
   }
 
   /** `list.remove` — Call the `list.remove` action. */
-  listRemove(params: ParamsOf<'list.remove'> & { dry_run?: boolean }): Promise<ResultOf<'list.remove'>> {
+  listRemove(params: ParamsOf<'list.remove'>): Promise<ResultOf<'list.remove'>> {
     return this.call('list.remove', params);
   }
 
@@ -176,12 +176,12 @@ export abstract class GeneratedActions {
   }
 
   /** `list.delete` — Call the `list.delete` action. */
-  listDelete(params: ParamsOf<'list.delete'> & { dry_run?: boolean }): Promise<ResultOf<'list.delete'>> {
+  listDelete(params: ParamsOf<'list.delete'>): Promise<ResultOf<'list.delete'>> {
     return this.call('list.delete', params);
   }
 
   /** `list.importCsv` — Call the `list.importCsv` action. */
-  listImportCsv(params: ParamsOf<'list.importCsv'> & { dry_run?: boolean }): Promise<ResultOf<'list.importCsv'>> {
+  listImportCsv(params: ParamsOf<'list.importCsv'>): Promise<ResultOf<'list.importCsv'>> {
     return this.call('list.importCsv', params);
   }
 
@@ -216,7 +216,7 @@ export abstract class GeneratedActions {
   }
 
   /** `campaign.delete` — Call the `campaign.delete` action. */
-  campaignDelete(params: ParamsOf<'campaign.delete'> & { dry_run?: boolean }): Promise<ResultOf<'campaign.delete'>> {
+  campaignDelete(params: ParamsOf<'campaign.delete'>): Promise<ResultOf<'campaign.delete'>> {
     return this.call('campaign.delete', params);
   }
 

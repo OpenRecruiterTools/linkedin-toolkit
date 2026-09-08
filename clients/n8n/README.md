@@ -77,6 +77,12 @@ care about, or leave the list empty for all eleven:
 A delivery whose event is filtered out is answered — so the server does not retry — but does not
 start the workflow.
 
+**The webhook is unauthenticated.** Like every n8n webhook it accepts any POST that reaches its
+URL, and the toolkit server sends no signature to check. On a laptop that is fine: the URL is
+localhost or a private n8n. If you expose it, anything that learns the URL can inject an event, so
+put your own gate in front of it — n8n's Header Auth on the node, or a reverse proxy — and treat
+the payload as untrusted input rather than as a fact about your LinkedIn account.
+
 ## What you cannot change from here
 
 - **Hard caps** live in the extension: 100 invites, 150 messages, 500 profile visits and 1,000

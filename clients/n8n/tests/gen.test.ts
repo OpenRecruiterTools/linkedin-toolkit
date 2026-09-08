@@ -40,28 +40,26 @@ describe('npm run gen', () => {
     );
   });
 
-  it('marks exactly the write actions as writes', () => {
-    const writes = ACTIONS.filter((action) => action.write).map((action) => action.action).sort();
-    expect(writes).toEqual(
-      [
-        'campaign.create',
-        'campaign.enroll',
-        'campaign.pause',
-        'campaign.resume',
-        'config.set',
-        'list.add',
-        'list.create',
-        'outreach.comment',
-        'outreach.follow',
-        'outreach.inmail',
-        'outreach.invite',
-        'outreach.like',
-        'outreach.message',
-        'outreach.view',
-        'queue.approve',
-        'queue.reject',
-        'research.pack',
-      ].sort(),
+  it('offers dry_run on exactly the sixteen tools the server marks as writes', () => {
+    const tools = JSON.parse(read(join(repoRoot, 'mcp-server', 'tools.json'))) as {
+      tools: Array<{ action: string | null; write: boolean }>;
+    };
+    const serverWrites = tools.tools
+      .filter((tool) => tool.write && tool.action)
+      .map((tool) => tool.action as string)
+      .sort();
+
+    expect(serverWrites).toHaveLength(16);
+    expect(ACTIONS.filter((action) => action.write).map((action) => action.action).sort()).toEqual(
+      serverWrites,
+    );
+
+    // config.set is a write in the contract's sense but sends nothing to
+    // LinkedIn, so previewing it is meaningless — and offering the field would
+    // put the node out of step with both client packages.
+    const configSet = ACTIONS.find((action) => action.action === 'config.set')!;
+    expect([...configSet.required, ...configSet.optional].map((field) => field.key)).not.toContain(
+      'dry_run',
     );
   });
 

@@ -13,7 +13,7 @@ from typing import Any, Mapping, Optional
 import httpx
 
 from ._actions import ACTION_METHODS, ActionMethods
-from ._config import ResolvedConfig, normalise_base_url, resolve_config
+from ._config import ResolvedConfig, mask_token, normalise_base_url, resolve_config
 from .errors import LinkedInToolkitError
 from .tools import tools as _tools
 from .tools import tools_version as _tools_version
@@ -78,6 +78,12 @@ class _Common:
         self.base_url = self.config.base_url
         self.token = self.config.token
         self.timeout = timeout
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}(base_url={self.base_url!r}, token={mask_token(self.token)}, "
+            f"timeout={self.timeout!r})"
+        )
 
     def _timeout_for(self, tool_name: str) -> float:
         if tool_name == RESEARCH_PACK_TOOL:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from linkedin_toolkit import DEFAULT_BASE_URL, resolve_config, toolkit_home
+from linkedin_toolkit._config import mask_token
 
 
 def write(path, payload):
@@ -85,3 +86,25 @@ def test_a_nonsense_port_is_ignored(tmp_path):
 def test_home_follows_the_environment(tmp_path):
     assert toolkit_home({"LINKEDIN_TOOLKIT_HOME": str(tmp_path)}) == tmp_path
     assert toolkit_home({}).name == ".linkedin-toolkit"
+
+
+def test_the_repr_masks_the_token(tmp_path):
+    """A repr ends up in tracebacks, notebooks and bug reports."""
+    resolved = resolve_config(
+        base_url="http://127.0.0.1:47830",
+        token="0123456789abcdef",
+        env={"LINKEDIN_TOOLKIT_HOME": str(tmp_path)},
+    )
+    text = repr(resolved)
+    assert "0123456789abcdef" not in text
+    assert "****cdef" in text
+    assert "http://127.0.0.1:47830" in text
+    # The value itself is still there for anyone who actually needs it.
+    assert resolved.token == "0123456789abcdef"
+
+
+def test_masking_a_short_or_missing_token_reveals_nothing():
+    assert mask_token(None) == "None"
+    assert mask_token("") == "None"
+    assert mask_token("abcd") == "****"
+    assert mask_token("abcde") == "****bcde"

@@ -107,8 +107,22 @@ async function generateMethods(): Promise<string> {
   const contract = await import(`file://${CONTRACT_SOURCE.replace(/\\/g, '/')}`);
   const actions: string[] = contract.ACTIONS;
   const params: Record<string, z.ZodTypeAny> = contract.PARAMS;
-  const writeActions: ReadonlySet<string> = contract.WRITE_ACTIONS;
-  const tools: Array<{ name: string; action: string | null; description: string }> = contract.TOOLS;
+  const tools: Array<{ name: string; action: string | null; description: string; write: boolean }> =
+    contract.TOOLS;
+
+  /**
+   * `dry_run` follows the **write tools**, not `WRITE_ACTIONS`.
+   *
+   * The two sets differ: `WRITE_ACTIONS` also holds `config.set`, `list.remove`,
+   * `list.delete`, `list.importCsv` and `campaign.delete`, none of which has a
+   * tool and none of which sends anything to LinkedIn. `dry_run` is a preview
+   * of an outbound write, so the 16 tools the server marks `write` are the
+   * honest set — and it is the set the Python client and the n8n node use, so
+   * all three agree.
+   */
+  const dryRunActions = new Set(
+    tools.filter((tool) => tool.write && tool.action).map((tool) => tool.action as string),
+  );
 
   const descriptionFor = (action: string): string => {
     const tool = tools.find((t) => t.action === action);
@@ -130,8 +144,10 @@ async function generateMethods(): Promise<string> {
 
   for (const action of actions) {
     const optional = isFullyOptional(params[action]);
-    const write = writeActions.has(action);
-    const paramsType = write ? `ParamsOf<'${action}'> & { dry_run?: boolean }` : `ParamsOf<'${action}'>`;
+    const dryRun = dryRunActions.has(action);
+    const paramsType = dryRun
+      ? `ParamsOf<'${action}'> & { dry_run?: boolean }`
+      : `ParamsOf<'${action}'>`;
     const signature = optional
       ? `params: ${paramsType} = {} as ${paramsType}`
       : `params: ${paramsType}`;
