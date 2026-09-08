@@ -28,6 +28,7 @@ import './campaigns.js';
 
 import { readCampaigns, migrateSteps } from './campaigns.js';
 import { pendingCount } from './queue.js';
+import { ensureConnected, onAlarm, startKeepalive } from './bridge.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
@@ -35,6 +36,8 @@ import { pendingCount } from './queue.js';
 /* ================================================================== */
 
 const { isWithinBusinessHours } = quota;
+
+export const CAMPAIGN_TICK_ALARM = 'campaignTick';
 
 /* ================================================================== */
 /*  Profile shaping                                                   */
@@ -460,24 +463,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 /*  Alarms, startup and bridge reconnect                              */
 /* ================================================================== */
 
-/** Set by bridge.js once it lands; called on every wake-up. */
-let bridgeConnect = null;
-
-export function setBridgeConnector(fn) {
-  bridgeConnect = typeof fn === 'function' ? fn : null;
-}
-
 function reconnectBridge() {
-  if (!bridgeConnect) return;
   Promise.resolve()
-    .then(() => bridgeConnect())
+    .then(() => ensureConnected())
     .catch((e) => console.warn('[Bridge] reconnect failed:', e.message));
 }
 
-chrome.alarms.create('campaignTick', { periodInMinutes: 5 });
+chrome.alarms.create(CAMPAIGN_TICK_ALARM, { periodInMinutes: 5 });
+startKeepalive();
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== 'campaignTick') return;
+  onAlarm(alarm).catch(() => {});
+  if (alarm.name !== CAMPAIGN_TICK_ALARM) return;
   reconnectBridge();
   handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')
     .then((res) => {
