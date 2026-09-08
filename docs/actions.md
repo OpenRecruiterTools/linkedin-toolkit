@@ -95,6 +95,10 @@ type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageC
 
 Hard ceilings are clamped in `config.set` regardless of the value requested.
 
+`hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
+
+`export.csv` reads its rows from the engine's own stores (`kind: 'profiles'` from the profile store, `'list'` from list members, `'campaign'` from enrollments and the action log, `'inbox'` from stored threads); `kind: 'profiles'` also accepts an optional `profiles: Profile[]` override, which the popup uses to download an ad-hoc result set it already holds.
+
 ### Envelope and errors
 
 Request `{ id: string, action: string, params: object }`.

@@ -11,8 +11,11 @@
  * actions. It is removed once the v2 popup ships.
  */
 
-import { ACTIONS, ERROR, EngineError, clampConfig } from '../lib/actions.js';
-import { handle, register } from './engine.js';
+import { ACTIONS, ERROR, EngineError } from '../lib/actions.js';
+import { handle, register, setRateLimitProvider } from './engine.js';
+import * as quota from './quota.js';
+import { getConfig, setConfig } from '../lib/config.js';
+import { logAction } from '../lib/storage.js';
 
 import {
   getProfile,
@@ -24,101 +27,13 @@ import {
 } from './voyager.js';
 
 /* ================================================================== */
-/*  Config                                                            */
+/*  Quotas and pacing live in quota.js; the engine reports them back    */
+/*  on every outreach envelope.                                        */
 /* ================================================================== */
 
-async function getConfig() {
-  const data = await chrome.storage.local.get('config');
-  return clampConfig(data.config || {});
-}
+setRateLimitProvider(quota.snapshot);
 
-async function setConfig(partial) {
-  const current = await getConfig();
-  const updated = clampConfig({ ...current, ...(partial || {}) });
-  await chrome.storage.local.set({ config: updated });
-  return updated;
-}
-
-/* ================================================================== */
-/*  Usage tracking                                                    */
-/* ================================================================== */
-
-/** Contract quota buckets. */
-const QUOTA_KINDS = ['invite', 'message', 'visit', 'search'];
-
-const DAILY_CAP_KEY = {
-  invite: 'dailyInviteCap',
-  message: 'dailyMessageCap',
-  visit: 'dailyVisitCap',
-  search: 'dailySearchCap',
-};
-
-function usageKeys(kind) {
-  const now = new Date();
-  const day = `${now.getFullYear()}_${now.getMonth()}_${now.getDate()}`;
-  return {
-    hourKey: `usage_${kind}_${day}_${now.getHours()}`,
-    dayKey: `usage_${kind}_day_${day}`,
-  };
-}
-
-async function getUsageCounts(kind) {
-  const { hourKey, dayKey } = usageKeys(kind);
-  const data = await chrome.storage.local.get([hourKey, dayKey]);
-  return { hourly: data[hourKey] || 0, daily: data[dayKey] || 0 };
-}
-
-async function incrementUsage(kind) {
-  const { hourKey, dayKey } = usageKeys(kind);
-  const data = await chrome.storage.local.get([hourKey, dayKey]);
-  await chrome.storage.local.set({
-    [hourKey]: (data[hourKey] || 0) + 1,
-    [dayKey]: (data[dayKey] || 0) + 1,
-  });
-}
-
-/** RateLimit for one quota bucket. */
-async function rateLimitFor(kind) {
-  const config = await getConfig();
-  const usage = await getUsageCounts(kind);
-  return {
-    hourlyUsed: usage.hourly,
-    hourlyCap: config.hourlyCap,
-    dailyUsed: usage.daily,
-    dailyCap: config[DAILY_CAP_KEY[kind]],
-    nextAllowedAt: 0,
-  };
-}
-
-/** Throws QUOTA_EXCEEDED when the hourly or daily ceiling is reached. */
-async function assertQuota(kind) {
-  const rl = await rateLimitFor(kind);
-  if (rl.hourlyUsed >= rl.hourlyCap) {
-    throw new EngineError(ERROR.QUOTA_EXCEEDED, `Hourly cap reached (${rl.hourlyCap}/hr)`);
-  }
-  if (rl.dailyUsed >= rl.dailyCap) {
-    throw new EngineError(ERROR.QUOTA_EXCEEDED, `Daily ${kind} cap reached (${rl.dailyCap}/day)`);
-  }
-  return rl;
-}
-
-/* ================================================================== */
-/*  Time window and pacing                                            */
-/* ================================================================== */
-
-function isWithinBusinessHours(config) {
-  const now = new Date();
-  const hour = now.getHours();
-  const day = now.getDay(); // 0=Sun, 6=Sat
-  if (config.weekdaysOnly && (day === 0 || day === 6)) return false;
-  return hour >= config.businessStart && hour < config.businessEnd;
-}
-
-async function humanDelay() {
-  const config = await getConfig();
-  const ms = config.minDelayMs + Math.random() * (config.maxDelayMs - config.minDelayMs);
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const { humanDelay, isWithinBusinessHours } = quota;
 
 /* ================================================================== */
 /*  Profile shaping                                                   */
@@ -543,8 +458,8 @@ function campaignStepParams(step, contact) {
 register(ACTIONS.STATUS_GET, async () => {
   const config = await getConfig();
   const campaigns = await getCampaigns();
-  const quotas = {};
-  for (const kind of QUOTA_KINDS) quotas[kind] = await rateLimitFor(kind);
+  const quotas = await quota.snapshotAll();
+  const paused = await quota.pauseState();
 
   let loggedIn = false;
   try {
@@ -560,6 +475,7 @@ register(ACTIONS.STATUS_GET, async () => {
     loggedIn,
     autopilot: config.autopilot,
     businessHours: isWithinBusinessHours(config),
+    ...paused,
     quotas,
     queue: { pending: 0 },
     campaigns: {
@@ -573,6 +489,7 @@ register(ACTIONS.CONFIG_GET, () => getConfig());
 register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
 
 register(ACTIONS.SEARCH_PEOPLE, async ({ keywords, start = 0, count = 25 }) => {
+  await quota.check('search', count);
   const profiles = [];
   const pageSize = Math.min(count, 49);
   let offset = start;
@@ -591,8 +508,9 @@ register(ACTIONS.SEARCH_PEOPLE, async ({ keywords, start = 0, count = 25 }) => {
     if (profiles.length < count) await humanDelay();
   }
 
-  await incrementUsage('search');
-  return { profiles: profiles.slice(0, count), nextStart: offset };
+  const page = profiles.slice(0, count);
+  await quota.record('search', page.length);
+  return { profiles: page, nextStart: offset };
 });
 
 register(ACTIONS.PROFILE_GET, async ({ url, publicId }) => {
@@ -623,46 +541,58 @@ register(ACTIONS.PROFILE_EXPORT, async ({ urls }) => {
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
 
-register(ACTIONS.OUTREACH_VIEW, async ({ publicId }) => {
-  await assertQuota('visit');
+register(ACTIONS.OUTREACH_VIEW, async ({ publicId }, ctx) => {
+  await quota.check('visit');
+  await humanDelay();
   await fetchProfile(publicId);
-  await incrementUsage('visit');
-  return { status: 'sent', sentAt: Date.now() };
+  await quota.record('visit');
+  const result = { status: 'sent', sentAt: Date.now() };
+  await logAction({ action: ACTIONS.OUTREACH_VIEW, publicId, origin: ctx.origin, result });
+  return result;
 });
 
-register(ACTIONS.OUTREACH_INVITE, async ({ publicId, note, profileUrn }) => {
-  await assertQuota('invite');
+register(ACTIONS.OUTREACH_INVITE, async ({ publicId, note, profileUrn }, ctx) => {
+  await quota.check('invite');
+  await humanDelay();
   try {
     await sendInvite({ publicIdentifier: publicId, profileUrn, note });
   } catch (e) {
     throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
   }
-  await incrementUsage('invite');
-  return { status: 'sent', sentAt: Date.now() };
+  await quota.record('invite');
+  const result = { status: 'sent', sentAt: Date.now() };
+  await logAction({ action: ACTIONS.OUTREACH_INVITE, publicId, origin: ctx.origin, result });
+  return result;
 });
 
-register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }) => {
-  await assertQuota('message');
+register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }, ctx) => {
+  await quota.check('message');
   const urn = recipientUrn || (await resolveRecipientUrn(publicId));
+  await humanDelay();
   try {
     await sendMessage({ recipientUrn: urn, body });
   } catch (e) {
     throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
   }
-  await incrementUsage('message');
-  return { status: 'sent', sentAt: Date.now() };
+  await quota.record('message');
+  const result = { status: 'sent', sentAt: Date.now() };
+  await logAction({ action: ACTIONS.OUTREACH_MESSAGE, publicId, origin: ctx.origin, result });
+  return result;
 });
 
-register(ACTIONS.OUTREACH_INMAIL, async ({ publicId, subject, body, recipientUrn }) => {
-  await assertQuota('message');
+register(ACTIONS.OUTREACH_INMAIL, async ({ publicId, subject, body, recipientUrn }, ctx) => {
+  await quota.check('message');
   const urn = recipientUrn || (await resolveRecipientUrn(publicId));
+  await humanDelay();
   try {
     await sendMessage({ recipientUrn: urn, body, subtype: 'INMAIL', inmailSubject: subject });
   } catch (e) {
     throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
   }
-  await incrementUsage('message');
-  return { status: 'sent', sentAt: Date.now() };
+  await quota.record('message');
+  const result = { status: 'sent', sentAt: Date.now() };
+  await logAction({ action: ACTIONS.OUTREACH_INMAIL, publicId, origin: ctx.origin, result });
+  return result;
 });
 
 register(ACTIONS.CAMPAIGN_CREATE, (params) => createCampaign(params));

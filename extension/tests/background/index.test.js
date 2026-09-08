@@ -123,10 +123,12 @@ describe('route — legacy messages', () => {
       invite: { hourly: 0, daily: 0 },
       message: { hourly: 0, daily: 0 },
     });
+    // The caps reported are the ones actually enforced: the lowest of the
+    // config, the account preset ('free' by default) and the hard cap.
     expect(await route({ type: 'GET_QUOTAS' })).toEqual({
       maxPerHour: 20,
-      maxInvitesPerDay: 25,
-      maxMessagesPerDay: 50,
+      maxInvitesPerDay: 20,
+      maxMessagesPerDay: 40,
     });
   });
 
