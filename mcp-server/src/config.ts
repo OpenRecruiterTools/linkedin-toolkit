@@ -6,7 +6,7 @@
  * HTTP surface.
  */
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -30,6 +30,46 @@ export function toolkitHome(): string {
 
 export function configPath(): string {
   return join(toolkitHome(), 'config.json');
+}
+
+/**
+ * Where a running `lit serve` records the ports it actually bound, so the rest
+ * of the CLI can find it even when the ports were overridden on the command
+ * line. Best effort: a stale file just means the next command reports that the
+ * server is not running.
+ */
+export function runtimePath(): string {
+  return join(toolkitHome(), 'server.json');
+}
+
+export type RuntimeInfo = {
+  httpPort: number;
+  bridgePort: number;
+  pid: number;
+  startedAt: number;
+};
+
+export function writeRuntime(info: RuntimeInfo): void {
+  mkdirSync(toolkitHome(), { recursive: true });
+  writeFileSync(runtimePath(), `${JSON.stringify(info, null, 2)}\n`, 'utf8');
+}
+
+export function readRuntime(): RuntimeInfo | null {
+  try {
+    const raw = JSON.parse(readFileSync(runtimePath(), 'utf8'));
+    if (!Number.isInteger(raw?.httpPort)) return null;
+    return raw as RuntimeInfo;
+  } catch {
+    return null;
+  }
+}
+
+export function clearRuntime(): void {
+  try {
+    rmSync(runtimePath(), { force: true });
+  } catch {
+    /* nothing to clear */
+  }
 }
 
 export function generateToken(): string {

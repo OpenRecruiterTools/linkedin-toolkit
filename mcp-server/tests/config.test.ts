@@ -6,7 +6,11 @@ import {
   loadConfig,
   saveConfig,
   configPath,
+  clearRuntime,
   pairingInstructions,
+  readRuntime,
+  runtimePath,
+  writeRuntime,
   withOverrides,
   DEFAULT_BRIDGE_PORT,
   DEFAULT_HTTP_PORT,
@@ -66,6 +70,21 @@ describe('loadConfig', () => {
     const again = loadConfig();
     expect(again.createdToken).toBe(true);
     expect(again.config.token).toMatch(/^[0-9a-f]{32}$/);
+  });
+});
+
+describe('runtime file', () => {
+  it('records and clears the ports a running server bound', () => {
+    expect(readRuntime()).toBeNull();
+    writeRuntime({ httpPort: 9001, bridgePort: 9002, pid: 123, startedAt: 5 });
+    expect(readRuntime()).toEqual({ httpPort: 9001, bridgePort: 9002, pid: 123, startedAt: 5 });
+    clearRuntime();
+    expect(readRuntime()).toBeNull();
+  });
+
+  it('treats a corrupt runtime file as no server', () => {
+    writeFileSync(runtimePath(), 'nonsense', 'utf8');
+    expect(readRuntime()).toBeNull();
   });
 });
 

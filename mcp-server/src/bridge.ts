@@ -72,14 +72,16 @@ export type BridgeOptions = {
   defaultTimeoutMs?: number;
 };
 
-export interface BridgeServer {
-  on(event: 'event', fn: (name: EventName, payload: unknown) => void): this;
-  on(event: 'connected', fn: (info: { extensionVersion: string }) => void): this;
-  on(event: 'disconnected', fn: () => void): this;
-  on(event: string, fn: (...args: any[]) => void): this;
-}
-
 export class BridgeServer extends EventEmitter {
+  /** Typed listeners for the three events this server emits. */
+  override on(event: 'event', fn: (name: EventName, payload: unknown) => void): this;
+  override on(event: 'connected', fn: (info: { extensionVersion: string }) => void): this;
+  override on(event: 'disconnected', fn: () => void): this;
+  override on(event: string | symbol, fn: (...args: any[]) => void): this;
+  override on(event: string | symbol, fn: (...args: any[]) => void): this {
+    return super.on(event, fn);
+  }
+
   readonly token: string;
   private readonly host: string;
   private readonly pingIntervalMs: number;
