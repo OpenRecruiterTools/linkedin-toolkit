@@ -85,11 +85,35 @@ const text = textOf;
 /*  Profile                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Split a rendered display name into the two fields the contract wants.
+ *
+ * Search results, followers and post engagers give us one rendered string and
+ * no name parts, but `{{firstName}}` is in every campaign template, so the
+ * split has to happen somewhere. The first token is the given name; what
+ * follows is the family name — unless it is a bare initial (`"Govind J."`),
+ * which is LinkedIn abbreviating a surname it will not show us. Claiming
+ * `"J."` as a surname would put it in a greeting, so that case is left empty.
+ */
+export function splitFullName(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: '', lastName: '' };
+  const rest = parts.slice(1).join(' ');
+  return {
+    firstName: parts[0],
+    lastName: /^\p{L}\.$/u.test(rest) ? '' : rest,
+  };
+}
+
 /** Shape any partially-known person into the contract `Profile`. */
 export function toProfile(fields = {}, source = 'profile') {
   const publicId = fields.publicId || fields.publicIdentifier || publicIdFromUrl(fields.url);
-  const firstName = fields.firstName || '';
-  const lastName = fields.lastName || '';
+  const derived =
+    !fields.firstName && !fields.lastName && fields.fullName
+      ? splitFullName(fields.fullName)
+      : {};
+  const firstName = fields.firstName || derived.firstName || '';
+  const lastName = fields.lastName || derived.lastName || '';
   const profile = {
     publicId,
     urn: fields.urn || fields.entityUrn || fields.objectUrn || '',
@@ -289,12 +313,35 @@ function companyUrnOf(entity) {
   return target ? `urn:li:fsd_company:${target[1]}` : '';
 }
 
+/**
+ * The free text under an entry — the paragraph a role or a course carries.
+ * It hangs off `subComponents` in a tree whose exact shape LinkedIn changes,
+ * so every `textComponent` found in there is collected and nothing else is
+ * assumed.
+ */
+function subComponentText(node, depth = 0, out = []) {
+  if (!node || typeof node !== 'object' || depth > 5) return out;
+  if (Array.isArray(node)) {
+    for (const item of node) subComponentText(item, depth + 1, out);
+    return out;
+  }
+  if (node.textComponent) {
+    const value = text(node.textComponent.text) || text(node.textComponent);
+    if (value) out.push(value);
+    return out;
+  }
+  for (const value of Object.values(node)) subComponentText(value, depth + 1, out);
+  return out;
+}
+
 function entityComponentToEntry(entity) {
   return {
     title: text(entity.titleV2) || text(entity.title),
     subtitle: text(entity.subtitle) || text(entity.subtitleV2),
     caption: text(entity.caption),
+    // The line under the dates: a location for a role, a grade for a course.
     metadata: text(entity.metadata),
+    description: subComponentText(entity.subComponents).join('\n'),
     companyUrn: companyUrnOf(entity),
   };
 }
@@ -349,7 +396,10 @@ export function sectionToExperience(entries) {
         company: e.subtitle || '',
         start,
         end,
-        description: '',
+        // The contract has no place for a role's location, and the metadata
+        // line is where LinkedIn puts it, so it goes in with the description
+        // rather than being dropped.
+        description: [e.description, e.metadata].filter(Boolean).join('\n'),
       };
       if (e.companyUrn) position.companyUrn = e.companyUrn;
       return position;
@@ -416,12 +466,12 @@ function entityResultToProfile(entity, source) {
       company: atIndex > 0 ? headline.slice(atIndex + 4) : '',
       location: text(entity.secondarySubtitle),
       urn: fsdProfileUrnIn(entity.entityUrn) || entity.trackingUrn || '',
-      // A list read may *confirm* a connection but must never demote one. The
-      // engine's acceptance check reads the stored degree, and a search page
-      // that still says "2nd" for somebody who accepted an hour ago would
-      // undo a confirmed acceptance and make a campaign branch flap. So only
-      // the one claim that can be acted on is carried through.
-      connectionDegree: degreeOf(tracking.memberDistance) === 1 ? 1 : undefined,
+      // `memberDistance` is a plain string here (`"DISTANCE_2"`), not the
+      // `{ value }` wrapper the older shapes used; `degreeOf` reads both.
+      // A stale degree from a list read must never *demote* a connection we
+      // have confirmed — that guard lives in `extract.js`, where the result
+      // meets what is already stored.
+      connectionDegree: degreeOf(tracking.memberDistance),
     },
     source,
   );
@@ -801,14 +851,34 @@ function sizeLabel(range, staffCount) {
   return staffCount ? String(staffCount) : '';
 }
 
+/** The industry name, from whichever of the three shapes carries it. */
+function companyIndustry(c, idx) {
+  const list = c['*companyIndustries'] || c.companyIndustries;
+  if (Array.isArray(list)) {
+    for (const entry of list) {
+      const industry = resolve(entry, idx);
+      if (industry && (industry.localizedName || industry.name)) {
+        return industry.localizedName || industry.name;
+      }
+    }
+  }
+  const single = field(c, 'industry', idx);
+  if (single && (single.localizedName || single.name)) return single.localizedName || single.name;
+  return typeof c.industry === 'string' ? c.industry : '';
+}
+
 /**
- * `organizationDashCompaniesByUniversalName` → contract `Company`, or `null`
- * when the response carries no company at all.
+ * A company response → contract `Company`, or `null` when it carries no
+ * company at all.
  *
- * The universal name is echoed from the request: the GraphQL query the web app
- * uses returns a thin `Company` for some organisations — sometimes little more
- * than the `entityUrn` — and the urn alone is still worth having, because it
- * is what a `currentCompany` employee search needs.
+ * Reads both surfaces. `organization/companies` with the
+ * `WebFullCompanyMain-12` decoration is the one that answers with an actual
+ * company — name, description, industries, headcount, follower count,
+ * headquarters — and is what `company.get` asks for. The GraphQL query is the
+ * fallback, and for some organisations it returns nothing but the
+ * `entityUrn`; the universal name is therefore echoed from the request, and
+ * the urn on its own is still worth having, because it is what a
+ * `currentCompany` employee search needs.
  */
 export function normalizeCompany(raw, universalName = '') {
   const idx = index(raw);
@@ -820,34 +890,33 @@ export function normalizeCompany(raw, universalName = '') {
   if (!c) return null;
 
   const name = c.universalName || universalName || '';
-  const industry = field(c, 'industry', idx);
+  const following = field(c, 'followingInfo', idx) || c.followingState || {};
   return {
     universalName: name,
     urn: c.entityUrn || c.objectUrn || '',
     name: c.name || '',
     url: name ? `https://www.linkedin.com/company/${name}/` : '',
-    industry:
-      (c.companyIndustries && c.companyIndustries[0] && c.companyIndustries[0].localizedName) ||
-      (industry && industry.name) ||
-      (typeof c.industry === 'string' ? c.industry : '') ||
-      '',
+    industry: companyIndustry(c, idx),
     size: sizeLabel(c.staffCountRange || c.employeeCountRange, c.staffCount || c.employeeCount),
     hq: c.headquarter
       ? [c.headquarter.city, c.headquarter.geographicArea, c.headquarter.country]
           .filter(Boolean)
           .join(', ')
       : '',
-    website: c.websiteUrl || c.companyPageUrl || c.website || '',
+    website: c.companyPageUrl || c.websiteUrl || c.website || '',
     description: c.description || c.tagline || '',
-    followerCount:
-      (c.followingState && c.followingState.followerCount) || c.followerCount || undefined,
+    followerCount: following.followerCount || c.followerCount || undefined,
     capturedAt: Date.now(),
   };
 }
 
-/** The numeric company id off a company urn: `urn:li:fsd_company:1035` → 1035. */
+/**
+ * The numeric company id off a company urn. The two surfaces spell it
+ * differently — `urn:li:fsd_company:1035` and
+ * `urn:li:fs_normalized_company:1035` — and both mean 1035.
+ */
 export function companyIdFromUrn(urn) {
-  const match = String(urn || '').match(/urn:li:fsd?_company:(\d+)/);
+  const match = String(urn || '').match(/urn:li:fs[a-z_]*company:(\d+)/i);
   return match ? match[1] : '';
 }
 

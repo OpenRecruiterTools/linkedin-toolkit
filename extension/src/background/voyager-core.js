@@ -163,21 +163,25 @@ export function qs(params) {
  * Encode one value the way Rest.li 2.0 wants it inside a `variables=(…)`
  * string.
  *
- * The structural characters `(`, `)`, `,` and `:` are the syntax, so they stay
- * literal — which is what lets a urn (`urn:li:fsd_profile:ACoAA…`) be written
- * inline. Everything else is percent-encoded, so a space becomes `%20` and a
- * `&` in a keyword cannot end the query string early.
+ * `(`, `)`, `,` and `:` are the *syntax* — this function writes them — so
+ * inside a value they are percent-encoded like everything else. A urn
+ * therefore goes on the wire as `urn%3Ali%3Aactivity%3A7501…`, which is what
+ * LinkedIn's own client sends; leaving the colons literal is accepted by some
+ * endpoints and answered with a 400 by others (`voyagerSocialDashReactions`
+ * and the whole messaging surface), so there is one rule and no exceptions.
  *
+ * `encodeURIComponent` leaves `!'()*` alone, so those are finished by hand.
  * `URLSearchParams` cannot be used for any of this: it would escape the
- * parentheses and LinkedIn would reject the request.
+ * parentheses this function writes, and LinkedIn would reject the request.
  */
 export function encodeValue(value) {
   if (value === null || value === undefined) return '';
   if (Array.isArray(value)) return `List(${value.map(encodeValue).join(',')})`;
   if (typeof value === 'object') return encodeVariables(value);
-  return encodeURIComponent(String(value))
-    .replace(/%3A/gi, ':')
-    .replace(/%2C/gi, ',');
+  return encodeURIComponent(String(value)).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 /**
@@ -199,12 +203,17 @@ export function encodeVariables(variables) {
 /**
  * A Voyager GraphQL call.
  *
+ * `includeWebMetadata` is off by default. The LinkedIn web app sends it on
+ * some queries and not others, and the ones that do not want it answer 400
+ * when it is there — so it is opt-in per endpoint, from a capture that
+ * actually carried it.
+ *
  * @param {string} queryId the persisted-query id, from `ENDPOINTS.queryIds`
  * @param {object} variables encoded with `encodeVariables`
  * @param {{includeWebMetadata?: boolean, path?: string}} [options]
  */
 export async function graphql(queryId, variables, options = {}) {
-  const { includeWebMetadata = true, path = '/graphql' } = options;
+  const { includeWebMetadata = false, path = '/graphql' } = options;
   const parts = [];
   if (includeWebMetadata) parts.push('includeWebMetadata=true');
   parts.push(`variables=${encodeVariables(variables)}`);

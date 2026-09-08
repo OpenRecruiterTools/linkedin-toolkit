@@ -68,6 +68,7 @@ export const ENDPOINTS = Object.freeze({
   graphql: '/graphql',
   messagingGraphql: '/voyagerMessagingGraphQL/graphql',
   profiles: '/identity/dash/profiles',
+  companies: '/organization/companies',
   connections: '/relationships/dash/connections',
   sentInvitations: '/relationships/sentInvitationViewsV2',
 
@@ -84,9 +85,11 @@ export const ENDPOINTS = Object.freeze({
     positions: 'voyagerIdentityDashProfilePositions.fb2d242249d743cf65109f72ed6ee9cf',
     profileComponents: 'voyagerIdentityDashProfileComponents.8903e7f7b15f1c12a050c55d48ca2835',
     sentInvitations: 'voyagerRelationshipsDashSentInvitationViews.6c862840bc95d23d4c97c3844cde9981',
-    conversations: 'messengerConversations.9501074288a12f3ae9e3c7ea243bccbf',
-    messages: 'messengerMessages.5846eeb71c981f11e0134cb6626cc314',
-    messagesBefore: 'messengerMessages.d8ea76885a52fd5dc5c317078ab7c977',
+    /** Every category, newest first — what `inbox.threads` asks for. */
+    conversations: 'messengerConversations.737b27144cf922499202658a5345016f',
+    /** One category with a `lastUpdatedBefore` cursor — used to page back. */
+    conversationsByCategory: 'messengerConversations.9501074288a12f3ae9e3c7ea243bccbf',
+    messages: 'messengerMessages.d8ea76885a52fd5dc5c317078ab7c977',
   }),
 
   /** Decoration ids for the surviving REST reads. Captured 2026-09-08. */
@@ -94,6 +97,7 @@ export const ENDPOINTS = Object.freeze({
     fullProfile: 'com.linkedin.voyager.dash.deco.identity.profile.FullProfile-76',
     topCard: 'com.linkedin.voyager.dash.deco.identity.profile.WebTopCardCore-19',
     connectionList: 'com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile-16',
+    company: 'com.linkedin.voyager.deco.organization.web.WebFullCompanyMain-12',
   }),
 
   /**
@@ -494,9 +498,38 @@ export async function recruiterSearch({ keywords, title, company, location, star
 /*  Company                                                           */
 /* ================================================================== */
 
+/**
+ * A company by universal name.
+ *
+ * The REST read is the one that answers with a company rather than a stub:
+ * the GraphQL query LinkedIn's own company page uses returns a thin
+ * decoration — for `microsoft` on the capture date, an `entityUrn` and
+ * nothing else — while `WebFullCompanyMain-12` returns the name, description,
+ * industries, headcount, follower count and headquarters.
+ *
+ * The GraphQL query is kept as the fallback, because a urn on its own is
+ * still enough to search the company's employees.
+ */
 export async function getCompany(universalName) {
-  const raw = await graphql(ENDPOINTS.queryIds.company, { universalName });
-  const company = normalizeCompany(raw, universalName);
+  let company = null;
+  try {
+    const raw = await voyagerFetch(
+      `${ENDPOINTS.companies}?${qs({
+        decorationId: ENDPOINTS.decorations.company,
+        q: 'universalName',
+        universalName,
+      })}`,
+    );
+    company = normalizeCompany(raw, universalName);
+  } catch (e) {
+    if (e instanceof EngineError && ACT_ON_THESE.has(e.code)) throw e;
+  }
+
+  if (!company || !company.urn) {
+    const raw = await graphql(ENDPOINTS.queryIds.company, { universalName });
+    company = normalizeCompany(raw, universalName);
+  }
+
   if (!company || !company.urn) {
     throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
   }
@@ -505,9 +538,7 @@ export async function getCompany(universalName) {
 
 /** The numeric id an employee search needs, from a universal name. */
 export async function getCompanyId(universalName) {
-  const raw = await graphql(ENDPOINTS.queryIds.company, { universalName });
-  const company = normalizeCompany(raw, universalName);
-  const id = companyIdFromUrn(company && company.urn);
+  const id = companyIdFromUrn((await getCompany(universalName)).urn);
   if (!id) throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
   return id;
 }
@@ -669,32 +700,47 @@ export async function getFollowers({ start = 0, count = 25 } = {}) {
 /*  Messaging                                                         */
 /* ================================================================== */
 
+/**
+ * The conversation list.
+ *
+ * The messaging surface is fussy in a way the rest of Voyager is not: it
+ * rejects `includeWebMetadata`, and each query wants its variables by exactly
+ * the right names in exactly the right order. Both shapes below are copied
+ * from what the web client sends, and there are two because they answer
+ * different questions — the first every category newest-first, the second one
+ * category with a cursor, which is how paging back through the inbox works.
+ */
 export async function getConversations({ count = 20, createdBefore } = {}) {
   const mailboxUrn = await selfProfileUrn();
-  const raw = await messagingGraphql(ENDPOINTS.queryIds.conversations, {
-    query: {
-      predicateUnions: [{ conversationCategoryPredicate: { category: 'INBOX' } }],
-    },
-    count,
-    mailboxUrn,
-    lastUpdatedBefore: createdBefore,
-  });
+
+  const raw = createdBefore
+    ? await messagingGraphql(ENDPOINTS.queryIds.conversationsByCategory, {
+        query: { predicateUnions: [{ conversationCategoryPredicate: { category: 'INBOX' } }] },
+        count,
+        mailboxUrn,
+        lastUpdatedBefore: createdBefore,
+      })
+    : await messagingGraphql(ENDPOINTS.queryIds.conversations, {
+        categories: ['INBOX', 'SPAM', 'ARCHIVE'],
+        count,
+        firstDegreeConnections: false,
+        mailboxUrn,
+        read: false,
+      });
+
   return { threads: normalizeConversations(raw, mailboxUrn) };
 }
 
 export async function getConversationMessages({ threadId, count = 20, createdBefore }) {
   const mailboxUrn = await selfProfileUrn();
   const id = threadIdFromUrn(threadId);
-  const urn = conversationUrn(mailboxUrn, id);
 
-  const raw = createdBefore
-    ? await messagingGraphql(ENDPOINTS.queryIds.messagesBefore, {
-        deliveredAt: createdBefore,
-        conversationUrn: urn,
-        countBefore: count,
-        countAfter: 0,
-      })
-    : await messagingGraphql(ENDPOINTS.queryIds.messages, { conversationUrn: urn });
+  const raw = await messagingGraphql(ENDPOINTS.queryIds.messages, {
+    deliveredAt: createdBefore || Date.now(),
+    conversationUrn: conversationUrn(mailboxUrn, id),
+    countBefore: count,
+    countAfter: 0,
+  });
 
   return { messages: normalizeMessages(raw, id) };
 }
