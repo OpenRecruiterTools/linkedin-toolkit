@@ -110,13 +110,29 @@ read and self-install.
 The long version, with the actual detection mechanisms:
 [**Why browser agents fail on LinkedIn**](docs/why-browser-agents-fail-on-linkedin.md).
 
+## Why extensions broke, and why this one is built to be repaired
+
+LinkedIn's web client now serves nearly all of its data through
+`GET /voyager/api/graphql?queryId=<name>.<32-hex hash>&variables=(...)`, and those hashes change
+with each web client release (current: 1.13.46474). The old REST Voyager paths that a generation of
+2024–2025 extensions hard-coded return 400, 410 or 500 today. That is the mechanism — not a ban
+wave. This extension calls the same GraphQL queries the page calls, from inside your own tab, and
+keeps every query ID in one refreshable table with its capture date and client version:
+[docs/voyager-endpoints.md](docs/voyager-endpoints.md). `lit endpoints check` reports which are ok,
+failed or unverified, so drift is a maintenance task rather than an architecture change.
+
+Honestly: those IDs **will** drift, and re-capturing them is the contribution this project most
+needs. It is a table edit, not a rewrite — open DevTools on LinkedIn, filter the Network tab for
+`voyager/api`, and copy the `queryId` from a request the page makes; the same hashes are also
+literal strings inside LinkedIn's JS bundles if you would rather grep for them.
+
 ## Versus the paid tools
 
 | | Waalaxy Pro | PhantomBuster Starter | Sales-Mind | **LinkedIn Toolkit** |
 |---|---|---|---|---|
 | Price | ~€70/mo | ~$69/mo | ~$99/mo | **£0** |
 | Source | Closed | Closed | Closed | **MIT, all of it** |
-| Runs | Their cloud | Their cloud | Their cloud | **Your Chrome** |
+| Where the automation runs | Their cloud *(the extension imports only)* | Their cloud | Their cloud | **Your own Chrome tab** |
 | Your session | On their servers | On their servers | On their servers | **Never leaves your machine** |
 | MCP server | ✗ | ✗ | ✗ | **✓** |
 | Agent tools / SDKs | ✗ | ✗ | ✗ | **✓ 39 tools, 9 frameworks** |
@@ -132,7 +148,12 @@ The long version, with the actual detection mechanisms:
 change, vary by currency and billing term, and each vendor's tiers differ. Feature claims are taken
 from each vendor's public product pages, also checked September 2026, and tiers move. Check their
 sites before deciding anything. Corrections welcome via PR — if we have a feature wrong, open one
-and it gets fixed.</sub>
+and it gets fixed.<br>
+Source for the Waalaxy column: its current Chrome extension listing, "Alien Copilot" by Waapi
+(Montpellier) — v1.1.3, updated August 2026, roughly 2,000 users, 3.0★ from 3 ratings — which
+describes itself as "your Waalaxy companion, helps you import prospects". On that listing the
+extension imports prospects into Waalaxy, and the automation runs on Waalaxy's servers using your
+session. Listing details read September 2026.</sub>
 
 ## Research Pack
 

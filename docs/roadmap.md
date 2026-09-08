@@ -19,6 +19,15 @@ version of it.
 Ordered by how often people ask, not by how hard they are. All open to contribution — several are
 [good first issues](https://github.com/FormatixAI/linkedin-toolkit/labels/good%20first%20issue).
 
+**Automated query-ID refresh (`lit endpoints refresh`).** LinkedIn's GraphQL query IDs carry a
+32-hex hash that changes with each web client release, so
+[voyager-endpoints.md](voyager-endpoints.md) has to be re-captured by hand today and
+`lit endpoints check` only tells you *that* something drifted. `lit endpoints refresh` would fetch
+the current LinkedIn JS bundle, scrape the query IDs out of it — they are literal strings in the
+bundle — and write the table back with the new hashes, the date and the client version. Near-term,
+and the highest-leverage thing on this list: it turns the project's main maintenance burden into a
+command.
+
 **Extractors.** Company followers, hashtag followers, newsletter subscribers, threaded post
 comments, recommendations, endorsements, saved items, company job postings, alumni search.
 [How to add one](build-an-extractor.md) — this is the single most useful thing you can contribute.

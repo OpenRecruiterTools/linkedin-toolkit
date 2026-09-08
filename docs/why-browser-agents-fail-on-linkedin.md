@@ -87,6 +87,49 @@ being challenged.
 Silent degradation is worse. Your agent reports success, your CSV has 47 rows instead of 300, and
 you do not find out until someone asks why the campaign underperformed.
 
+## The other failure: hard-coded endpoints
+
+The four walls are why *browser* agents get caught. There is a second failure mode, and it is the
+one that quietly killed a generation of LinkedIn extensions that never got anywhere near a
+checkpoint.
+
+LinkedIn's web client now serves nearly all of its data through a single GraphQL entry point:
+`GET /voyager/api/graphql?queryId=<name>.<32-hex hash>&variables=(...)`. The name is stable; the
+hash is not. It is a build artefact of the web client, and it changes with each release — the
+client that produced the IDs in [voyager-endpoints.md](voyager-endpoints.md) is 1.13.46474. The
+older REST-style Voyager paths that essentially every 2024–2025 extension hard-coded — the tidy
+`/voyager/api/identity/...` and `/voyager/api/search/...` URLs you will find in a hundred blog
+posts and dead GitHub repos — now return 400, 410 or 500.
+
+That is the mechanism. Not a ban wave, not a detection upgrade: a URL that stopped existing.
+Extensions built as a fixed list of endpoints had no way to notice, no way to report it, and in
+most cases no maintainer left to fix it. They simply returned empty results, and users assumed
+their accounts had been flagged.
+
+It also explains a move the commercial vendors made. If your automation runs on your own
+servers, a query-ID change is a deploy: you patch centrally, once, and every customer is working
+again within the hour. If it runs in the user's browser, every user has to install an update. The
+cloud vendors took the operationally easier path — and the price of that convenience is paid by the
+account, not the vendor. Running the automation server-side means the session that identifies you
+on LinkedIn has to be held server-side too: your cookie leaves your machine, sits in someone
+else's database alongside every other customer's, and is used from their IP ranges rather than
+yours. You are trading a maintenance problem for a custody problem.
+
+We took the harder path, so here is the honest version of what it costs. LinkedIn Toolkit calls
+the same GraphQL queries the LinkedIn page calls, from inside your own tab, and every query ID
+lives in one table — [voyager-endpoints.md](voyager-endpoints.md) — with the date it was captured
+and the client version it came from. `lit endpoints check` runs them and reports each as ok,
+failed or unverified, so you learn about drift from a command rather than from a suspiciously
+empty CSV. Drift is then a maintenance task, not an architecture change: you edit a table.
+
+Those IDs *will* drift, and this project needs contributors to re-capture them. Doing it takes a
+few minutes. Open LinkedIn in Chrome with DevTools on, filter the Network tab for `voyager/api`,
+perform the action by hand — run the search, open the profile — and copy the `queryId` parameter
+from the request the page itself makes; that is the current hash, by definition. The same hashes
+appear as literal strings inside LinkedIn's JavaScript bundles, so grepping a bundle works too and
+is easier to script. Then open a PR against the table with the new hash, the date, and the client
+version from the page. That is the whole job.
+
 ## What LinkedIn Toolkit does instead
 
 The insight is not clever. It is that **the safest place to call LinkedIn from is the LinkedIn tab

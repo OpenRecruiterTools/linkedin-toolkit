@@ -34,6 +34,17 @@ Show HN: An open-source MCP layer that lets agents use LinkedIn from your Chrome
 > It is also a complete Waalaxy/PhantomBuster replacement if you never touch an agent — extraction,
 > lists, sequences with branching, inbox, 20 templates.
 >
+> On the thing that actually broke the last generation of these extensions: LinkedIn now serves
+> nearly everything through `GET /voyager/api/graphql?queryId=<name>.<32-hex hash>`, and the hash
+> changes with each web client release (currently 1.13.46474), so the old REST Voyager paths
+> everyone hard-coded return 400/410/500 and the extensions using them just go quiet. That is also
+> why the commercial tools moved the automation onto their own servers — they can patch a query ID
+> centrally, at the cost of holding your session cookie. I kept it in the browser instead, so every
+> query ID lives in one table with its capture date and client version and `lit endpoints check`
+> tells you which ones still work. The IDs will drift; re-capturing one is a DevTools network
+> filter on `voyager/api`, copy the queryId off a request the page makes, and a PR against the
+> table. That is the maintenance model, and it is the thing I would most like help with.
+>
 > Write-up on the detection side, which is the part I found most interesting to research:
 > https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md
 >
@@ -42,7 +53,8 @@ Show HN: An open-source MCP layer that lets agents use LinkedIn from your Chrome
 > Obvious caveat: LinkedIn's User Agreement prohibits automation and this does not change that. It
 > reduces the technical risk; it cannot change the contractual position. Use your own account.
 
-Word count: ~230. Trim to the first three paragraphs plus the caveat if you want it tighter.
+Word count: ~360. Trim to the first three paragraphs plus the caveat if you want it tighter; the
+endpoint-drift paragraph is the one HN is most likely to engage with, so keep it if you keep any.
 
 ---
 

@@ -1,6 +1,6 @@
 # Why I open-sourced a Waalaxy alternative
 
-*For dev.to, Hashnode, and a LinkedIn article. ~1,050 words.*
+*For dev.to, Hashnode, and a LinkedIn article. ~1,230 words.*
 
 ---
 
@@ -65,6 +65,21 @@ that switch.
 
 Which means an agent cannot do anything a human could not do in the popup, and cannot do it
 faster. Not because I asked it nicely in a system prompt. Because there is no other path.
+
+One more thing I had to design for, because it is what actually killed the last generation of
+these extensions. LinkedIn now serves nearly all of its data through
+`GET /voyager/api/graphql?queryId=<name>.<32-hex hash>`, and that hash is a build artefact that
+changes with each web client release — the current one is 1.13.46474. The old REST Voyager paths
+that every 2024–2025 extension hard-coded return 400, 410 or 500 today, which is why so many of
+them silently return nothing and their users assume they have been flagged. It is also why the
+cloud vendors run the automation on their own servers: a query-ID change is a deploy for them, and
+every customer is fixed within the hour — but only because your session cookie lives on their
+infrastructure rather than your laptop. I did not want that trade, so the toolkit calls the same
+GraphQL queries your LinkedIn tab calls and keeps every query ID in one table with its capture
+date and client version, with a `lit endpoints check` command that tells you which ones still
+work. I will not pretend that is free: the IDs will drift, and re-capturing them is the
+maintenance this project needs help with. But it is a table edit — filter DevTools for
+`voyager/api`, copy the `queryId` off a request the page makes, open a PR — not a rewrite.
 
 ## The numbers that cannot move
 
