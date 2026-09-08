@@ -1,0 +1,239 @@
+{
+  "name": "LinkedIn Toolkit — accepted invite → AI draft → human approval",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "linkedin-events",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "LinkedIn Toolkit event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-360, 0],
+      "webhookId": "a1000000-0000-4000-8000-000000000001",
+      "notes": "Set webhookUrl in ~/.linkedin-toolkit/config.json (or `lit config set webhookUrl <url>`) to this production URL. The server POSTs { event, payload } for invite_accepted, reply_received, positive_reply, campaign_step_done, campaign_completed, quota_hit, challenge_detected, queue_item_added, queue_item_sent, research_progress, research_completed."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-invite-accepted",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "invite_accepted",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Is invite_accepted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-140, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:47830/actions/profile.get",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ publicId: $json.body.payload.publicId, full: false }) }}",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "profile.get",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [90, -80],
+      "credentials": {
+        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+      },
+      "notes": "Header Auth credential: name = Authorization, value = Bearer <bridge token from ~/.linkedin-toolkit/config.json>"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1", "mode": "list" },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You write first messages to people who have just accepted a LinkedIn connection request.\n\nRules:\n- Under 300 characters.\n- One hook drawn from a fact in the profile JSON you are given. If the profile has no usable hook, write a short honest note and do not invent one.\n- One low-friction ask. No calendar links.\n- Banned: \"I hope this message finds you well\", \"I came across your profile\", \"quick question\", \"your impressive background\", any compliment about their profile.\n- Never state a fact that is not in the JSON.\n\nReturn only the message text. No preamble, no quotes."
+            },
+            {
+              "role": "user",
+              "content": "={{ JSON.stringify($json.data) }}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.7 }
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Draft the message",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [310, -80],
+      "credentials": {
+        "openAiApi": { "id": "openai-account", "name": "OpenAI account" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:47830/actions/outreach.message",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ publicId: $('LinkedIn Toolkit event').item.json.body.payload.publicId, body: $json.message.content.trim() }) }}",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "outreach.message (queues)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [530, -80],
+      "credentials": {
+        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+      },
+      "notes": "In Copilot mode this returns { ok: true, data: { status: 'queued', queueId } }. Nothing has been sent. A human approves it — in the extension popup, or by opening the link the next node sends."
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "#linkedin", "mode": "name" },
+        "text": "=*{{ $('profile.get').item.json.data.fullName }}* accepted your invite — {{ $('profile.get').item.json.data.headline }}\n\n> {{ $('Draft the message').item.json.message.content.trim() }}\n\nApprove: {{ $env.N8N_WEBHOOK_BASE }}/webhook/linkedin-approve?queueId={{ $json.data.queueId }}\nOr open the extension popup → Queue.",
+        "otherOptions": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Ask a human",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [750, -80],
+      "credentials": {
+        "slackApi": { "id": "slack-account", "name": "Slack account" }
+      },
+      "notes": "Swap for email, Telegram, Discord, or an n8n Form — anything that puts a human in the loop. The approval link carries the queueId returned by the previous node."
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "linkedin-approve",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "Human clicks approve",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [310, 200],
+      "webhookId": "a1000000-0000-4000-8000-000000000007"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:47830/actions/queue.approve",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ids: [$json.query.queueId] }) }}",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000008",
+      "name": "queue.approve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [530, 200],
+      "credentials": {
+        "httpHeaderAuth": { "id": "linkedin-toolkit-token", "name": "LinkedIn Toolkit bearer token" }
+      },
+      "notes": "Approval does not mean immediate send. The engine still paces it: jittered delay, business hours, hourly and daily caps, and the hard ceiling of 150 messages a day that no client can raise."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ack",
+              "name": "approved",
+              "value": "={{ $json.data.approved }}",
+              "type": "number"
+            },
+            {
+              "id": "note",
+              "name": "note",
+              "value": "Approved. The engine will send it at human pace inside your business-hours window.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000009",
+      "name": "Confirm",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [750, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ignored",
+              "name": "ignored",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-00000000000a",
+      "name": "Other events",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [90, 100],
+      "notes": "Branch here for reply_received, positive_reply, quota_hit and challenge_detected. challenge_detected is the one worth paging someone about: every write is paused until a human clears it in Chrome."
+    }
+  ],
+  "connections": {
+    "LinkedIn Toolkit event": {
+      "main": [[{ "node": "Is invite_accepted?", "type": "main", "index": 0 }]]
+    },
+    "Is invite_accepted?": {
+      "main": [
+        [{ "node": "profile.get", "type": "main", "index": 0 }],
+        [{ "node": "Other events", "type": "main", "index": 0 }]
+      ]
+    },
+    "profile.get": {
+      "main": [[{ "node": "Draft the message", "type": "main", "index": 0 }]]
+    },
+    "Draft the message": {
+      "main": [[{ "node": "outreach.message (queues)", "type": "main", "index": 0 }]]
+    },
+    "outreach.message (queues)": {
+      "main": [[{ "node": "Ask a human", "type": "main", "index": 0 }]]
+    },
+    "Human clicks approve": {
+      "main": [[{ "node": "queue.approve", "type": "main", "index": 0 }]]
+    },
+    "queue.approve": {
+      "main": [[{ "node": "Confirm", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "instanceId": "linkedin-toolkit-example" },
+  "tags": [{ "name": "linkedin-toolkit" }]
+}
