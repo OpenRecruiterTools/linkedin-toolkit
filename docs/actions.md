@@ -7,8 +7,8 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | Action | Params | Result `data` |
 |---|---|---|
 | `status.get` | `{}` | `Status` |
-| `config.get` | `{}` | `Config` |
-| `config.set` | `Partial<Config>` | `Config` |
+| `config.get` | `{}` | `Config` — for every origin but `popup`, `ai.apiKey`, `enrichment.apiKey` and `bridge.token` come back as `****` plus their last four characters, or are omitted when unset |
+| `config.set` | `Partial<Config>` | `Config` — non-popup origins may only set `webhookUrl`; other keys are ignored and listed in `ignoredKeys` |
 | `search.people` | `{ keywords, title?, company?, location?, source?: 'search'\|'salesnav'\|'recruiter', start?, count? }` (count ≤ 100) | `{ profiles: Profile[], total?: number, nextStart?: number }` |
 | `profile.get` | `{ url?: string, publicId?: string, full?: boolean }` | `Profile` (with `pageText`, `photoDataUrl` when full) |
 | `profile.export` | `{ urls: string[], full?: boolean }` | `{ profiles: Profile[], failed: {url, error}[] }` |
@@ -95,6 +95,8 @@ type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageC
 ```
 
 Hard ceilings are clamped in `config.set` regardless of the value requested. `config.set` also accepts the command flag `clearChallenge: true`, which clears a detected security challenge and is never persisted.
+
+Safety settings belong to the human. From any origin but `popup`, `config.set` silently drops `autopilot`, `clearChallenge`, `bridge`, `ai`, `enrichment`, `accountPreset`, `warmup`, `businessHoursOnly`, `businessStart`, `businessEnd`, `weekdaysOnly`, `minDelayMs`, `maxDelayMs`, `hourlyCap`, `dailyInviteCap`, `dailyMessageCap`, `dailyVisitCap` and `dailySearchCap`, and names them in `ignoredKeys` on the result — leaving `webhookUrl` as the one key an agent may write.
 
 Every `profileView` fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
 

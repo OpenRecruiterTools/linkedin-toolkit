@@ -156,6 +156,95 @@ describe('config.set', () => {
   });
 });
 
+describe('config.set from a non-popup origin', () => {
+  it('ignores autopilot, the caps and clearChallenge, and says which it ignored', async () => {
+    await quota.noteBackoff(451);
+    const before = await getConfig();
+
+    const res = await handle(
+      ACTIONS.CONFIG_SET,
+      { autopilot: true, dailyInviteCap: 100, clearChallenge: true },
+      'mcp',
+    );
+
+    expect(res.ok).toBe(true);
+    expect(res.data.autopilot).toBe(false);
+    expect(res.data.dailyInviteCap).toBe(before.dailyInviteCap);
+    expect((await quota.pauseState()).challenge).toBeTruthy();
+    expect(res.data.ignoredKeys.sort()).toEqual(
+      ['autopilot', 'clearChallenge', 'dailyInviteCap'].sort(),
+    );
+
+    const stored = await getConfig();
+    expect(stored.autopilot).toBe(false);
+    expect(stored.dailyInviteCap).toBe(before.dailyInviteCap);
+  });
+
+  it.each(['mcp', 'cli', 'campaign', 'system'])('%s may still set webhookUrl', async (origin) => {
+    const res = await handle(
+      ACTIONS.CONFIG_SET,
+      { webhookUrl: 'http://127.0.0.1:5678/hook' },
+      origin,
+    );
+    expect(res.data.webhookUrl).toBe('http://127.0.0.1:5678/hook');
+    expect(res.data.ignoredKeys).toBeUndefined();
+  });
+
+  it('the popup may set all of them, and gets no ignoredKeys', async () => {
+    const res = await handle(
+      ACTIONS.CONFIG_SET,
+      { autopilot: true, dailyInviteCap: 100 },
+      'popup',
+    );
+    expect(res.data.autopilot).toBe(true);
+    expect(res.data.dailyInviteCap).toBe(100);
+    expect(res.data.ignoredKeys).toBeUndefined();
+    expect((await getConfig()).autopilot).toBe(true);
+  });
+});
+
+describe('config.get redaction', () => {
+  const secrets = {
+    ai: { provider: 'anthropic', apiKey: 'sk-ant-secret-1234' },
+    enrichment: { provider: 'hunter', apiKey: 'hunter-key-5678' },
+    bridge: { enabled: false, port: 47829, token: 'bridge-token-9012' },
+  };
+
+  it('hands the popup the real keys', async () => {
+    await handle(ACTIONS.CONFIG_SET, secrets, 'popup');
+    const cfg = (await handle(ACTIONS.CONFIG_GET, {}, 'popup')).data;
+    expect(cfg.ai.apiKey).toBe('sk-ant-secret-1234');
+    expect(cfg.enrichment.apiKey).toBe('hunter-key-5678');
+    expect(cfg.bridge.token).toBe('bridge-token-9012');
+  });
+
+  it.each(['mcp', 'cli'])('shows %s only the last four characters', async (origin) => {
+    await handle(ACTIONS.CONFIG_SET, secrets, 'popup');
+    const cfg = (await handle(ACTIONS.CONFIG_GET, {}, origin)).data;
+
+    expect(cfg.ai.apiKey).toBe('****1234');
+    expect(cfg.enrichment.apiKey).toBe('****5678');
+    expect(cfg.bridge.token).toBe('****9012');
+    // Everything that is not a secret still comes through.
+    expect(cfg.ai.provider).toBe('anthropic');
+    expect(cfg.bridge.port).toBe(47829);
+  });
+
+  it('omits a secret that was never set rather than masking an empty string', async () => {
+    const cfg = (await handle(ACTIONS.CONFIG_GET, {}, 'mcp')).data;
+    expect('apiKey' in cfg.ai).toBe(false);
+    expect('apiKey' in cfg.enrichment).toBe(false);
+    expect('token' in cfg.bridge).toBe(false);
+  });
+
+  it('redacts the config.set result too, so a write is not a way to read', async () => {
+    await handle(ACTIONS.CONFIG_SET, secrets, 'popup');
+    const res = await handle(ACTIONS.CONFIG_SET, { webhookUrl: 'http://127.0.0.1:1/h' }, 'mcp');
+    expect(res.data.ai.apiKey).toBe('****1234');
+    expect(res.data.bridge.token).toBe('****9012');
+  });
+});
+
 /* ================================================================== */
 /*  export.csv                                                        */
 /* ================================================================== */
