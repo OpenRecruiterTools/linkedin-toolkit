@@ -12,6 +12,25 @@ first LinkedIn layer built for AI agents.
 
 Tagline: **The open-source LinkedIn automation layer for humans and AI agents.**
 
+Positioning statement (README hero, Show HN title, every listing):
+
+> **LinkedIn blocks AI browser agents. This is how agents get in.**
+> Operator, Browser Use, computer-use models, and Playwright bots get challenged or banned on
+> LinkedIn: headless fingerprints, datacenter IPs, machine-speed clicks. LinkedIn Toolkit gives
+> any agent a safe, structured API to the user's own logged-in Chrome session, through the same
+> internal endpoints the LinkedIn page itself calls, at human pace, under hard caps, with a human
+> approval queue. No headless browser, no proxies, no cloud session.
+
+Why this is defensible:
+- Browser agents drive the DOM from outside; we call Voyager from inside the user's real session
+  with their real cookies, IP, and device fingerprint, exactly as the page does.
+- Browser agents act at machine speed; the engine enforces jittered human delays, business
+  hours, warm-up, and per-action caps that agents cannot raise.
+- Browser agents need screenshots and vision tokens per step; we return typed JSON per tool,
+  so an agent sources 100 profiles in a few tool calls instead of hundreds of screenshots.
+- Browser agents fail silently on challenges; we detect 429 and 451, pause everything, and tell
+  the agent and the human exactly what happened.
+
 Success criteria, in priority order:
 1. Developers star and list it: featured in MCP directories, a Show HN that reaches the front page,
    and 1,000+ stars within 90 days of the v2 launch.
@@ -27,6 +46,8 @@ Audience order: developers and AI builders first, recruiters and growth teams se
 
 - **Local-first.** Everything runs in the user's own Chrome session and on their machine. No
   hosted service, no cloud sessions, no telemetry. This is the safety story and the privacy story.
+- **Never a headless browser.** No Playwright, Puppeteer, or CDP-driven sessions anywhere in the
+  project, including tests and examples. The whole value is that we are not a browser bot.
 - **No Formatix exposure.** Nothing from Canvas, RecruitClaw, or the Sales Agent is copied
   verbatim. Designs are re-implemented generically. No Formatix URLs, keys, branding, or API shapes.
 - **No Chrome Web Store.** Distribution is a release zip on GitHub Releases plus load-unpacked
@@ -266,8 +287,13 @@ Each skill has an `examples/` transcript showing the real agent run.
 
 Every phase ends with a tagged release, a GIF, and a post. Assets live in `docs/launch/`.
 
-- README: GIF at top, 3-line install, comparison table (Waalaxy £, PhantomBuster £, Sales-Mind £,
-  this £0), architecture diagram, safety section, "why I built this" link, star-history badge.
+- README: positioning hero ("LinkedIn blocks AI browser agents. This is how agents get in."),
+  GIF at top, 3-line install, comparison table (Waalaxy £, PhantomBuster £, Sales-Mind £,
+  this £0), a second table "Browser agents vs LinkedIn Toolkit" (blocked vs works, screenshots vs
+  JSON, machine speed vs human pace, no caps vs hard caps), architecture diagram, safety section,
+  "why I built this" link, star-history badge.
+- `docs/why-browser-agents-fail-on-linkedin.md`: the technical explainer that the Show HN and
+  blog post link to. This is the piece most likely to be shared on its own.
 - MCP directories: Smithery, Glama, PulseMCP, mcp.so, awesome-mcp-servers PR, Cursor directory.
 - Alternative listings: alternativeto.net, opensourcealternative.to, awesome-selfhosted PR.
 - Posts: Show HN (Phase 2), r/ClaudeAI, r/LocalLLaMA (Ollama angle, Phase 3), r/selfhosted,
