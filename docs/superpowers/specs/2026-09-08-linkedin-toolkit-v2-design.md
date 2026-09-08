@@ -18,6 +18,8 @@ Success criteria, in priority order:
 2. Recruiters and sales people adopt it as a free Waalaxy replacement.
 3. The repo demonstrates Dominic's AI engineering skill to hiring managers: clean architecture,
    agent-native design, safety controls, and documentation.
+4. It is the default LinkedIn tool for AI agents: installable in one line from every major agent
+   framework, listed in every major tool registry, and used in community agent examples.
 
 Audience order: developers and AI builders first, recruiters and growth teams second.
 
@@ -54,9 +56,11 @@ linkedin-toolkit/
     src/db.ts           SQLite sync + query
     src/cli.ts          `lit` command-line interface
     src/webhooks.ts     outbound event webhooks
-  skills/
-    claude-code/        SKILL.md packs
-    openclaw/           OpenClaw skill folders (generated from the same source)
+  clients/
+    node/               npm `linkedin-toolkit`: typed client + tool defs for OpenAI/Vercel/LangChain.js
+    python/             PyPI `linkedin-toolkit`: client + LangChain/LlamaIndex/CrewAI/ADK wrappers
+    n8n/                community node package
+  skills/               Agent Skills standard format; loads in Claude Code, OpenClaw, others
   sequences/            20 JSON sequence templates
   examples/             agent transcripts, n8n workflow, CLI scripts
   docs/                 architecture, safety, tool reference, contributing, "build an extractor"
@@ -146,11 +150,42 @@ Write tools (all honour Copilot mode and hard caps):
 Every write tool accepts `dry_run` and returns what would have been sent. Every tool returns
 `rateLimit: { hourlyUsed, hourlyCap, dailyUsed, dailyCap, nextAllowedAt }`.
 
+## 5b. Agent ecosystem reach
+
+The MCP server is the core, but each agent ecosystem gets a native entry point so adoption never
+depends on the developer knowing MCP. All entry points call the same bridge and the same engine.
+
+| Ecosystem | Entry point | Shape |
+|---|---|---|
+| Claude Code, Claude Desktop, Cursor, Windsurf, Zed, Cline, OpenClaw, Codex CLI, Gemini CLI | `npx linkedin-toolkit-mcp` | MCP over stdio; one-block config snippet per client in `docs/agents/` |
+| Remote and hosted agents (Claude API MCP connector, ChatGPT connectors, Cloudflare Agents) | `lit serve --http` | MCP over Streamable HTTP on localhost, tunnel-friendly, token auth |
+| OpenAI Agents SDK, Vercel AI SDK, LangChain.js, Mastra | `npm i linkedin-toolkit` | TypeScript client with typed tool definitions, exported as `tools` ready to pass to each SDK |
+| LangChain, LlamaIndex, CrewAI, AutoGen, Google ADK, Pydantic AI, smolagents | `pip install linkedin-toolkit` | Python client over the bridge with `@tool` wrappers per framework in `linkedin_toolkit.integrations` |
+| n8n, Make, Dify, Flowise | Community node `n8n-nodes-linkedin-toolkit` plus the MCP client node | Nodes for search, profile, invite, message, inbox, plus a trigger node fed by the webhooks |
+| Any HTTP agent | `lit serve --http` also exposes `/openapi.json` | OpenAPI 3.1 so custom GPTs, Dify, and code generators can import it |
+| Agent Skills standard (agentskills.io) | `skills/` | Skills published in the open Agent Skills format so Claude Code, OpenClaw, and any compliant runtime load them unchanged |
+
+Agent-friendliness rules that apply everywhere:
+- Every tool has a one-sentence description, a strict JSON schema, and an example call in
+  `docs/tools.md`, generated from one source so no client drifts.
+- MCP server also exposes **resources** (`linkedin://profile/{id}`, `linkedin://list/{name}`,
+  `linkedin://status`) and **prompts** (`source-candidates`, `write-opener`, `triage-inbox`) so
+  hosts that support them get a guided experience.
+- `llms.txt` at the repo root and a `docs/agents/quickstart.md` written for an agent to read and
+  self-install.
+- Structured errors carry `code`, `message`, `retryAfter`, and `howToFix` so agents recover
+  without a human.
+- Registries: Smithery, Glama, PulseMCP, mcp.so, Cursor directory, awesome-mcp-servers,
+  LangChain integrations page, LlamaHub, CrewAI tools, n8n community nodes, PyPI, npm.
+- Examples directory holds a working agent per ecosystem: Claude Code transcript, OpenAI Agents
+  SDK script, LangChain notebook, CrewAI crew, n8n workflow JSON, Vercel AI SDK route.
+
 ## 6. CLI
 
 `npx linkedin-toolkit-mcp` starts the server. `lit` is a sibling binary in the same package:
 
 ```
+lit serve --http            # Streamable HTTP MCP + /openapi.json on localhost
 lit status
 lit search "CTO fintech London" --source salesnav --count 100 --csv out.csv
 lit profile https://www.linkedin.com/in/... --full --json
@@ -250,9 +285,9 @@ Each phase is its own implementation plan. Target one phase per week.
 |---|---|---|
 | 1 | Monorepo restructure, transfer to FormatixAI, shared action schema, new README + GIF + comparison table, release v1.1 zip, good-first-issues, CI for lint/tests | LinkedIn + X post; listings prepared |
 | 2 | Bridge, MCP server with read tools + invite/message + queue, Copilot approval queue in popup, CLI, npm publish | Show HN; MCP directory submissions; blog post |
-| 3 | BYOK provider layer incl. Ollama, opener writer, reply sentiment; 5 skill packs; examples | r/LocalLLaMA, r/ClaudeAI, Cursor directory |
+| 3 | BYOK provider layer incl. Ollama, opener writer, reply sentiment; 5 skill packs; Streamable HTTP transport + OpenAPI; Node and Python clients with OpenAI Agents SDK, Vercel AI SDK, LangChain, LlamaIndex, CrewAI wrappers; one example per ecosystem | r/LocalLLaMA, r/ClaudeAI, Cursor directory, LangChain and LlamaHub listings, PyPI and npm |
 | 4 | Extraction parity (engagers, groups, events, companies, Sales Nav, Recruiter), lists, sequence engine v2 with branching, inbox, webhooks, SQLite sync + SQL tool | Product Hunt; r/selfhosted; alternative listings |
-| 5 | Analytics, sequence library, warm-up, enrichment provider interface + Hunter adapter, polish, docs site | Follow-up posts; awesome-selfhosted PR |
+| 5 | Analytics, sequence library, warm-up, enrichment provider interface + Hunter adapter, n8n community node, AutoGen/ADK/Pydantic AI wrappers, polish, docs site | Follow-up posts; awesome-selfhosted PR; n8n community node listing |
 
 ## 11. Testing
 
@@ -262,6 +297,8 @@ Each phase is its own implementation plan. Target one phase per week.
 - MCP server: unit tests for tool handlers with a fake bridge; integration test that spins up the
   bridge and a fake extension client over WebSocket; SQL tool tested against a seeded SQLite.
 - CLI: snapshot tests of output.
+- Clients: Node and Python clients tested against the fake bridge; each framework wrapper has one
+  smoke test that registers the tools and calls `linkedin_get_status`.
 - Manual: a documented smoke checklist run against a throwaway LinkedIn account before each
   release. Never against Dominic's own account.
 
