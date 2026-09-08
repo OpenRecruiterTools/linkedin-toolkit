@@ -9,8 +9,11 @@ npm run release:check
 ```
 
 That builds every workspace, regenerates `mcp-server/openapi.json` and `mcp-server/tools.json` and
-fails if either moved, lints, runs the whole test suite, validates all 20 sequence templates, and
-writes `dist/linkedin-toolkit-extension-v2.0.0.zip`. Do not start this list until it is green.
+fails if either moved, lints, runs the whole JavaScript test suite, installs `clients/python` into
+a cached virtualenv and runs `pytest clients/python` (skipping with a message if there is no
+Python 3.10+ or no network for pip), validates all 20 sequence templates, and writes
+`dist/linkedin-toolkit-extension-v2.0.0.zip`. Do not start this list until it is green — and if the
+Python step reported a skip on your machine, run it somewhere it does not before step 6.
 
 ## How to read the markers
 
