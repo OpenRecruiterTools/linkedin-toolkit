@@ -1,0 +1,52 @@
+# LinkedIn Toolkit
+
+> The open-source, local-first LinkedIn automation layer for humans and AI agents. LinkedIn blocks AI browser agents — headless fingerprints, datacenter IPs, machine-speed clicks. This gives any agent a structured API to the user's own logged-in Chrome session, through the same internal endpoints the LinkedIn page itself calls, at human pace, under hard caps, with a human approval queue. No headless browser, no proxies, no cloud session, no telemetry. MIT licensed.
+
+Architecture in one line: a Chrome MV3 extension holds the engine (all LinkedIn calls, quotas, delays, campaign scheduling, approval queue); a local Node process (`linkedin-toolkit-mcp`) bridges to it over a localhost WebSocket and exposes MCP over stdio and Streamable HTTP, a `POST /actions/{action}` HTTP API with OpenAPI 3.1, a SQLite mirror with a read-only SQL tool, outbound webhooks, and the `lit` CLI.
+
+Two constraints an agent must understand before calling anything:
+- Hard caps are enforced inside the extension and cannot be raised by any client: 100 invites, 150 messages, 500 profile visits, 1,000 search results per day.
+- Copilot mode is the default: every agent-originated write returns `{"status":"queued","queueId":"..."}` and waits for a human to approve it in the extension popup. That is success, not failure.
+
+Install: `npx linkedin-toolkit-mcp`, paste the printed pairing token into the extension popup once. Extension zip is on GitHub Releases (load unpacked; not on the Chrome Web Store).
+
+## Start here
+
+- [Quickstart for agents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/quickstart.md): written for an AI agent to read and self-install. The install steps, the first call, the working pattern, the error table, and the rules.
+- [README](https://github.com/FormatixAI/linkedin-toolkit/blob/main/README.md): positioning, install in three lines, feature grid, comparison tables, safety.
+- [Action contract](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/actions.md): the source of truth. Every action name, params, result shape, shared type, error code and event name.
+- [MCP tool reference](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/tools.md): all 39 tools mapped to actions, with example calls and responses.
+
+## Connecting your agent
+
+- [Agents index](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md): one page per ecosystem with the exact config block.
+- MCP over stdio: [Claude Code](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/claude-code.md), [Claude Desktop](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/claude-desktop.md), [Cursor](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/cursor.md), [Windsurf](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/windsurf.md), [Zed](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/zed.md), [Cline](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/cline.md), [OpenClaw](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/openclaw.md), [Codex CLI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/codex.md), [Gemini CLI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/gemini-cli.md)
+- SDKs over the HTTP action API: [OpenAI Agents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/openai-agents.md), [Vercel AI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/vercel-ai.md), [LangChain](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/langchain.md), [LlamaIndex](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/llamaindex.md), [CrewAI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/crewai.md), [AutoGen](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/autogen.md), [Google ADK](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/google-adk.md), [Pydantic AI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/pydantic-ai.md), [smolagents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/smolagents.md)
+- Automation platforms: [n8n](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/n8n.md), [Dify](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/dify.md), [ChatGPT connector](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/chatgpt-connector.md) (needs a tunnel; read the risks)
+
+## Skills — Agent Skills format, load unchanged in any compliant runtime
+
+- [Skills index](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/README.md): install for Claude Code, OpenClaw, generic runtimes; how to write your own.
+- [linkedin-sourcer](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-sourcer/SKILL.md): brief to searches to dedupe to score to a named list and CSV.
+- [linkedin-outreach-writer](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-outreach-writer/SKILL.md): profile facts to a connection note, DM or InMail, two variants, queued for approval.
+- [linkedin-campaign-runner](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-campaign-runner/SKILL.md): template plus list to a running campaign, with per-step accept and reply rates.
+- [linkedin-profile-to-dossier](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-profile-to-dossier/SKILL.md): one profile plus company plus the agent's own web search to a one-page brief.
+- [linkedin-reply-triage](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-reply-triage/SKILL.md): inbox to intent buckets, drafted replies, meetings to book.
+- [linkedin-research-pack](https://github.com/FormatixAI/linkedin-toolkit/blob/main/skills/linkedin-research-pack/SKILL.md): a CSV to resolved profiles, signals, public-web research and a dossier per row.
+
+## Reference
+
+- [Architecture](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/architecture.md): components, the single action switch, the bridge protocol, data stores, the write path.
+- [Safety](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/safety.md): hard caps, human pacing, warm-up, Copilot mode, 429 and 451 handling, recommended settings, data protection.
+- [Why browser agents fail on LinkedIn](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md): fingerprints, datacenter IPs, machine timing, challenge flows, and what this does instead.
+- [CLI](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/cli.md): the `lit` command reference.
+- [Sequences](https://github.com/FormatixAI/linkedin-toolkit/blob/main/sequences/README.md): 20 campaign templates, the JSON Schema, and the validator.
+- [Examples](https://github.com/FormatixAI/linkedin-toolkit/blob/main/examples/README.md): one runnable example per ecosystem, including a full Claude Code transcript.
+- [Build an extractor](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/build-an-extractor.md): how to add a new Voyager endpoint as an action and a tool.
+- [Roadmap](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/roadmap.md): what is coming, and what will never be built.
+
+## Optional
+
+- [Contributing](https://github.com/FormatixAI/linkedin-toolkit/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/FormatixAI/linkedin-toolkit/blob/main/SECURITY.md)
+- [Changelog](https://github.com/FormatixAI/linkedin-toolkit/blob/main/CHANGELOG.md)
