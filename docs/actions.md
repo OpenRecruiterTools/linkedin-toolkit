@@ -19,7 +19,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `event.attendees` | `{ eventUrl, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.connections` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.followers` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
-| `network.status` | `{ publicIds: string[] }` | `{ statuses: Record<string, 'connected'\|'pending'\|'none'> }` |
+| `network.status` | `{ publicIds: string[] }` (≤ 25) | `{ statuses: Record<string, 'connected'\|'pending'\|'none'>, partial?: boolean, reason?: string }` |
 | `network.unfollowCount` | `{}` | `{ count: number }` |
 | `network.unfollowAll` | `{}` | `{ unfollowed: number }` |
 | `outreach.view` | `{ publicId }` | `WriteResult` |
@@ -85,15 +85,22 @@ type WriteResult = { status: 'sent'|'queued'|'dryRun'; queueId?: string; wouldSe
 type RateLimit = { hourlyUsed; hourlyCap; dailyUsed; dailyCap; nextAllowedAt: number };
 type Status = { connected: true; extensionVersion: string; loggedIn: boolean; autopilot: boolean; businessHours: boolean;
   backoffUntil?: number; challenge?: { detectedAt: number }; quotas: Record<'invite'|'message'|'visit'|'search', RateLimit>;
-  queue: { pending: number }; campaigns: { active: number; paused: number } };
+  queue: { pending: number }; campaigns: { active: number; paused: number }; bridge: { enabled: boolean; connected: boolean; port: number } };
 type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageCap; dailyVisitCap; dailySearchCap;
   businessHoursOnly: boolean; businessStart: number; businessEnd: number; weekdaysOnly: boolean;
   autopilot: boolean; accountPreset: 'free'|'premium'|'salesnav'|'recruiter'; warmup: { enabled: boolean; startedAt?: number; days: 14 };
   ai: { provider: 'none'|'anthropic'|'openai'|'gemini'|'ollama'|'openai-compatible'; model?: string; baseUrl?: string; apiKey?: string };
+  enrichment: { provider: 'none'|'hunter'; apiKey?: string };
   bridge: { enabled: boolean; port: number; token?: string }; webhookUrl?: string };
 ```
 
-Hard ceilings are clamped in `config.set` regardless of the value requested.
+Hard ceilings are clamped in `config.set` regardless of the value requested. `config.set` also accepts the command flag `clearChallenge: true`, which clears a detected security challenge and is never persisted.
+
+Every `profileView` fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
+
+`hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
+
+`export.csv` reads its rows from the engine's own stores (`kind: 'profiles'` from the profile store, `'list'` from list members, `'campaign'` from enrollments and the action log, `'inbox'` from stored threads); `kind: 'profiles'` also accepts an optional `profiles: Profile[]` override, which the popup uses to download an ad-hoc result set it already holds, and an optional `download: boolean` that additionally hands the CSV to `chrome.downloads` as a `data:` URL for callers (the popup, the content script) that cannot download for themselves.
 
 ### Envelope and errors
 

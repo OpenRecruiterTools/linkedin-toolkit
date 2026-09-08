@@ -1,0 +1,100 @@
+{
+  "data": {
+    "metadata": {
+      "totalResultCount": 240
+    },
+    "elements": [
+      {
+        "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+        "items": [
+          {
+            "item": {
+              "entityResult": {
+                "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+                "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAada,SEARCH_SRP,DEFAULT)",
+                "trackingUrn": "urn:li:member:ACoAAAada",
+                "title": {
+                  "text": "Ada Lovelace"
+                },
+                "primarySubtitle": {
+                  "text": "Chief Analyst at Analytical Engines"
+                },
+                "secondarySubtitle": {
+                  "text": "London, United Kingdom"
+                },
+                "summary": {
+                  "text": "Current: Chief Analyst at Analytical Engines"
+                },
+                "navigationUrl": "https://www.linkedin.com/in/adalovelace?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAada",
+                "image": {
+                  "attributes": [
+                    {
+                      "detailData": {
+                        "nonEntityProfilePicture": {
+                          "vectorImage": {
+                            "rootUrl": "https://media.licdn.com/dms/image/",
+                            "artifacts": [
+                              {
+                                "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "item": {
+              "entityResult": {
+                "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+                "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAbob,SEARCH_SRP,DEFAULT)",
+                "trackingUrn": "urn:li:member:ACoAAAbob",
+                "title": {
+                  "text": "Bob Bright"
+                },
+                "primarySubtitle": {
+                  "text": "CTO at Beta Systems"
+                },
+                "secondarySubtitle": {
+                  "text": "Manchester, United Kingdom"
+                },
+                "summary": {
+                  "text": "Current: CTO at Beta Systems"
+                },
+                "navigationUrl": "https://www.linkedin.com/in/bobbright?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAbob",
+                "image": {
+                  "attributes": [
+                    {
+                      "detailData": {
+                        "nonEntityProfilePicture": {
+                          "vectorImage": {
+                            "rootUrl": "https://media.licdn.com/dms/image/",
+                            "artifacts": [
+                              {
+                                "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "paging": {
+      "start": 0,
+      "count": 10,
+      "total": 240
+    }
+  },
+  "included": []
+}

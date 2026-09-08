@@ -1,214 +1,48 @@
 /**
  * LinkedIn Toolkit — Background Service Worker (router).
  *
- * This file is deliberately thin: it registers the v1 behaviour under the v2
- * contract action names and routes every inbound message through
- * `engine.handle`. Feature modules (quota, queue, lists, campaigns, inbox, ai,
- * research, bridge) land alongside it and register their own actions.
+ * Deliberately thin. Every feature module registers its own contract actions
+ * on import; this file routes inbound messages through `engine.handle`, owns
+ * mass unfollow (which drives the user's own tab and has no API), and wires
+ * the alarms.
  *
  * Every inbound message is a contract envelope: { action, params }.
  */
 
-import { ACTIONS, ERROR, EngineError, clampConfig, err } from '../lib/actions.js';
+import { ACTIONS, ERROR, err } from '../lib/actions.js';
 import { handle, register } from './engine.js';
 
-import {
-  getProfile,
-  normalizeProfile,
-  searchPeople,
-  normalizeSearchCluster,
-  sendInvite,
-  sendMessage,
-} from './voyager.js';
+
+// Feature modules register their own contract actions on import.
+import './extract.js';
+import './lists.js';
+import './queue.js';
+import './outreach.js';
+import './ai.js';
+import './inbox.js';
+import './campaigns.js';
+import './capture.js';
+import './research.js';
+import './status.js';
+import './sync.js';
+
+import { ensureConnected, onAlarm, startKeepalive } from './bridge.js';
 
 /* ================================================================== */
-/*  Config                                                            */
+/*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
+/*  rate-limit provider.                                               */
 /* ================================================================== */
 
-async function getConfig() {
-  const data = await chrome.storage.local.get('config');
-  return clampConfig(data.config || {});
-}
-
-async function setConfig(partial) {
-  const current = await getConfig();
-  const updated = clampConfig({ ...current, ...(partial || {}) });
-  await chrome.storage.local.set({ config: updated });
-  return updated;
-}
+export const CAMPAIGN_TICK_ALARM = 'campaignTick';
 
 /* ================================================================== */
-/*  Usage tracking                                                    */
+/*  Tabs                                                              */
 /* ================================================================== */
-
-/** Contract quota buckets. */
-const QUOTA_KINDS = ['invite', 'message', 'visit', 'search'];
-
-const DAILY_CAP_KEY = {
-  invite: 'dailyInviteCap',
-  message: 'dailyMessageCap',
-  visit: 'dailyVisitCap',
-  search: 'dailySearchCap',
-};
-
-function usageKeys(kind) {
-  const now = new Date();
-  const day = `${now.getFullYear()}_${now.getMonth()}_${now.getDate()}`;
-  return {
-    hourKey: `usage_${kind}_${day}_${now.getHours()}`,
-    dayKey: `usage_${kind}_day_${day}`,
-  };
-}
-
-async function getUsageCounts(kind) {
-  const { hourKey, dayKey } = usageKeys(kind);
-  const data = await chrome.storage.local.get([hourKey, dayKey]);
-  return { hourly: data[hourKey] || 0, daily: data[dayKey] || 0 };
-}
-
-async function incrementUsage(kind) {
-  const { hourKey, dayKey } = usageKeys(kind);
-  const data = await chrome.storage.local.get([hourKey, dayKey]);
-  await chrome.storage.local.set({
-    [hourKey]: (data[hourKey] || 0) + 1,
-    [dayKey]: (data[dayKey] || 0) + 1,
-  });
-}
-
-/** RateLimit for one quota bucket. */
-async function rateLimitFor(kind) {
-  const config = await getConfig();
-  const usage = await getUsageCounts(kind);
-  return {
-    hourlyUsed: usage.hourly,
-    hourlyCap: config.hourlyCap,
-    dailyUsed: usage.daily,
-    dailyCap: config[DAILY_CAP_KEY[kind]],
-    nextAllowedAt: 0,
-  };
-}
-
-/** Throws QUOTA_EXCEEDED when the hourly or daily ceiling is reached. */
-async function assertQuota(kind) {
-  const rl = await rateLimitFor(kind);
-  if (rl.hourlyUsed >= rl.hourlyCap) {
-    throw new EngineError(ERROR.QUOTA_EXCEEDED, `Hourly cap reached (${rl.hourlyCap}/hr)`);
-  }
-  if (rl.dailyUsed >= rl.dailyCap) {
-    throw new EngineError(ERROR.QUOTA_EXCEEDED, `Daily ${kind} cap reached (${rl.dailyCap}/day)`);
-  }
-  return rl;
-}
-
-/* ================================================================== */
-/*  Time window and pacing                                            */
-/* ================================================================== */
-
-function isWithinBusinessHours(config) {
-  const now = new Date();
-  const hour = now.getHours();
-  const day = now.getDay(); // 0=Sun, 6=Sat
-  if (config.weekdaysOnly && (day === 0 || day === 6)) return false;
-  return hour >= config.businessStart && hour < config.businessEnd;
-}
-
-async function humanDelay() {
-  const config = await getConfig();
-  const ms = config.minDelayMs + Math.random() * (config.maxDelayMs - config.minDelayMs);
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/* ================================================================== */
-/*  Profile shaping                                                   */
-/* ================================================================== */
-
-function extractPublicId(url) {
-  const match = String(url || '').match(/linkedin\.com\/in\/([^/?#]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 async function activeTab() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tabs.length) throw new Error('No active tab');
   return tabs[0];
-}
-
-/** v1 normalized profile (or search hit) → contract Profile. */
-function toContractProfile(p, source) {
-  const publicId = p.publicIdentifier || p.publicId || '';
-  return {
-    publicId,
-    urn: p.profileUrn || p.entityUrn || p.urn || '',
-    url: p.linkedinUrl || p.url || (publicId ? `https://www.linkedin.com/in/${publicId}/` : ''),
-    firstName: p.firstName || '',
-    lastName: p.lastName || '',
-    fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
-    headline: p.headline || '',
-    title: p.title || '',
-    company: p.company || '',
-    location: p.location || '',
-    industry: p.industry || '',
-    photoUrl: p.photoUrl || p.image || '',
-    skills: p.skills || [],
-    education: p.education || [],
-    summary: p.summary || p.snippet || '',
-    capturedAt: Date.now(),
-    source: source || 'profile',
-  };
-}
-
-async function fetchProfile(publicId, source) {
-  try {
-    const raw = await getProfile(publicId);
-    return toContractProfile(normalizeProfile(raw), source);
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-}
-
-async function resolveRecipientUrn(publicId) {
-  const profile = await fetchProfile(publicId);
-  if (!profile.urn) {
-    throw new EngineError(ERROR.NOT_FOUND, `Could not resolve profile URN for ${publicId}`);
-  }
-  return profile.urn;
-}
-
-/* ================================================================== */
-/*  CSV                                                               */
-/* ================================================================== */
-
-const CSV_COLUMNS = [
-  ['Full Name', 'fullName'],
-  ['First Name', 'firstName'],
-  ['Last Name', 'lastName'],
-  ['Headline', 'headline'],
-  ['Title', 'title'],
-  ['Company', 'company'],
-  ['Location', 'location'],
-  ['Industry', 'industry'],
-  ['LinkedIn URL', 'url'],
-  ['Summary', 'summary'],
-  ['Skills', 'skills'],
-];
-
-function escapeCsv(value) {
-  const str = Array.isArray(value) ? value.join('; ') : String(value ?? '');
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function profilesToCsv(profiles) {
-  if (!profiles || !profiles.length) return '';
-  const header = CSV_COLUMNS.map(([label]) => label).join(',');
-  const rows = profiles.map((p) =>
-    CSV_COLUMNS.map(([, key]) => escapeCsv(key === 'url' ? p.url || p.linkedinUrl : p[key])).join(
-      ',',
-    ),
-  );
-  return [header, ...rows].join('\n');
 }
 
 /* ================================================================== */
@@ -313,330 +147,11 @@ async function unfollowAll() {
 }
 
 /* ================================================================== */
-/*  Campaigns (v1 engine, kept until WS-B's campaigns.js lands)        */
-/* ================================================================== */
-
-async function getCampaigns() {
-  const data = await chrome.storage.local.get('campaigns');
-  return data.campaigns || [];
-}
-
-async function saveCampaigns(campaigns) {
-  await chrome.storage.local.set({ campaigns });
-}
-
-async function createCampaign({ name, steps, contacts }) {
-  const campaigns = await getCampaigns();
-  const campaign = {
-    campaignId: `camp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    name,
-    status: 'active',
-    steps: steps || [],
-    contacts: (contacts || []).map((c) => ({
-      ...c,
-      currentStep: 0,
-      stepCompleted: {},
-      lastStepAt: null,
-      replied: false,
-    })),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  campaign.id = campaign.campaignId; // v1 popup reads `id`
-  campaigns.push(campaign);
-  await saveCampaigns(campaigns);
-  return campaign;
-}
-
-function findCampaign(campaigns, campaignId) {
-  const camp = campaigns.find((c) => c.campaignId === campaignId || c.id === campaignId);
-  if (!camp) throw new EngineError(ERROR.NOT_FOUND, `Campaign ${campaignId} not found`);
-  return camp;
-}
-
-async function setCampaignStatus(campaignId, status) {
-  const campaigns = await getCampaigns();
-  const camp = findCampaign(campaigns, campaignId);
-  camp.status = status;
-  camp.updatedAt = Date.now();
-  await saveCampaigns(campaigns);
-  return camp;
-}
-
-async function deleteCampaign(campaignId) {
-  const campaigns = await getCampaigns();
-  const camp = findCampaign(campaigns, campaignId);
-  await saveCampaigns(campaigns.filter((c) => c !== camp));
-  return camp;
-}
-
-function renderTemplate(template, contact) {
-  if (!template) return '';
-  return template
-    .replace(/\{\{firstName\}\}/g, contact.firstName || '')
-    .replace(/\{\{lastName\}\}/g, contact.lastName || '')
-    .replace(
-      /\{\{fullName\}\}/g,
-      contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
-    )
-    .replace(/\{\{company\}\}/g, contact.company || '')
-    .replace(/\{\{title\}\}/g, contact.title || contact.headline || '')
-    .replace(/\{\{headline\}\}/g, contact.headline || '');
-}
-
-async function runCampaignTick() {
-  const config = await getConfig();
-  if (config.businessHoursOnly && !isWithinBusinessHours(config)) {
-    return { executed: 0, queued: 0 };
-  }
-
-  const campaigns = await getCampaigns();
-  let executed = 0;
-  let queued = 0;
-  let modified = false;
-
-  for (const campaign of campaigns) {
-    if (campaign.status !== 'active') continue;
-    if (!campaign.steps.length || !campaign.contacts.length) continue;
-
-    let allDone = true;
-
-    for (const contact of campaign.contacts) {
-      if (contact.replied) continue;
-      if (contact.currentStep >= campaign.steps.length) continue;
-
-      allDone = false;
-      const step = campaign.steps[contact.currentStep];
-
-      if (step.type === 'wait') {
-        const waitMs = (step.delay_hours || 24) * 60 * 60 * 1000;
-        if (contact.lastStepAt && Date.now() - new Date(contact.lastStepAt).getTime() < waitMs) {
-          queued++;
-          continue;
-        }
-        contact.stepCompleted[contact.currentStep] = true;
-        contact.currentStep++;
-        contact.lastStepAt = new Date().toISOString();
-        modified = true;
-        continue;
-      }
-
-      if (contact.lastStepAt) {
-        const minDelay = (step.delay_hours || 0) * 60 * 60 * 1000;
-        if (Date.now() - new Date(contact.lastStepAt).getTime() < minDelay) {
-          queued++;
-          continue;
-        }
-      }
-
-      const action = CAMPAIGN_STEP_ACTIONS[step.type];
-      if (!action) continue;
-
-      const params = campaignStepParams(step, contact);
-      if (!params) continue;
-
-      const res = await handle(action, params, 'campaign');
-      if (!res.ok) {
-        queued++;
-        console.warn(`[Campaign] ${step.type} failed for ${contact.publicIdentifier}:`, res.error);
-        continue;
-      }
-
-      executed++;
-      contact.stepCompleted[contact.currentStep] = true;
-      contact.currentStep++;
-      contact.lastStepAt = new Date().toISOString();
-      modified = true;
-
-      await humanDelay();
-    }
-
-    if (allDone) {
-      campaign.status = 'completed';
-      campaign.updatedAt = Date.now();
-      modified = true;
-    }
-  }
-
-  if (modified) await saveCampaigns(campaigns);
-  return { executed, queued };
-}
-
-const CAMPAIGN_STEP_ACTIONS = {
-  view_profile: ACTIONS.OUTREACH_VIEW,
-  send_invite: ACTIONS.OUTREACH_INVITE,
-  send_message: ACTIONS.OUTREACH_MESSAGE,
-};
-
-function campaignStepParams(step, contact) {
-  const publicId = contact.publicIdentifier || contact.publicId;
-  if (!publicId) return null;
-  if (step.type === 'view_profile') return { publicId };
-  if (step.type === 'send_invite') {
-    return {
-      publicId,
-      note: renderTemplate(step.message_template, contact),
-      profileUrn: contact.profileUrn || contact.entityUrn || '',
-    };
-  }
-  if (step.type === 'send_message') {
-    return {
-      publicId,
-      body: renderTemplate(step.message_template, contact),
-      recipientUrn: contact.entityUrn || contact.profileUrn || '',
-    };
-  }
-  return null;
-}
-
-/* ================================================================== */
 /*  Action registrations                                              */
 /* ================================================================== */
 
-register(ACTIONS.STATUS_GET, async () => {
-  const config = await getConfig();
-  const campaigns = await getCampaigns();
-  const quotas = {};
-  for (const kind of QUOTA_KINDS) quotas[kind] = await rateLimitFor(kind);
-
-  let loggedIn = false;
-  try {
-    const cookie = await chrome.cookies.get({ url: 'https://www.linkedin.com', name: 'li_at' });
-    loggedIn = !!(cookie && cookie.value);
-  } catch {
-    loggedIn = false;
-  }
-
-  return {
-    connected: true,
-    extensionVersion: chrome.runtime.getManifest().version,
-    loggedIn,
-    autopilot: config.autopilot,
-    businessHours: isWithinBusinessHours(config),
-    quotas,
-    queue: { pending: 0 },
-    campaigns: {
-      active: campaigns.filter((c) => c.status === 'active').length,
-      paused: campaigns.filter((c) => c.status === 'paused').length,
-    },
-  };
-});
-
-register(ACTIONS.CONFIG_GET, () => getConfig());
-register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
-
-register(ACTIONS.SEARCH_PEOPLE, async ({ keywords, start = 0, count = 25 }) => {
-  const profiles = [];
-  const pageSize = Math.min(count, 49);
-  let offset = start;
-
-  while (profiles.length < count) {
-    let batch;
-    try {
-      const raw = await searchPeople({ keywords, start: offset, count: pageSize });
-      batch = normalizeSearchCluster(raw);
-    } catch (e) {
-      throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-    }
-    if (!batch.length) break;
-    profiles.push(...batch.map((p) => toContractProfile(p, 'search')));
-    offset += pageSize;
-    if (profiles.length < count) await humanDelay();
-  }
-
-  await incrementUsage('search');
-  return { profiles: profiles.slice(0, count), nextStart: offset };
-});
-
-register(ACTIONS.PROFILE_GET, async ({ url, publicId }) => {
-  const id = publicId || extractPublicId(url);
-  if (!id) throw new EngineError(ERROR.INVALID_PARAMS, 'Could not read a public id from url');
-  return fetchProfile(id);
-});
-
-register(ACTIONS.PROFILE_EXPORT, async ({ urls }) => {
-  const profiles = [];
-  const failed = [];
-  for (const url of urls) {
-    const id = extractPublicId(url);
-    if (!id) {
-      failed.push({ url, error: 'Not a LinkedIn profile URL' });
-      continue;
-    }
-    try {
-      profiles.push(await fetchProfile(id));
-    } catch (e) {
-      failed.push({ url, error: e.message });
-    }
-    await humanDelay();
-  }
-  return { profiles, failed };
-});
-
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
-
-register(ACTIONS.OUTREACH_VIEW, async ({ publicId }) => {
-  await assertQuota('visit');
-  await fetchProfile(publicId);
-  await incrementUsage('visit');
-  return { status: 'sent', sentAt: Date.now() };
-});
-
-register(ACTIONS.OUTREACH_INVITE, async ({ publicId, note, profileUrn }) => {
-  await assertQuota('invite');
-  try {
-    await sendInvite({ publicIdentifier: publicId, profileUrn, note });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await incrementUsage('invite');
-  return { status: 'sent', sentAt: Date.now() };
-});
-
-register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }) => {
-  await assertQuota('message');
-  const urn = recipientUrn || (await resolveRecipientUrn(publicId));
-  try {
-    await sendMessage({ recipientUrn: urn, body });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await incrementUsage('message');
-  return { status: 'sent', sentAt: Date.now() };
-});
-
-register(ACTIONS.OUTREACH_INMAIL, async ({ publicId, subject, body, recipientUrn }) => {
-  await assertQuota('message');
-  const urn = recipientUrn || (await resolveRecipientUrn(publicId));
-  try {
-    await sendMessage({ recipientUrn: urn, body, subtype: 'INMAIL', inmailSubject: subject });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await incrementUsage('message');
-  return { status: 'sent', sentAt: Date.now() };
-});
-
-register(ACTIONS.CAMPAIGN_CREATE, (params) => createCampaign(params));
-register(ACTIONS.CAMPAIGN_GET_ALL, async () => ({ campaigns: await getCampaigns() }));
-register(ACTIONS.CAMPAIGN_GET, async ({ campaignId }) =>
-  findCampaign(await getCampaigns(), campaignId),
-);
-register(ACTIONS.CAMPAIGN_PAUSE, ({ campaignId }) => setCampaignStatus(campaignId, 'paused'));
-register(ACTIONS.CAMPAIGN_RESUME, ({ campaignId }) => setCampaignStatus(campaignId, 'active'));
-register(ACTIONS.CAMPAIGN_DELETE, ({ campaignId }) => deleteCampaign(campaignId));
-register(ACTIONS.CAMPAIGN_TICK, () => runCampaignTick());
-
-register(ACTIONS.EXPORT_CSV, async ({ kind, profiles }) => {
-  if (kind !== 'profiles' || !profiles || !profiles.length) {
-    throw new EngineError(ERROR.NOT_FOUND, `No data to export for kind '${kind}'`);
-  }
-  return {
-    csv: profilesToCsv(profiles),
-    filename: `linkedin_export_${new Date().toISOString().slice(0, 10)}.csv`,
-  };
-});
 
 /* ================================================================== */
 /*  Router                                                            */
@@ -660,24 +175,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 /*  Alarms, startup and bridge reconnect                              */
 /* ================================================================== */
 
-/** Set by bridge.js once it lands; called on every wake-up. */
-let bridgeConnect = null;
-
-export function setBridgeConnector(fn) {
-  bridgeConnect = typeof fn === 'function' ? fn : null;
-}
-
 function reconnectBridge() {
-  if (!bridgeConnect) return;
   Promise.resolve()
-    .then(() => bridgeConnect())
+    .then(() => ensureConnected())
     .catch((e) => console.warn('[Bridge] reconnect failed:', e.message));
 }
 
-chrome.alarms.create('campaignTick', { periodInMinutes: 5 });
+chrome.alarms.create(CAMPAIGN_TICK_ALARM, { periodInMinutes: 5 });
+startKeepalive();
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== 'campaignTick') return;
+  onAlarm(alarm).catch(() => {});
+  if (alarm.name !== CAMPAIGN_TICK_ALARM) return;
   reconnectBridge();
   handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')
     .then((res) => {

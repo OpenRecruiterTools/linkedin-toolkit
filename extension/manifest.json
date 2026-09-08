@@ -5,6 +5,7 @@
   "description": "Free, open-source LinkedIn tools: mass unfollow, profile export, search export, campaign automation. No account required, no data sent to third parties.",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "activeTab",
     "tabs",
     "cookies",
@@ -15,6 +16,16 @@
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.hunter.io/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "src/background/index.js",
@@ -29,7 +40,7 @@
     },
     {
       "matches": ["https://www.linkedin.com/*"],
-      "js": ["src/content/linkedin.js"],
+      "js": ["src/content/capture.js", "src/content/linkedin.js"],
       "css": ["src/content/linkedin.css"],
       "run_at": "document_idle"
     }

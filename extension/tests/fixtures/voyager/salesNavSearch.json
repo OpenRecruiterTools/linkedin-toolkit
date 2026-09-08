@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "entityUrn": "urn:li:fs_salesProfile:(ACoAAAada,NAME_SEARCH,abcd)",
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "fullName": "Ada Lovelace",
+      "geoRegion": "London, United Kingdom",
+      "industry": "Software Development",
+      "publicProfileUrl": "https://www.linkedin.com/in/adalovelace",
+      "degree": 2,
+      "currentPositions": [
+        {
+          "title": "Chief Analyst",
+          "companyName": "Analytical Engines",
+          "companyUrn": "urn:li:fs_salesCompany:9001"
+        }
+      ]
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 25,
+    "total": 137
+  }
+}

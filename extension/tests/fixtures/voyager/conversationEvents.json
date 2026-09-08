@@ -1,0 +1,53 @@
+{
+  "elements": [
+    {
+      "entityUrn": "urn:li:fs_event:(2-abc123,event-2)",
+      "createdAt": 1757200000000,
+      "from": {
+        "com.linkedin.voyager.messaging.MessagingMember": {
+          "miniProfile": {
+            "firstName": "Ada",
+            "lastName": "Lovelace",
+            "publicIdentifier": "adalovelace",
+            "occupation": "Chief Analyst",
+            "entityUrn": "urn:li:fs_miniProfile:ACoAAAada"
+          }
+        }
+      },
+      "eventContent": {
+        "com.linkedin.voyager.messaging.event.MessageEvent": {
+          "attributedBody": {
+            "text": "Sounds interesting, can we book a call?"
+          }
+        }
+      }
+    },
+    {
+      "entityUrn": "urn:li:fs_event:(2-abc123,event-1)",
+      "createdAt": 1757100000000,
+      "from": {
+        "com.linkedin.voyager.messaging.MessagingMember": {
+          "miniProfile": {
+            "firstName": "Me",
+            "lastName": "Myself",
+            "publicIdentifier": "me-myself",
+            "occupation": "Founder",
+            "entityUrn": "urn:li:fs_miniProfile:ACoAAAme-"
+          }
+        }
+      },
+      "eventContent": {
+        "com.linkedin.voyager.messaging.event.MessageEvent": {
+          "attributedBody": {
+            "text": "Hi Ada — worth a quick chat about analysis tooling?"
+          }
+        }
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 20,
+    "total": 2
+  }
+}

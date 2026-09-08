@@ -1,0 +1,38 @@
+{
+  "elements": [
+    {
+      "entityUrn": "urn:li:fs_invitation:6000000000000000001",
+      "sentTime": 1788000000000,
+      "invitee": {
+        "com.linkedin.voyager.growth.invitation.InviteeProfile": {
+          "miniProfile": {
+            "firstName": "Bob",
+            "lastName": "Bright",
+            "publicIdentifier": "bobbright",
+            "occupation": "CTO at Beta Systems",
+            "entityUrn": "urn:li:fs_miniProfile:ACoAAAbob"
+          }
+        }
+      }
+    },
+    {
+      "entityUrn": "urn:li:fs_invitation:6000000000000000002",
+      "sentTime": 1788100000000,
+      "invitee": {
+        "com.linkedin.voyager.growth.invitation.InviteeProfile": {
+          "miniProfile": {
+            "firstName": "Carla",
+            "lastName": "Chen",
+            "publicIdentifier": "carlachen",
+            "entityUrn": "urn:li:fs_miniProfile:ACoAAAcar"
+          }
+        }
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 100,
+    "total": 2
+  }
+}

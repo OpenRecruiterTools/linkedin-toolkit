@@ -1,0 +1,20 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.groups.GroupMembership",
+      "status": "MEMBER",
+      "profile": {
+        "firstName": "Erik",
+        "lastName": "Ericsson",
+        "publicIdentifier": "erikericsson",
+        "headline": "Data Engineer at Gamma",
+        "entityUrn": "urn:li:fsd_profile:ACoAAAeri"
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 640
+  }
+}

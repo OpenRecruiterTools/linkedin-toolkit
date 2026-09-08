@@ -1,0 +1,15 @@
+{
+  "data": {},
+  "included": [
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Profile",
+      "publicIdentifier": "adalovelace",
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "entityUrn": "urn:li:fs_profile:ACoAAAada",
+      "distance": {
+        "value": "DISTANCE_1"
+      }
+    }
+  ]
+}

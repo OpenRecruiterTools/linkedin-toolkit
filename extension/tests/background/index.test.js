@@ -144,7 +144,7 @@ describe('campaigns', () => {
       params: { campaignId: 'nope' },
     });
     expect(res.ok).toBe(false);
-    expect(res.error.message).toBe('Campaign nope not found');
+    expect(res.error.message).toMatch(/Campaign nope not found/);
   });
 
   it('runs a tick without doing anything when there are no campaigns', async () => {

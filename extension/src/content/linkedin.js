@@ -1,11 +1,15 @@
 /**
  * LinkedIn Toolkit — Content Script (ISOLATED world)
  *
- * Adds UI overlays on LinkedIn pages:
- *  - Checkboxes on search result items for bulk selection
- *  - Floating action bar when items are selected
- *  - "Export Profile" button on profile pages
- *  - Toast notifications
+ * Two jobs:
+ *  1. On-page UI — selection checkboxes on search results, a floating action
+ *     bar, an "Export Profile" button, toasts.
+ *  2. Answering the background's page requests (CAPTURE_FULL, DOM_LIKE,
+ *     DOM_FOLLOW, DOM_COMMENT), which are implemented in capture.js and
+ *     reached through `globalThis.LITK`.
+ *
+ * Everything it asks of the background goes through the v2 contract:
+ * `{ action, params }` in, `{ ok, data } | { ok: false, error }` back.
  */
 
 (function () {
@@ -15,20 +19,34 @@
   /*  Helpers                                                         */
   /* ================================================================ */
 
-  function send(msg) {
+  /**
+   * Run one contract action in the background.
+   * Resolves with `data`; rejects with the envelope's error message.
+   */
+  function call(action, params) {
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(msg, (resp) => {
+      chrome.runtime.sendMessage({ action, params: params || {} }, (resp) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
-        if (resp && resp.error) {
-          reject(new Error(resp.error));
+        if (!resp) {
+          reject(new Error('The extension did not answer.'));
           return;
         }
-        resolve(resp);
+        if (resp.ok === false || resp.error) {
+          const error = resp.error || {};
+          reject(new Error(error.message || String(error) || 'Request failed'));
+          return;
+        }
+        resolve(resp.data === undefined ? resp : resp.data);
       });
     });
+  }
+
+  function publicIdFromUrl(url) {
+    const match = String(url || '').match(/linkedin\.com\/in\/([^/?#]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
   }
 
   /* ================================================================ */
@@ -151,16 +169,11 @@
     const profiles = [];
 
     for (const urlOrName of selectedResults) {
-      const match = urlOrName.match(/linkedin\.com\/in\/([^/?#]+)/);
-      if (!match) continue;
+      const publicId = publicIdFromUrl(urlOrName);
+      if (!publicId) continue;
 
       try {
-        const profile = await send({
-          type: 'EXPORT_PROFILE',
-          publicIdentifier: match[1],
-        });
-        profiles.push(profile);
-        await new Promise((r) => setTimeout(r, 1500));
+        profiles.push(await call('profile.get', { publicId }));
       } catch (err) {
         console.warn(`[LinkedIn Toolkit] Failed to export ${urlOrName}:`, err.message);
       }
@@ -168,8 +181,10 @@
 
     if (profiles.length > 0) {
       try {
-        await send({ type: 'DOWNLOAD_CSV', profiles });
-        showToast(`Exported ${profiles.length} profiles to CSV`, 'success');
+        // The engine builds the CSV and hands it to chrome.downloads; a
+        // content script cannot download on its own.
+        const res = await call('export.csv', { kind: 'profiles', profiles, download: true });
+        showToast(`Exported ${profiles.length} profiles to ${res.filename}`, 'success');
       } catch (err) {
         showToast(`Export failed: ${err.message}`, 'error');
       }
@@ -209,13 +224,13 @@
       btn.textContent = 'Exporting...';
 
       try {
-        const profile = await send({ type: 'EXPORT_PROFILE' });
+        const profile = await call('profile.get', { url: window.location.href });
 
         const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${profile.publicIdentifier || 'profile'}.json`;
+        a.download = `${profile.publicId || 'profile'}.json`;
         a.click();
         URL.revokeObjectURL(url);
 
@@ -279,13 +294,22 @@
   /*  Listen for progress messages from background                    */
   /* ================================================================ */
 
-  chrome.runtime.onMessage.addListener((msg) => {
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!msg) return undefined;
+
     if (msg.type === 'UNFOLLOW_PROGRESS') {
-      showToast(
-        `Unfollowed: ${msg.unfollowed} | Remaining: ${msg.remaining}`,
-        'info',
-        2000
-      );
+      showToast(`Unfollowed: ${msg.unfollowed} | Remaining: ${msg.remaining}`, 'info', 2000);
+      return undefined;
     }
+
+    // Page requests from the background: capture.js does the work. Some of
+    // them (a full capture reads the photo bytes) are async.
+    const page = globalThis.LITK && globalThis.LITK.handleMessage(msg);
+    if (page === null || page === undefined) return undefined;
+
+    Promise.resolve(page)
+      .then(sendResponse)
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
   });
 })();

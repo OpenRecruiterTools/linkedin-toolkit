@@ -11,6 +11,13 @@ import { el, render, fmtNumber } from '../ui/dom.js';
 import { call, getLocal, setLocal, UI_KEYS } from './api.js';
 import { ACTIONS, HARD_CAPS } from '../lib/actions.js';
 import {
+  aiEndpointFor,
+  enrichmentEndpointFor,
+  hasHostAccess,
+  originPatternFor,
+  requestHostAccess,
+} from '../lib/permissions.js';
+import {
   card,
   field,
   row,
@@ -190,6 +197,34 @@ export async function renderSettings(container, opts = {}) {
   aiProvider.addEventListener('change', paintAiFields);
   paintAiFields();
 
+  /**
+   * The URL the chosen provider will actually be called on. An MV3 worker may
+   * only fetch a host it holds a permission for, and LinkedIn is the only one
+   * granted at install time, so the user grants this one when they pick it.
+   */
+  const aiEndpoint = () =>
+    aiEndpointFor({ provider: aiProvider.value, baseUrl: aiBaseUrl.value.trim() });
+
+  const aiAccess = statusLine('');
+
+  async function paintAiAccess() {
+    const endpoint = aiEndpoint();
+    if (!endpoint) {
+      aiAccess.set('');
+      return;
+    }
+    const granted = await hasHostAccess(endpoint);
+    aiAccess.set(
+      granted
+        ? `Access granted to ${originPatternFor(endpoint)}.`
+        : `The extension cannot reach ${originPatternFor(endpoint)} yet — press "Grant access".`,
+    );
+  }
+
+  aiProvider.addEventListener('change', paintAiAccess);
+  aiBaseUrl.addEventListener('change', paintAiAccess);
+  paintAiAccess();
+
   const bridgeEnabled = checkbox('Let a local MCP server connect', {
     checked: Boolean(config.bridge && config.bridge.enabled),
   });
@@ -315,10 +350,36 @@ export async function renderSettings(container, opts = {}) {
       aiFields.model,
       aiFields.baseUrl,
       aiFields.apiKey,
+      aiAccess.node,
       row(
+        busyButton(
+          'Grant access',
+          async () => {
+            const endpoint = aiEndpoint();
+            if (!endpoint) {
+              status.set('Pick a provider first.');
+              return;
+            }
+            // Chrome only honours this straight out of a click, so it runs
+            // before anything is saved or awaited.
+            const granted = await requestHostAccess(endpoint);
+            await paintAiAccess();
+            status.set(
+              granted
+                ? `Granted. ${originPatternFor(endpoint)} is reachable now.`
+                : 'Access was declined, so this provider cannot be reached.',
+            );
+          },
+          { error: err },
+        ),
         busyButton(
           'Test',
           async () => {
+            const endpoint = aiEndpoint();
+            if (endpoint && !(await hasHostAccess(endpoint))) {
+              status.set(`Press "Grant access" first — ${originPatternFor(endpoint)} is blocked.`);
+              return;
+            }
             await save();
             const result = await call(ACTIONS.AI_COMPLETE, {
               task: 'summary',
@@ -356,6 +417,25 @@ export async function renderSettings(container, opts = {}) {
       { hint: 'A provider interface, not a bundled service.' },
       field('Provider', enrichProvider),
       field('API key', enrichKey),
+      row(
+        busyButton(
+          'Grant access',
+          async () => {
+            const endpoint = enrichmentEndpointFor({ provider: enrichProvider.value });
+            if (!endpoint) {
+              status.set('Pick an enrichment provider first.');
+              return;
+            }
+            const granted = await requestHostAccess(endpoint);
+            status.set(
+              granted
+                ? `Granted. ${originPatternFor(endpoint)} is reachable now.`
+                : 'Access was declined, so enrichment cannot reach that provider.',
+            );
+          },
+          { error: err },
+        ),
+      ),
     ),
 
     el(
