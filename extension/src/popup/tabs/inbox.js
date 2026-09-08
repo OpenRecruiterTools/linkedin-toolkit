@@ -171,7 +171,11 @@ export async function mount(container) {
     if (!thread) return null;
     const person = counterpart(thread);
 
-    const body = textarea({ placeholder: `Reply to ${person.fullName || 'them'}…`, rows: 3 });
+    const body = textarea({
+      placeholder: `Reply to ${person.fullName || 'them'}…`,
+      'aria-label': `Reply to ${person.fullName || person.publicId || 'this conversation'}`,
+      rows: 3,
+    });
 
     const savedSelect = select([
       { value: '', label: state.savedReplies.length ? 'Saved replies…' : 'No saved replies' },
@@ -180,6 +184,7 @@ export async function mount(container) {
         label: text.slice(0, 40),
       })),
     ]);
+    savedSelect.setAttribute('aria-label', 'Insert a saved reply');
     savedSelect.addEventListener('change', () => {
       const chosen = state.savedReplies[Number(savedSelect.value)];
       if (chosen) body.value = chosen;
@@ -252,7 +257,10 @@ export async function mount(container) {
   /* ---------------- saved replies ------------------------------------- */
 
   function savedRepliesCard() {
-    const draft = input({ placeholder: 'A reply you send often' });
+    const draft = input({
+      placeholder: 'A reply you send often',
+      'aria-label': 'New saved reply',
+    });
     return card(
       'Saved replies',
       { hint: 'Stored on this machine only.' },

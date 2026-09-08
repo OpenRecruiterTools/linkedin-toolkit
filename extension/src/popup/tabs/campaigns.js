@@ -101,6 +101,7 @@ function messageEditor(step, key, placeholder) {
   const area = textarea({
     placeholder,
     rows: 3,
+    'aria-label': placeholder,
     value: step[key] || '',
     oninput: () => {
       step[key] = area.value;
@@ -120,6 +121,7 @@ function messageEditor(step, key, placeholder) {
             rows: 2,
             value: text,
             placeholder: `Alternative ${index + 1}`,
+            'aria-label': `${placeholder} — alternative ${index + 1}`,
             oninput: (e) => {
               step.variants[index] = e.target.value;
             },
@@ -197,6 +199,7 @@ function stepBody(step, depth) {
   if (step.type === 'inmail') {
     const subject = input({
       placeholder: 'Subject',
+      'aria-label': 'InMail subject',
       value: step.subject || '',
       oninput: () => {
         step.subject = subject.value;

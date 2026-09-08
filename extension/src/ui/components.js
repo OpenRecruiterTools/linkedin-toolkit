@@ -249,6 +249,32 @@ export function busyButton(label, handler, opts = {}) {
   return button;
 }
 
+/**
+ * Make a non-button element behave like one: focusable, announced as a button,
+ * and activated by Enter or Space as well as by a click.
+ *
+ * Used where the clickable thing cannot be a real `<button>` — a drop target,
+ * or a row that contains flow content a `<button>` may not hold.
+ *
+ * @param {HTMLElement} node
+ * @param {(event: Event) => void} handler
+ * @param {{ label?: string }} [opts]
+ * @returns {HTMLElement} node
+ */
+export function activatable(node, handler, opts = {}) {
+  node.setAttribute('role', 'button');
+  node.setAttribute('tabindex', '0');
+  if (opts.label) node.setAttribute('aria-label', opts.label);
+  node.addEventListener('click', handler);
+  node.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      handler(event);
+    }
+  });
+  return node;
+}
+
 /** A plain (non-async) button. */
 export function button(label, onClick, opts = {}) {
   return el(

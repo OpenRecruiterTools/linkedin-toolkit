@@ -20,6 +20,7 @@ import {
   statusLine,
   busyButton,
   button,
+  activatable,
   confirmDialog,
   empty,
 } from '../../ui/components.js';
@@ -122,14 +123,15 @@ export async function mount(container) {
       'Lists',
       el(
         'div',
-        { class: 'itemlist scroll-y' },
-        state.lists.map((list) =>
-          el(
+        { class: 'itemlist scroll-y', role: 'group', 'aria-label': 'Saved lists' },
+        state.lists.map((list) => {
+          const selected = list.listId === state.selectedId;
+          const rowNode = el(
             'div',
             {
-              class: `item${list.listId === state.selectedId ? ' is-selected' : ''}`,
+              class: `item${selected ? ' is-selected' : ''}`,
               'data-list': list.listId,
-              onclick: () => selectList(list.listId),
+              'aria-pressed': selected ? 'true' : 'false',
             },
             el(
               'div',
@@ -145,8 +147,13 @@ export async function mount(container) {
                   list.tags.map((t) => pill(t)),
                 )
               : null,
-          ),
-        ),
+          );
+          // A row holds flow content a <button> may not, so it is given button
+          // semantics and Enter/Space activation instead.
+          return activatable(rowNode, () => selectList(list.listId), {
+            label: `Open list ${list.name}`,
+          });
+        }),
       ),
     );
   }
@@ -197,7 +204,15 @@ export async function mount(container) {
                 return el(
                   'tr',
                   null,
-                  el('td', null, el('input', { type: 'checkbox', 'data-member': member.publicId })),
+                  el(
+                    'td',
+                    null,
+                    el('input', {
+                      type: 'checkbox',
+                      'data-member': member.publicId,
+                      'aria-label': `Select ${profile.fullName || member.publicId}`,
+                    }),
+                  ),
                   el(
                     'td',
                     null,

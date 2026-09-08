@@ -28,6 +28,8 @@ export const TABS = [dashboard, extract, lists, campaigns, inbox, queue, researc
  */
 export function createShell(nodes) {
   const { tabbar, view, headStatus } = nodes;
+  if (view && !view.id) view.id = 'view';
+  if (view) view.setAttribute('role', 'tabpanel');
   let activeId = null;
   let activeTab = null;
   const buttons = new Map();
@@ -49,8 +51,11 @@ export function createShell(nodes) {
     activeId = tab.id;
     activeTab = tab;
     for (const [tabId, btn] of buttons) {
-      btn.classList.toggle('is-active', tabId === tab.id);
-      btn.setAttribute('aria-selected', tabId === tab.id ? 'true' : 'false');
+      const isActive = tabId === tab.id;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      // Roving tabindex: one stop for the whole strip, arrows move within it.
+      btn.setAttribute('tabindex', isActive ? '0' : '-1');
     }
     await setLocal(UI_KEYS.ACTIVE_TAB, tab.id);
     render(view, el('p', { class: 'empty' }, 'Loading…'));
@@ -61,7 +66,26 @@ export function createShell(nodes) {
     }
   }
 
+  /** Left/Right move along the tab strip and open what they land on. */
+  function onTabKeydown(event) {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (!step && event.key !== 'Home' && event.key !== 'End') return;
+    event.preventDefault();
+
+    const index = TABS.findIndex((t) => t.id === activeId);
+    let next;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = TABS.length - 1;
+    else next = (index + step + TABS.length) % TABS.length;
+
+    const target = TABS[next];
+    const btn = buttons.get(target.id);
+    if (btn) btn.focus();
+    activate(target.id);
+  }
+
   function paintTabs() {
+    tabbar.setAttribute('role', 'tablist');
     render(
       tabbar,
       TABS.map((tab) => {
@@ -71,6 +95,10 @@ export function createShell(nodes) {
             type: 'button',
             class: 'tab',
             role: 'tab',
+            id: `tab-${tab.id}`,
+            'aria-selected': 'false',
+            'aria-controls': view.id || null,
+            tabindex: '-1',
             'data-tab': tab.id,
             onclick: () => activate(tab.id),
           },
@@ -80,6 +108,7 @@ export function createShell(nodes) {
         return btn;
       }),
     );
+    tabbar.addEventListener('keydown', onTabKeydown);
   }
 
   async function paintHeader() {

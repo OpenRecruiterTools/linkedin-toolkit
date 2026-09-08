@@ -413,6 +413,18 @@ a {
   background: var(--accent-soft);
 }
 
+/* Anything given button semantics keeps a visible keyboard focus ring. */
+[role='button'] {
+  cursor: pointer;
+}
+
+[role='button']:focus-visible,
+.tab:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Buttons                                                            */
 /* ------------------------------------------------------------------ */

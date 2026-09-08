@@ -93,6 +93,9 @@ export async function mount(container) {
       rows: 3,
       value: item.params ? item.params[key] || '' : '',
       disabled: !editable,
+      'aria-label': `${ACTION_LABEL[item.action] || item.action} text for ${
+        profile.fullName || (item.params && item.params.publicId) || 'this person'
+      }`,
       'data-item': item.id,
       oninput: () => {
         state.edits.set(item.id, { [key]: area.value });
@@ -140,7 +143,10 @@ export async function mount(container) {
   }
 
   function draw() {
-    const filterSelect = select(STATUSES, { value: state.filter });
+    const filterSelect = select(STATUSES, {
+      value: state.filter,
+      'aria-label': 'Filter the queue by status',
+    });
     filterSelect.addEventListener('change', async () => {
       state.filter = filterSelect.value;
       try {

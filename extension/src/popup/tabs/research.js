@@ -23,6 +23,7 @@ import {
   progressBar,
   busyButton,
   button,
+  activatable,
   empty,
 } from '../../ui/components.js';
 import {
@@ -110,7 +111,6 @@ export async function mount(container) {
       {
         class: 'dropzone',
         'data-testid': 'dropzone',
-        onclick: () => fileInput.click(),
         ondragover: (e) => {
           e.preventDefault();
           drop.classList.add('is-over');
@@ -130,9 +130,13 @@ export async function mount(container) {
       },
       'Drop a CSV here, or click to choose one',
     );
+    // A drop target cannot be a <button>, so it is given button semantics and
+    // keyboard activation explicitly.
+    activatable(drop, () => fileInput.click(), { label: 'Choose a CSV file' });
 
     const paste = textarea({
       rows: 3,
+      'aria-label': 'Paste CSV rows',
       placeholder: '…or paste CSV: name,linkedin_url,email,domain,company',
     });
 
