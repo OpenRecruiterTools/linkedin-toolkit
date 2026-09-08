@@ -1,0 +1,14 @@
+{
+  "name": "linkedin-toolkit-extension",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LinkedIn Toolkit Chrome MV3 extension (no build step, no runtime dependencies).",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  }
+}

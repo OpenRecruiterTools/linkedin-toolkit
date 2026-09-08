@@ -1,0 +1,21 @@
+{
+  "name": "linkedin-toolkit-monorepo",
+  "private": true,
+  "workspaces": [
+    "extension",
+    "mcp-server",
+    "clients/node",
+    "clients/n8n"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint . --ext .js,.ts"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3"
+  }
+}

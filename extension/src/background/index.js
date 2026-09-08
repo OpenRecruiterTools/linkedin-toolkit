@@ -12,8 +12,6 @@ import {
   normalizeSearchCluster,
   sendInvite,
   sendMessage,
-  voyagerFetch,
-  isActionBlocked,
 } from './voyager.js';
 
 /* ================================================================== */
