@@ -6,6 +6,7 @@ import {
   runOpenAIToolCall,
   toLangChainToolSpecs,
   toLangChainTools,
+  toOpenAIAgentsTools,
   toOpenAITools,
   toVercelAITools,
   zodSchemaForTool,
@@ -107,6 +108,31 @@ describe('runOpenAIToolCall', () => {
     }).catch((e: unknown) => e)) as LinkedInToolkitError;
     expect(error.code).toBe('CHALLENGE_DETECTED');
     expect(error.terminal).toBe(true);
+  });
+});
+
+describe('toOpenAIAgentsTools', () => {
+  it('produces the Agents SDK shape, which is not the Chat Completions one', () => {
+    const tools = toOpenAIAgentsTools(client);
+    expect(tools).toHaveLength(39);
+    const search = tools.find((t) => t.name === 'linkedin_search_people')!;
+    expect(search.parameters).toBeInstanceOf(z.ZodObject);
+    // Strict mode would require every optional filter to be sent as null.
+    expect(search.strict).toBe(false);
+    expect(search.description.length).toBeGreaterThan(40);
+  });
+
+  it('executes against /tools/{tool}', async () => {
+    server.respondWithData({ profiles: [] });
+    const tools = toOpenAIAgentsTools(client, { include: ['linkedin_search_people'] });
+    await tools[0].execute({ keywords: 'CTO' });
+    expect(server.last.path).toBe('/tools/linkedin_search_people');
+    expect(server.last.body).toEqual({ keywords: 'CTO' });
+  });
+
+  it('takes the same filter as the others', () => {
+    const names = toOpenAIAgentsTools(client, { readOnly: true }).map((t) => t.name);
+    expect(names).not.toContain('linkedin_send_invite');
   });
 });
 

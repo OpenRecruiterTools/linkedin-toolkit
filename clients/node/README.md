@@ -79,18 +79,36 @@ the specific behaviour that turns a LinkedIn warning into a restriction.
 `client.tools()` returns the same 39 definitions the MCP server advertises — name, description and
 a JSON Schema for the arguments — as static data, so it works with the server stopped.
 
-### OpenAI (Chat Completions, Assistants, Agents SDK)
+### OpenAI (Chat Completions, Assistants)
 
 ```ts
 import { toOpenAITools, runOpenAIToolCall } from 'linkedin-toolkit';
 
-const tools = toOpenAITools(client);                       // all 39
-const readOnly = toOpenAITools(client, { readOnly: true }); // cannot send anything
+const tools = toOpenAITools(client);                        // all 39
+const readOnly = toOpenAITools(client, { readOnly: true });  // cannot send anything
 
 for (const call of message.tool_calls ?? []) {
-  const result = await runOpenAIToolCall(client, call);     // Chat Completions or Responses shape
+  const result = await runOpenAIToolCall(client, call);      // Chat Completions or Responses shape
 }
 ```
+
+### OpenAI Agents SDK
+
+Different shape — `tool()` wants zod and an `execute`, and handing it the Chat Completions shape
+fails quietly:
+
+```ts
+import { Agent, run, tool } from '@openai/agents';
+import { toOpenAIAgentsTools } from 'linkedin-toolkit';
+
+const agent = new Agent({
+  name: 'LinkedIn Sourcer',
+  tools: toOpenAIAgentsTools(client).map(tool),
+});
+```
+
+`strict: false` is set on each one: strict mode requires every property to be sent, and most
+actions here have genuinely optional filters.
 
 ### Vercel AI SDK
 
@@ -118,7 +136,7 @@ construct the tools yourself.
 
 ### Narrowing the tool set
 
-All three adapters take the same filter:
+All four adapters take the same filter:
 
 ```ts
 toOpenAITools(client, { readOnly: true });                       // no writes at all

@@ -22,8 +22,8 @@ export {
 export { ACTION_METHODS } from './methods.js';
 export { TOOL_DEFINITIONS, TOOLS_VERSION } from './tools.generated.js';
 
-export { toOpenAITools, runOpenAIToolCall } from './adapters/openai.js';
-export type { OpenAIFunctionTool, OpenAIToolCall } from './adapters/openai.js';
+export { toOpenAITools, toOpenAIAgentsTools, runOpenAIToolCall } from './adapters/openai.js';
+export type { OpenAIAgentsTool, OpenAIFunctionTool, OpenAIToolCall } from './adapters/openai.js';
 export { toVercelAITools } from './adapters/vercel.js';
 export type { VercelAITool } from './adapters/vercel.js';
 export { toLangChainTools, toLangChainToolSpecs } from './adapters/langchain.js';

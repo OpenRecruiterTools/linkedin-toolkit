@@ -1,12 +1,18 @@
 /**
- * OpenAI adapter — the `tools` array for Chat Completions, the Assistants API
- * and the OpenAI Agents SDK, all of which take the same
- * `{ type: 'function', function: { name, description, parameters } }` shape.
+ * OpenAI adapters.
+ *
+ * Two surfaces, two shapes. Chat Completions and the Assistants API want
+ * `{ type: 'function', function: { name, description, parameters } }` with a
+ * JSON Schema — that is `toOpenAITools`. The Agents SDK's `tool()` wants
+ * `{ name, description, parameters (zod), execute }` — that is
+ * `toOpenAIAgentsTools`. Handing either one the other's shape fails quietly, so
+ * both are here rather than leaving the caller to reshape.
  */
+import type { z } from 'zod';
 import type { LinkedInToolkit } from '../client.js';
 import { LinkedInToolkitError } from '../errors.js';
 import type { ToolDefinition } from '../types.js';
-import { filterTools, type ToolFilter } from './shared.js';
+import { filterTools, zodSchemaForTool, type ToolFilter } from './shared.js';
 
 export type OpenAIFunctionTool = {
   type: 'function';
@@ -86,4 +92,35 @@ export async function runOpenAIToolCall(
 ): Promise<unknown> {
   const { name, args } = readCall(call);
   return client.callTool(name, args);
+}
+
+/**
+ * The OpenAI **Agents SDK** takes a different shape from the raw API: `tool()`
+ * wants `{ name, description, parameters (zod), execute }`, not
+ * `{ type: 'function', function: {...} }`.
+ *
+ * `strict: false` is set deliberately. Strict mode requires every property to
+ * be required, and most actions here have genuinely optional filters; the
+ * alternative would be rewriting every `.optional()` as `.nullable()` and
+ * teaching the model to send nulls.
+ */
+export type OpenAIAgentsTool = {
+  name: string;
+  description: string;
+  parameters: z.ZodObject<z.ZodRawShape>;
+  strict: false;
+  execute: (args: Record<string, unknown>) => Promise<unknown>;
+};
+
+export function toOpenAIAgentsTools(
+  client: LinkedInToolkit,
+  filter?: ToolFilter,
+): OpenAIAgentsTool[] {
+  return filterTools(client.tools(), filter).map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: zodSchemaForTool(tool.name),
+    strict: false as const,
+    execute: (args: Record<string, unknown> = {}) => client.callTool(tool.name, args),
+  }));
 }
