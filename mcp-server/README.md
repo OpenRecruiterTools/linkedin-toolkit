@@ -65,16 +65,16 @@ raised by this server, the CLI, an agent or a config file.
 
 Automating your LinkedIn account may breach LinkedIn's User Agreement, and accounts are restricted
 and banned for it. That risk is yours. Read
-[docs/safety.md](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md) before
+[docs/safety.md](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/safety.md) before
 you point anything at an account you care about.
 
 ## Documentation
 
-- [Action contract](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/actions.md) —
+- [Action contract](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/actions.md) —
   every action, param, result, error code and event.
-- [Agent setup](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/README.md) —
+- [Agent setup](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/agents/README.md) —
   Claude Code, OpenAI Agents, LangChain, n8n and the rest.
-- [Safety](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md).
+- [Safety](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/safety.md).
 
 MIT licensed. Issues and pull requests:
 <https://github.com/OpenRecruiterTools/linkedin-toolkit>

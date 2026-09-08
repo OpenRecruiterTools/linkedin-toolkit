@@ -5,11 +5,11 @@ contact_links:
     about: Anything that is not yet a specific bug or a specific change.
 
   - name: Setup help
-    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/README.md
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/agents/README.md
     about: The exact config block for your agent, and the pairing steps.
 
   - name: Is this safe? Will I get banned?
-    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/safety.md
     about: Caps, pacing, warm-up, the approval queue, recommended settings, and signs to stop.
 
   - name: Security vulnerability

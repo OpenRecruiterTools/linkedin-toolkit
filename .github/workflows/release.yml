@@ -103,7 +103,7 @@ jobs:
             into the extension popup → Settings → Local bridge.
 
             Full setup, including the config block for your agent:
-            [docs/agents](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/README.md)
+            [docs/agents](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/agents/README.md)
 
             ---
 
