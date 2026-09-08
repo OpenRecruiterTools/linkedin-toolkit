@@ -22,6 +22,8 @@ import {
 } from './config.js';
 import { ORIGIN_HEADER } from './contract.js';
 import { TABLES } from './db.js';
+import { createDemoHandlers, FAKE_BANNER } from './fake-data.js';
+import { FakeExtensionClient } from './fake-extension.js';
 import { HttpServer } from './http.js';
 import { Toolkit } from './toolkit.js';
 import { createMcpServer, SERVER_VERSION } from './tools.js';
@@ -237,11 +239,12 @@ export class ServerClient {
 export type ServeHandles = {
   toolkit: Toolkit;
   http?: HttpServer;
+  fake?: FakeExtensionClient;
   stop: () => Promise<void>;
 };
 
 export async function serve(
-  options: { http?: boolean; port?: number; bridgePort?: number },
+  options: { http?: boolean; port?: number; bridgePort?: number; fake?: boolean },
   io: Io,
 ): Promise<ServeHandles> {
   const { config } = loadConfig();
@@ -253,9 +256,22 @@ export async function serve(
   await toolkit.start();
 
   // In stdio mode stdout carries MCP frames, so the banner goes to stderr.
-  const banner = pairingInstructions(merged, { http: options.http });
-  if (options.http) io.out(banner);
-  else io.err(banner);
+  const say = options.http ? io.out : io.err;
+  if (options.fake) {
+    const rule = '='.repeat(FAKE_BANNER.length);
+    say(`${rule}\n${FAKE_BANNER}\n${rule}\n`);
+  }
+  say(pairingInstructions(merged, { http: options.http }));
+
+  // The demo extension attaches over the real bridge, so fake mode exercises
+  // exactly the same path a real extension would.
+  let fake: FakeExtensionClient | undefined;
+  if (options.fake) {
+    fake = new FakeExtensionClient({ port: toolkit.bridge.port, token: merged.token });
+    fake.setHandlers(createDemoHandlers((event, payload) => fake!.emit(event, payload)));
+    await fake.connect();
+    say('\nDemo extension connected. No pairing needed in fake mode.');
+  }
 
   let http: HttpServer | undefined;
   if (options.http) {
@@ -276,8 +292,10 @@ export async function serve(
   return {
     toolkit,
     http,
+    fake,
     stop: async () => {
       if (http) clearRuntime();
+      await fake?.close();
       await http?.stop();
       await toolkit.stop();
     },
@@ -333,9 +351,18 @@ export function buildProgram(io: Io = defaultIo): Command {
     .option('--http', 'also serve the HTTP action API and MCP over Streamable HTTP')
     .option('--port <port>', 'HTTP port (default 47830)', (v) => Number(v))
     .option('--bridge-port <port>', 'WebSocket bridge port (default 47829)', (v) => Number(v))
+    .option(
+      '--fake',
+      'run against built-in demo data instead of Chrome: no extension, no LinkedIn account, no network calls',
+    )
     .action(async (options) => {
       const handles = await serve(
-        { http: options.http, port: options.port, bridgePort: options.bridgePort },
+        {
+          http: options.http,
+          port: options.port,
+          bridgePort: options.bridgePort,
+          fake: options.fake,
+        },
         io,
       );
       const shutdown = () => void handles.stop().finally(() => process.exit(0));
