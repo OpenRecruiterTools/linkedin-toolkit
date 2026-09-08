@@ -24,13 +24,17 @@ import './queue.js';
 import './outreach.js';
 import './ai.js';
 import './inbox.js';
+import './campaigns.js';
+
+import { readCampaigns, migrateSteps } from './campaigns.js';
+import { pendingCount } from './queue.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
 /*  rate-limit provider.                                               */
 /* ================================================================== */
 
-const { humanDelay, isWithinBusinessHours } = quota;
+const { isWithinBusinessHours } = quota;
 
 /* ================================================================== */
 /*  Profile shaping                                                   */
@@ -231,189 +235,12 @@ async function unfollowAll() {
 }
 
 /* ================================================================== */
-/*  Campaigns (v1 engine, kept until WS-B's campaigns.js lands)        */
-/* ================================================================== */
-
-async function getCampaigns() {
-  const data = await chrome.storage.local.get('campaigns');
-  return data.campaigns || [];
-}
-
-async function saveCampaigns(campaigns) {
-  await chrome.storage.local.set({ campaigns });
-}
-
-async function createCampaign({ name, steps, contacts }) {
-  const campaigns = await getCampaigns();
-  const campaign = {
-    campaignId: `camp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    name,
-    status: 'active',
-    steps: steps || [],
-    contacts: (contacts || []).map((c) => ({
-      ...c,
-      currentStep: 0,
-      stepCompleted: {},
-      lastStepAt: null,
-      replied: false,
-    })),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  campaign.id = campaign.campaignId; // v1 popup reads `id`
-  campaigns.push(campaign);
-  await saveCampaigns(campaigns);
-  return campaign;
-}
-
-function findCampaign(campaigns, campaignId) {
-  const camp = campaigns.find((c) => c.campaignId === campaignId || c.id === campaignId);
-  if (!camp) throw new EngineError(ERROR.NOT_FOUND, `Campaign ${campaignId} not found`);
-  return camp;
-}
-
-async function setCampaignStatus(campaignId, status) {
-  const campaigns = await getCampaigns();
-  const camp = findCampaign(campaigns, campaignId);
-  camp.status = status;
-  camp.updatedAt = Date.now();
-  await saveCampaigns(campaigns);
-  return camp;
-}
-
-async function deleteCampaign(campaignId) {
-  const campaigns = await getCampaigns();
-  const camp = findCampaign(campaigns, campaignId);
-  await saveCampaigns(campaigns.filter((c) => c !== camp));
-  return camp;
-}
-
-function renderTemplate(template, contact) {
-  if (!template) return '';
-  return template
-    .replace(/\{\{firstName\}\}/g, contact.firstName || '')
-    .replace(/\{\{lastName\}\}/g, contact.lastName || '')
-    .replace(
-      /\{\{fullName\}\}/g,
-      contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
-    )
-    .replace(/\{\{company\}\}/g, contact.company || '')
-    .replace(/\{\{title\}\}/g, contact.title || contact.headline || '')
-    .replace(/\{\{headline\}\}/g, contact.headline || '');
-}
-
-async function runCampaignTick() {
-  const config = await getConfig();
-  if (config.businessHoursOnly && !isWithinBusinessHours(config)) {
-    return { executed: 0, queued: 0 };
-  }
-
-  const campaigns = await getCampaigns();
-  let executed = 0;
-  let queued = 0;
-  let modified = false;
-
-  for (const campaign of campaigns) {
-    if (campaign.status !== 'active') continue;
-    if (!campaign.steps.length || !campaign.contacts.length) continue;
-
-    let allDone = true;
-
-    for (const contact of campaign.contacts) {
-      if (contact.replied) continue;
-      if (contact.currentStep >= campaign.steps.length) continue;
-
-      allDone = false;
-      const step = campaign.steps[contact.currentStep];
-
-      if (step.type === 'wait') {
-        const waitMs = (step.delay_hours || 24) * 60 * 60 * 1000;
-        if (contact.lastStepAt && Date.now() - new Date(contact.lastStepAt).getTime() < waitMs) {
-          queued++;
-          continue;
-        }
-        contact.stepCompleted[contact.currentStep] = true;
-        contact.currentStep++;
-        contact.lastStepAt = new Date().toISOString();
-        modified = true;
-        continue;
-      }
-
-      if (contact.lastStepAt) {
-        const minDelay = (step.delay_hours || 0) * 60 * 60 * 1000;
-        if (Date.now() - new Date(contact.lastStepAt).getTime() < minDelay) {
-          queued++;
-          continue;
-        }
-      }
-
-      const action = CAMPAIGN_STEP_ACTIONS[step.type];
-      if (!action) continue;
-
-      const params = campaignStepParams(step, contact);
-      if (!params) continue;
-
-      const res = await handle(action, params, 'campaign');
-      if (!res.ok) {
-        queued++;
-        console.warn(`[Campaign] ${step.type} failed for ${contact.publicIdentifier}:`, res.error);
-        continue;
-      }
-
-      executed++;
-      contact.stepCompleted[contact.currentStep] = true;
-      contact.currentStep++;
-      contact.lastStepAt = new Date().toISOString();
-      modified = true;
-
-      await humanDelay();
-    }
-
-    if (allDone) {
-      campaign.status = 'completed';
-      campaign.updatedAt = Date.now();
-      modified = true;
-    }
-  }
-
-  if (modified) await saveCampaigns(campaigns);
-  return { executed, queued };
-}
-
-const CAMPAIGN_STEP_ACTIONS = {
-  view_profile: ACTIONS.OUTREACH_VIEW,
-  send_invite: ACTIONS.OUTREACH_INVITE,
-  send_message: ACTIONS.OUTREACH_MESSAGE,
-};
-
-function campaignStepParams(step, contact) {
-  const publicId = contact.publicIdentifier || contact.publicId;
-  if (!publicId) return null;
-  if (step.type === 'view_profile') return { publicId };
-  if (step.type === 'send_invite') {
-    return {
-      publicId,
-      note: renderTemplate(step.message_template, contact),
-      profileUrn: contact.profileUrn || contact.entityUrn || '',
-    };
-  }
-  if (step.type === 'send_message') {
-    return {
-      publicId,
-      body: renderTemplate(step.message_template, contact),
-      recipientUrn: contact.entityUrn || contact.profileUrn || '',
-    };
-  }
-  return null;
-}
-
-/* ================================================================== */
 /*  Action registrations                                              */
 /* ================================================================== */
 
 register(ACTIONS.STATUS_GET, async () => {
   const config = await getConfig();
-  const campaigns = await getCampaigns();
+  const campaigns = await readCampaigns();
   const quotas = await quota.snapshotAll();
   const paused = await quota.pauseState();
 
@@ -433,7 +260,7 @@ register(ACTIONS.STATUS_GET, async () => {
     businessHours: isWithinBusinessHours(config),
     ...paused,
     quotas,
-    queue: { pending: 0 },
+    queue: { pending: await pendingCount() },
     campaigns: {
       active: campaigns.filter((c) => c.status === 'active').length,
       paused: campaigns.filter((c) => c.status === 'paused').length,
@@ -446,16 +273,6 @@ register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
 
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
-
-register(ACTIONS.CAMPAIGN_CREATE, (params) => createCampaign(params));
-register(ACTIONS.CAMPAIGN_GET_ALL, async () => ({ campaigns: await getCampaigns() }));
-register(ACTIONS.CAMPAIGN_GET, async ({ campaignId }) =>
-  findCampaign(await getCampaigns(), campaignId),
-);
-register(ACTIONS.CAMPAIGN_PAUSE, ({ campaignId }) => setCampaignStatus(campaignId, 'paused'));
-register(ACTIONS.CAMPAIGN_RESUME, ({ campaignId }) => setCampaignStatus(campaignId, 'active'));
-register(ACTIONS.CAMPAIGN_DELETE, ({ campaignId }) => deleteCampaign(campaignId));
-register(ACTIONS.CAMPAIGN_TICK, () => runCampaignTick());
 
 register(ACTIONS.EXPORT_CSV, async ({ kind, profiles }) => {
   if (kind !== 'profiles' || !profiles || !profiles.length) {
@@ -472,6 +289,9 @@ register(ACTIONS.EXPORT_CSV, async ({ kind, profiles }) => {
 /* ================================================================== */
 
 const usageView = (rl) => ({ hourly: rl.hourlyUsed, daily: rl.dailyUsed });
+
+/** The v1 popup renders `camp.id`. */
+const withLegacyId = (campaign) => ({ ...campaign, id: campaign.campaignId });
 
 /** v2 Config → the key names the v1 popup and options page still use. */
 function toLegacyConfig(config) {
@@ -574,18 +394,25 @@ const LEGACY_MAP = {
     }),
   },
 
-  GET_CAMPAIGNS: { action: ACTIONS.CAMPAIGN_GET_ALL, result: (data) => data.campaigns },
+  GET_CAMPAIGNS: {
+    action: ACTIONS.CAMPAIGN_GET_ALL,
+    result: (data) => data.campaigns.map(withLegacyId),
+  },
   CREATE_CAMPAIGN: {
     action: ACTIONS.CAMPAIGN_CREATE,
     params: (msg) => ({
       name: msg.name || 'Untitled Campaign',
-      steps: msg.steps || [],
-      contacts: msg.contacts || [],
+      steps: migrateSteps(msg.steps || []),
+      publicIds: (msg.contacts || [])
+        .map((c) => c.publicIdentifier || c.publicId)
+        .filter(Boolean),
     }),
+    result: withLegacyId,
   },
   UPDATE_CAMPAIGN_STATUS: {
     action: (msg) => (msg.status === 'paused' ? ACTIONS.CAMPAIGN_PAUSE : ACTIONS.CAMPAIGN_RESUME),
     params: (msg) => ({ campaignId: msg.campaignId }),
+    result: withLegacyId,
   },
   DELETE_CAMPAIGN: {
     action: ACTIONS.CAMPAIGN_DELETE,

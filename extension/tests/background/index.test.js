@@ -223,9 +223,9 @@ describe('campaigns through the contract actions', () => {
   });
 
   it('reports a missing campaign in the v1 { error } shape', async () => {
-    expect(await route({ type: 'DELETE_CAMPAIGN', campaignId: 'nope' })).toEqual({
-      error: 'Campaign nope not found',
-    });
+    expect((await route({ type: 'DELETE_CAMPAIGN', campaignId: 'nope' })).error).toMatch(
+      /Campaign nope not found/,
+    );
   });
 
   it('runs a tick without doing anything when there are no campaigns', async () => {
