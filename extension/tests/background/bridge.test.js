@@ -194,6 +194,23 @@ describe('requests', () => {
     expect(seenOrigin).toEqual(['mcp']);
   });
 
+  it('honours an origin of mcp or cli and defaults to mcp', async () => {
+    await connect();
+    const origins = [];
+    register(ACTIONS.LIST_GET_ALL, (_params, ctx) => {
+      origins.push(ctx.origin);
+      return { lists: [] };
+    });
+
+    socket().deliver({ id: 'a', action: ACTIONS.LIST_GET_ALL, params: {}, origin: 'cli' });
+    socket().deliver({ id: 'b', action: ACTIONS.LIST_GET_ALL, params: {}, origin: 'mcp' });
+    socket().deliver({ id: 'c', action: ACTIONS.LIST_GET_ALL, params: {} });
+    socket().deliver({ id: 'd', action: ACTIONS.LIST_GET_ALL, params: {}, origin: 'popup' });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(origins).toEqual(['cli', 'mcp', 'mcp', 'mcp']);
+  });
+
   it('passes params through and answers errors in the envelope', async () => {
     await connect();
     socket().deliver({ id: 'r1', action: ACTIONS.LIST_CREATE, params: { name: 'Targets' } });

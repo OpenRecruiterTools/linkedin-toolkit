@@ -25,6 +25,7 @@ import './outreach.js';
 import './ai.js';
 import './inbox.js';
 import './campaigns.js';
+import './capture.js';
 
 import { readCampaigns, migrateSteps } from './campaigns.js';
 import { pendingCount } from './queue.js';

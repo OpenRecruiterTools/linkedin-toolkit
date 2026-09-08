@@ -29,7 +29,7 @@
     },
     {
       "matches": ["https://www.linkedin.com/*"],
-      "js": ["src/content/linkedin.js"],
+      "js": ["src/content/capture.js", "src/content/linkedin.js"],
       "css": ["src/content/linkedin.css"],
       "run_at": "document_idle"
     }

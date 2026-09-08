@@ -9,7 +9,7 @@
  * Protocol:
  *   extension → { type: 'hello', token, extensionVersion }
  *   server    → { type: 'hello_ok', serverVersion } | close 4001 (UNAUTHORIZED)
- *   server    → { id, action, params }
+ *   server    → { id, action, params, origin? }   (origin 'mcp' | 'cli')
  *   extension → { id, ok: true, data } | { id, ok: false, error }
  *   extension → { event, payload }
  *
@@ -112,8 +112,12 @@ function sendFrame(frame) {
   }
 }
 
+/** Origins a bridge client may claim. Both follow the same queue rule. */
+const BRIDGE_ORIGINS = new Set(['mcp', 'cli']);
+
 async function onRequest(frame) {
-  const envelope = await handle(frame.action, frame.params || {}, 'mcp');
+  const origin = BRIDGE_ORIGINS.has(frame.origin) ? frame.origin : 'mcp';
+  const envelope = await handle(frame.action, frame.params || {}, origin);
   sendFrame({ ...envelope, id: frame.id });
 }
 
