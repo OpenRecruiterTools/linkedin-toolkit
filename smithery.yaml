@@ -1,0 +1,10 @@
+# Smithery registry descriptor — https://smithery.ai/docs/config
+# LinkedIn Toolkit runs LOCALLY: it needs the user's Chrome extension paired over localhost.
+# It therefore cannot be hosted by Smithery; the descriptor documents the local stdio launch.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    () => ({ command: 'npx', args: ['-y', 'linkedin-toolkit-mcp'] })
