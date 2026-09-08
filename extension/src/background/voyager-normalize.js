@@ -29,6 +29,7 @@ import {
   entitiesOfType,
   field,
   index,
+  list,
   resolve,
   textOf,
   total,
@@ -66,17 +67,53 @@ export function fsdProfileUrnIn(urn) {
   return match ? match[0] : '';
 }
 
+/**
+ * The largest rendition of a vector image, wherever the wrapper puts it.
+ *
+ * The artifacts usually arrive smallest-first, but "usually" is not a
+ * guarantee worth relying on for the one field a CSV shows as a face, so the
+ * widest is picked explicitly.
+ */
 function vectorImageUrl(image) {
   if (!image) return '';
   const vector =
     image.vectorImage ||
     (image.displayImageReference && image.displayImageReference.vectorImage) ||
     image;
-  const root = vector.rootUrl || '';
-  const artifacts = vector.artifacts || [];
-  const last = artifacts[artifacts.length - 1];
-  const segment = last && last.fileIdentifyingUrlPathSegment;
-  return segment ? `${root}${segment}` : '';
+  const artifacts = Array.isArray(vector.artifacts) ? vector.artifacts : [];
+  const widest = artifacts.reduce(
+    (best, a) => (a && a.fileIdentifyingUrlPathSegment && (!best || (a.width || 0) > (best.width || 0)) ? a : best),
+    null,
+  );
+  return widest ? `${vector.rootUrl || ''}${widest.fileIdentifyingUrlPathSegment}` : '';
+}
+
+/**
+ * The photo on a rendered image view model.
+ *
+ * Search results, followers and employee lists all carry their picture inside
+ * an `ImageViewModel`: one of its attributes holds a `nonEntityProfilePicture`
+ * (the image inline) or a `*profile` reference to an entity in `included`
+ * that has one. Both are read, because LinkedIn uses both in the same
+ * response.
+ */
+function imageViewModelUrl(image, idx) {
+  if (!image) return '';
+
+  for (const attribute of image.attributes || []) {
+    const detail = (attribute && attribute.detailData) || {};
+    for (const value of Object.values(detail)) {
+      if (!value || typeof value !== 'object') continue;
+      const direct = vectorImageUrl(value);
+      if (direct) return direct;
+
+      const profile = field(value, 'profile', idx) || field(value, 'profilePicture', idx);
+      const viaProfile = profile && vectorImageUrl(profile.profilePicture || profile);
+      if (viaProfile) return viaProfile;
+    }
+  }
+
+  return vectorImageUrl(image);
 }
 
 const text = textOf;
@@ -448,7 +485,7 @@ export function sectionToSkills(entries) {
  * (`trackingUrn` is a `urn:li:member:` id, which is not what the rest of the
  * engine speaks).
  */
-function entityResultToProfile(entity, source) {
+function entityResultToProfile(entity, source, idx) {
   const navigationUrl =
     entity.navigationUrl || (entity.navigationContext && entity.navigationContext.url) || '';
   const publicId = publicIdFromUrl(navigationUrl);
@@ -465,6 +502,7 @@ function entityResultToProfile(entity, source) {
       title: atIndex > 0 ? headline.slice(0, atIndex) : headline,
       company: atIndex > 0 ? headline.slice(atIndex + 4) : '',
       location: text(entity.secondarySubtitle),
+      photoUrl: imageViewModelUrl(entity.image, idx),
       urn: fsdProfileUrnIn(entity.entityUrn) || entity.trackingUrn || '',
       // `memberDistance` is a plain string here (`"DISTANCE_2"`), not the
       // `{ value }` wrapper the older shapes used; `degreeOf` reads both.
@@ -486,16 +524,16 @@ function entityResultToProfile(entity, source) {
  * the page into.
  */
 export function normalizeSearchClusters(raw, source = 'search') {
+  const idx = index(raw);
   const profiles = [];
   for (const entity of entitiesOfType(raw, 'search.EntityResultViewModel')) {
-    const profile = entityResultToProfile(entity, source);
+    const profile = entityResultToProfile(entity, source, idx);
     if (profile.publicId || profile.fullName) profiles.push(profile);
   }
 
   // Older captures (and the hand-written fixtures for endpoints we have not
   // been able to verify) inline the entity results inside the clusters.
   if (!profiles.length) {
-    const idx = index(raw);
     for (const cluster of elements(raw, idx)) {
       for (const item of cluster.items || cluster.results || []) {
         const entity =
@@ -505,7 +543,7 @@ export function normalizeSearchClusters(raw, source = 'search') {
           item.entity ||
           item;
         if (!entity || !entity.navigationUrl) continue;
-        const profile = entityResultToProfile(entity, source);
+        const profile = entityResultToProfile(entity, source, idx);
         if (profile.publicId || profile.fullName) profiles.push(profile);
       }
     }
@@ -739,20 +777,34 @@ export function conversationUrn(mailboxUrn, threadId) {
   return `urn:li:msg_conversation:(${mailboxUrn},${id})`;
 }
 
-/** The member behind a messaging participant, in either shape. */
+/**
+ * The member behind a messaging participant, in either shape.
+ *
+ * A participant reaches us as a urn into `included` as often as it does
+ * inlined, so a reference is followed before anything is read off it — a
+ * string has no `participantType` and would otherwise silently produce an
+ * empty participant list on every real conversation.
+ */
 function participantPerson(participant, idx) {
   if (!participant) return null;
-  const node = resolve(participant, idx) || participant;
+  const node = resolve(participant, idx);
+  if (!node || typeof node !== 'object') return null;
   const member = (node.participantType && node.participantType.member) || null;
 
   if (member) {
+    const urn = node.hostIdentityUrn || node.entityUrn || '';
+    // The vanity name is on the member when the response carries it, in the
+    // profile link when it does not, and on the profile the host urn points
+    // at when neither is there.
+    const host = resolve(node.hostIdentityUrn, idx) || {};
     const publicId =
-      member.publicIdentifier || publicIdFromUrl(member.profileUrl || member.publicProfileUrl);
-    return {
-      publicId,
-      urn: node.hostIdentityUrn || node.entityUrn || '',
-      fullName: `${text(member.firstName)} ${text(member.lastName)}`.trim(),
-    };
+      member.publicIdentifier ||
+      publicIdFromUrl(member.profileUrl || member.publicProfileUrl || member.navigationUrl) ||
+      host.publicIdentifier ||
+      '';
+    const fullName = `${text(member.firstName)} ${text(member.lastName)}`.trim();
+    if (!publicId && !fullName) return null;
+    return { publicId, urn, fullName };
   }
 
   const legacy = node['com.linkedin.voyager.messaging.MessagingMember'] || node;
@@ -778,15 +830,18 @@ function messageTime(message) {
   return (message && (message.deliveredAt || message.createdAt)) || 0;
 }
 
-/** The most recent message carried inline on a conversation, if any. */
+/** The most recent message carried on a conversation, if any. */
 function lastMessageOf(conversation, idx) {
-  const container = conversation.messages || conversation.events;
+  const container = field(conversation, 'messages', idx) || conversation.events;
   if (!container) return null;
-  const list = Array.isArray(container)
-    ? container
-    : (container.elements || container['*elements'] || []).map((m) => resolve(m, idx) || m);
-  if (!list.length) return null;
-  return list.reduce((latest, m) => (messageTime(m) >= messageTime(latest) ? m : latest), list[0]);
+  const messages = Array.isArray(container)
+    ? container.map((m) => resolve(m, idx)).filter(Boolean)
+    : [...list(container, 'elements', idx)];
+  if (!messages.length) return null;
+  return messages.reduce(
+    (latest, m) => (messageTime(m) >= messageTime(latest) ? m : latest),
+    messages[0],
+  );
 }
 
 /**
@@ -800,7 +855,10 @@ export function normalizeConversations(raw, selfUrn = '') {
   const idx = index(raw);
   return elements(raw, idx).map((c) => {
     const last = lastMessageOf(c, idx);
-    const people = (c.conversationParticipants || c.participants || [])
+    const participants = list(c, 'conversationParticipants', idx).length
+      ? list(c, 'conversationParticipants', idx)
+      : list(c, 'participants', idx);
+    const people = participants
       .map((p) => participantPerson(p, idx))
       .filter(Boolean)
       .filter((p) => !selfUrn || p.urn !== selfUrn);
@@ -826,7 +884,8 @@ export function normalizeMessages(raw, threadId) {
   const idx = index(raw);
   return elements(raw, idx)
     .map((m) => {
-      const from = participantPerson(m.sender || m.from, idx) || {};
+      const from =
+        participantPerson(field(m, 'sender', idx) || m.sender || m.from, idx) || {};
       const sentAt = messageTime(m);
       const message = {
         messageId: m.entityUrn || `${threadId}:${sentAt}`,
@@ -835,7 +894,11 @@ export function normalizeMessages(raw, threadId) {
         body: messageBody(m),
         sentAt,
       };
-      const urn = from.urn || (m.sender && m.sender.hostIdentityUrn) || '';
+      const urn =
+        from.urn ||
+        (m.sender && typeof m.sender === 'object' && m.sender.hostIdentityUrn) ||
+        (typeof m.sender === 'string' ? m.sender : '') ||
+        '';
       if (urn) message.fromUrn = urn;
       return message;
     })

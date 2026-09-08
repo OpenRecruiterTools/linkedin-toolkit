@@ -69,6 +69,26 @@ export function field(entity, name, idx) {
 }
 
 /**
+ * Resolve a named list off an entity.
+ *
+ * The same field arrives three ways depending on how deeply LinkedIn
+ * normalised the response: `"*participants": ["urn:…", …]`,
+ * `"participants": ["urn:…", …]`, or `"participants": [{…}, …]` inlined. All
+ * three mean the same thing, and a caller that reads only the inline form
+ * silently gets an empty list from a response that was carrying the data.
+ *
+ * @returns {object[]} resolved entities, unresolvable references dropped
+ */
+export function list(entity, name, idx) {
+  if (!entity) return [];
+  const key = REF.test(name) ? name : `*${name}`;
+  const plain = REF.test(name) ? name.slice(1) : name;
+  const raw = Array.isArray(entity[key]) ? entity[key] : entity[plain];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => resolve(item, idx)).filter(Boolean);
+}
+
+/**
  * The node a response's collection hangs off.
  *
  * REST: `payload.data`. GraphQL: `payload.data.data.<queryName>`. Messaging

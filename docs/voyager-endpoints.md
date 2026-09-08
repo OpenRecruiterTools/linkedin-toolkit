@@ -89,11 +89,18 @@ Each of these returned HTTP 200 with real data on the capture date.
   `urn:li:fs_normalized_company:1035` and `urn:li:fsd_company:1035`.
 - The **messaging surface is fussy** in a way the rest of Voyager is not. It
   rejects `includeWebMetadata`, and each query wants its variables by exactly
-  the right names in exactly the right order.
+  the right names in exactly the right order. Its conversations also come back
+  fully normalised — `*conversationParticipants`, `*messages` and `*sender`
+  are urns into `included`, not inlined objects — which is why the normalizers
+  resolve a list through `normalized.js` instead of reading the array the
+  field appears to be. Reading only the inline form is not an error anywhere:
+  it silently yields an empty participant list.
 - **No decoration carries the member photo** for anybody but ourselves — the
   top card and the full profile both return a `profilePicture` with only
-  `a11yText`. The connections list and search results do carry it, so a profile
-  read returns the *stored* record, which keeps a photo an earlier read found;
+  `a11yText`. The connections list and search results do carry it — inlined on
+  the result's `image` attribute, or as a reference to a profile in `included`,
+  and LinkedIn uses both in the same response — so a profile read returns the
+  *stored* record, which keeps a photo an earlier read found;
   `profile.get { full: true }` also captures one from the page.
 - **Followers** come back through the search surface, and their navigation urls
   carry the obfuscated member id rather than a vanity name, so `publicId` is

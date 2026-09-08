@@ -65,6 +65,37 @@
         "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
       ],
       "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx",
+      "profilePicture": {
+        "a11yText": "Bob Bright",
+        "displayImageReference": {
+          "vectorImage": {
+            "rootUrl": "https://media.licdn.com/dms/image/v2/bobbright/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "height": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "height": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
     }
   ]
 }

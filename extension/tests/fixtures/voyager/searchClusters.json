@@ -206,30 +206,25 @@
           {
             "scalingType": null,
             "detailData": {
-              "profilePictureWithoutFrame": null,
-              "profilePictureWithRingStatus": null,
-              "companyLogo": null,
-              "icon": null,
-              "systemImage": null,
-              "nonEntityGroupLogo": null,
-              "vectorImage": null,
-              "nonEntityProfessionalEventLogo": null,
-              "profilePicture": null,
-              "imageUrl": null,
-              "professionalEventLogo": null,
-              "nonEntityCompanyLogo": null,
-              "nonEntitySchoolLogo": null,
-              "groupLogo": null,
-              "schoolLogo": null,
-              "ghostImage": null,
               "nonEntityProfilePicture": {
-                "*profile": "urn:li:fsd_profile:ACoAAA0006FIXTUREPROFILE0006xxxx",
-                "ringStatus": null,
-                "$recipeTypes": [
-                  "com.linkedin.4b009c1d6ea192a94bda77fb9ace3a7d"
-                ],
-                "vectorImage": null,
-                "$type": "com.linkedin.voyager.dash.common.image.NonEntityProfilePicture"
+                "vectorImage": {
+                  "rootUrl": "https://media.licdn.com/dms/image/v2/adalovelace/profile-displayphoto-shrink_",
+                  "artifacts": [
+                    {
+                      "width": 100,
+                      "height": 100,
+                      "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                      "$type": "com.linkedin.common.VectorArtifact"
+                    },
+                    {
+                      "width": 400,
+                      "height": 400,
+                      "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                      "$type": "com.linkedin.common.VectorArtifact"
+                    }
+                  ],
+                  "$type": "com.linkedin.common.VectorImage"
+                }
               }
             },
             "tintColor": null,
@@ -340,30 +335,8 @@
           {
             "scalingType": null,
             "detailData": {
-              "profilePictureWithoutFrame": null,
-              "profilePictureWithRingStatus": null,
-              "companyLogo": null,
-              "icon": null,
-              "systemImage": null,
-              "nonEntityGroupLogo": null,
-              "vectorImage": null,
-              "nonEntityProfessionalEventLogo": null,
-              "profilePicture": null,
-              "imageUrl": null,
-              "professionalEventLogo": null,
-              "nonEntityCompanyLogo": null,
-              "nonEntitySchoolLogo": null,
-              "groupLogo": null,
-              "schoolLogo": null,
-              "ghostImage": null,
               "nonEntityProfilePicture": {
-                "*profile": "urn:li:fsd_profile:ACoAAA0013FIXTUREPROFILE0013xxxx",
-                "ringStatus": null,
-                "$recipeTypes": [
-                  "com.linkedin.4b009c1d6ea192a94bda77fb9ace3a7d"
-                ],
-                "vectorImage": null,
-                "$type": "com.linkedin.voyager.dash.common.image.NonEntityProfilePicture"
+                "*profile": "urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx"
               }
             },
             "tintColor": null,
@@ -412,6 +385,37 @@
         "url": "https://www.linkedin.com/in/bobbright?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0036FIXTUREPROFILE0036xxxx",
         "$type": "com.linkedin.voyager.dash.search.NavigationContext"
       }
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx",
+      "profilePicture": {
+        "a11yText": "Bob Bright",
+        "displayImageReference": {
+          "vectorImage": {
+            "rootUrl": "https://media.licdn.com/dms/image/v2/bobbright/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "height": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "height": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
     }
   ]
 }

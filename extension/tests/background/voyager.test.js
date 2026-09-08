@@ -19,6 +19,7 @@ import followers from '../fixtures/voyager/followers.json';
 import groupMembers from '../fixtures/voyager/groupMembers.json';
 import eventAttendees from '../fixtures/voyager/eventAttendees.json';
 import conversations from '../fixtures/voyager/conversations.json';
+import conversationsRef from '../fixtures/voyager/conversationsRef.json';
 import conversationEvents from '../fixtures/voyager/conversationEvents.json';
 import salesNavSearch from '../fixtures/voyager/salesNavSearch.json';
 import recruiterSearch from '../fixtures/voyager/recruiterSearch.json';
@@ -287,6 +288,24 @@ describe('search', () => {
     expect(out.profiles[0].urn).toMatch(/^urn:li:fsd_profile:/);
     expect(out.total).toBe(240);
     expect(out.nextStart).toBe(10);
+  });
+
+  it('builds the largest photo, inline or through a profile reference', () => {
+    // LinkedIn uses both forms in the same response: the picture inlined on
+    // the result's image attribute, or a reference to a profile in `included`.
+    const [inline, viaReference] = v.normalizeSearchClusters(searchClusters).profiles;
+    expect(inline.photoUrl).toContain('media.licdn.com');
+    expect(inline.photoUrl).toContain('400_400');
+    expect(viaReference.photoUrl).toContain('media.licdn.com');
+    expect(viaReference.photoUrl).toContain('400_400');
+  });
+
+  it('picks the widest artifact, whatever order they arrive in', () => {
+    const raw = structuredClone(searchClusters);
+    const entity = raw.included.find((e) => e.$type.endsWith('EntityResultViewModel'));
+    const image = entity.image.attributes[0].detailData.nonEntityProfilePicture.vectorImage;
+    image.artifacts.reverse();
+    expect(v.normalizeSearchClusters(raw).profiles[0].photoUrl).toContain('400_400');
   });
 
   it('reads the degree off the plain memberDistance string', () => {
@@ -571,6 +590,48 @@ describe('messaging', () => {
       { publicId: 'adalovelace', fullName: 'Ada Lovelace' },
     ]);
     expect(out.threads[1].unread).toBe(false);
+  });
+
+  it('follows participant and message references into included', () => {
+    // The live response hands back `*conversationParticipants` as urns rather
+    // than inlined objects. Reading only the inline form produced an empty
+    // participant list on every real conversation.
+    const [thread] = v.normalizeConversations(conversationsRef, SELF_URN);
+    expect(thread.participants).toEqual([{ publicId: 'adalovelace', fullName: 'Ada Lovelace' }]);
+    expect(thread.snippet).toBe('Sounds interesting, can we book a call?');
+    expect(thread.lastMessageAt).toBe(1757200000000);
+  });
+
+  it('reads a vanity name off the profile the host urn points at', () => {
+    // That participant carries no profileUrl of its own.
+    const raw = structuredClone(conversationsRef);
+    raw.included = raw.included.filter((e) => !e.$type.endsWith('identity.profile.Profile'));
+    const [thread] = v.normalizeConversations(raw, SELF_URN);
+    expect(thread.participants).toEqual([{ publicId: '', fullName: 'Ada Lovelace' }]);
+  });
+
+  it('resolves a message sender that is a reference, not an object', () => {
+    const senderUrn = conversationsRef.included.find((e) =>
+      e.$type.endsWith('MessagingParticipant'),
+    ).entityUrn;
+    const raw = {
+      data: { data: { messengerMessagesByConversation: { '*elements': ['urn:li:msg_message:m1'] } } },
+      included: [
+        ...conversationsRef.included,
+        {
+          entityUrn: 'urn:li:msg_message:m1',
+          deliveredAt: 1757200000000,
+          body: { text: 'Hello' },
+          '*sender': senderUrn,
+          $type: 'com.linkedin.messenger.Message',
+        },
+      ],
+    };
+
+    expect(v.normalizeMessages(raw, '2-abc123')[0]).toMatchObject({
+      fromPublicId: 'adalovelace',
+      body: 'Hello',
+    });
   });
 
   it('rebuilds the conversation urn from a stored thread id', async () => {
