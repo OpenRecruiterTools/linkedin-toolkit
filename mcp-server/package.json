@@ -12,7 +12,9 @@
     "node": ">=20"
   },
   "files": [
-    "dist"
+    "dist",
+    "openapi.json",
+    "tools.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
