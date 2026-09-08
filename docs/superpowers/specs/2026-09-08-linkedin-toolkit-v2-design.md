@@ -158,6 +158,7 @@ Read tools:
 - `linkedin_get_status` — quotas, business hours, backoff, queue length, campaign summaries.
 - `linkedin_query_sql` — read-only SQL over the local SQLite (arrives with SQLite sync in Phase 4).
 - `linkedin_list_get` / `linkedin_list_members`.
+- `linkedin_research_pack` — rows in, packs out; see §5c.
 
 Write tools (all honour Copilot mode and hard caps):
 - `linkedin_view_profile`, `linkedin_follow`, `linkedin_like_post`, `linkedin_comment_post`.
@@ -201,12 +202,39 @@ Agent-friendliness rules that apply everywhere:
 - Examples directory holds a working agent per ecosystem: Claude Code transcript, OpenAI Agents
   SDK script, LangChain notebook, CrewAI crew, n8n workflow JSON, Vercel AI SDK route.
 
-## 6. CLI
+## 5c. Research Pack (killer feature)
+
+Input: a CSV of people or companies with any of `name`, `linkedin_url`, `email`, `domain`, `company`.
+Output: one pack per row, written to a folder and mirrored into SQLite and a list.
+
+Pipeline (all local, all through the user's own session and the user's own agent):
+1. **Resolve.** Match each row to a LinkedIn profile or company: direct URL if given, else
+   `search.people` with name + company, else `company.get` by domain-derived universal name.
+   Ambiguous matches are returned with candidates for the human or agent to pick.
+2. **Gather.** Full profile capture (page text, photo, experience, education, skills), company
+   page, recent posts and engagement, mutual connections, connection status.
+3. **Signals.** Job change in last 90 days, recent post activity, hiring signals from company
+   page (open roles count), headcount band, mutual connections count, engaged-with-me flag.
+4. **Enrich (optional).** User-key providers for verified email and phone. Off by default.
+5. **Web (agent-driven).** The `linkedin-research-pack` skill instructs the agent to use its own
+   web search tool for news, talks, GitHub, podcasts, and to write those into the pack. The
+   extension never crawls the open web.
+6. **Write.** `pack.md` dossier per row, `pack.json`, an enriched `output.csv` with every column
+   from the input plus resolved URL, title, company, location, signals, and match confidence,
+   and a new list "Research Pack <date>".
+
+Surfaces: action `research.pack` (rows in, pack summaries out, progress events),
+MCP tool `linkedin_research_pack`, CLI `lit research input.csv --out ./packs`,
+popup "Research Pack" tab with drop-zone, and skill `linkedin-research-pack`.
+Caps apply: resolution uses search quota, capture uses visit quota. A 500-row CSV is spread over
+days by the engine and the user sees an ETA.
+
 
 `npx linkedin-toolkit-mcp` starts the server. `lit` is a sibling binary in the same package:
 
 ```
 lit serve --http            # Streamable HTTP MCP + /openapi.json on localhost
+lit research input.csv --out ./packs   # Research Pack: CSV of names/domains/companies -> dossiers + enriched CSV
 lit status
 lit search "CTO fintech London" --source salesnav --count 100 --csv out.csv
 lit profile https://www.linkedin.com/in/... --full --json
@@ -280,6 +308,8 @@ RecruitClaw designs, no RecruitClaw text or branding):
 - `linkedin-campaign-runner` — build sequence from a template, enroll a list, monitor, report.
 - `linkedin-profile-to-dossier` — profile plus web search → one-page brief.
 - `linkedin-reply-triage` — classify inbox, propose replies, surface meetings to book.
+- `linkedin-research-pack` — CSV in → resolve, gather, signals, web research via the agent's own
+  search tool, dossier per row, enriched CSV out.
 
 Each skill has an `examples/` transcript showing the real agent run.
 
