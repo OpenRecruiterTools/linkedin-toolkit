@@ -20,6 +20,7 @@ import {
   writeRuntime,
   type ServerConfig,
 } from './config.js';
+import { ORIGIN_HEADER } from './contract.js';
 import { TABLES } from './db.js';
 import { HttpServer } from './http.js';
 import { Toolkit } from './toolkit.js';
@@ -188,6 +189,8 @@ export class ServerClient {
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${this.token}`,
+          // Marks these calls as human-originated rather than agent-originated.
+          [ORIGIN_HEADER]: 'cli',
         },
         body: JSON.stringify(body ?? {}),
       });

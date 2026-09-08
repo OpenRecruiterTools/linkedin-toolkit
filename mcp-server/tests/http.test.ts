@@ -179,6 +179,30 @@ describe('POST /tools/{tool}', () => {
   });
 });
 
+describe('request origin', () => {
+  it('is mcp by default', async () => {
+    await post('/actions/status.get', {});
+    expect(harness.ext.seen.at(-1)?.origin).toBe('mcp');
+  });
+
+  it('is cli when the CLI origin header is present', async () => {
+    await post('/actions/status.get', {}, { ...auth, 'x-linkedin-toolkit-origin': 'cli' });
+    expect(harness.ext.seen.at(-1)?.origin).toBe('cli');
+  });
+
+  it('ignores an unrecognised origin header and stays mcp', async () => {
+    await post('/actions/status.get', {}, { ...auth, 'x-linkedin-toolkit-origin': 'popup' });
+    expect(harness.ext.seen.at(-1)?.origin).toBe('mcp');
+  });
+
+  it('travels on tool routes too', async () => {
+    await post('/tools/linkedin_get_status', {}, { ...auth, 'x-linkedin-toolkit-origin': 'cli' });
+    expect(harness.ext.seen.at(-1)?.origin).toBe('cli');
+    await post('/tools/linkedin_sync', {});
+    expect(harness.ext.seen.at(-1)?.origin).toBe('mcp');
+  });
+});
+
 describe('CORS', () => {
   it('allows a localhost origin', async () => {
     const response = await fetch(`${base}/health`, { headers: { origin: 'http://localhost:3000' } });
@@ -197,6 +221,9 @@ describe('CORS', () => {
     });
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-methods')).toContain('POST');
+    expect(response.headers.get('access-control-allow-headers')).toContain(
+      'x-linkedin-toolkit-origin',
+    );
   });
 });
 

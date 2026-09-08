@@ -128,6 +128,61 @@ describe('BridgeServer', () => {
     await first.close();
   });
 
+  it('fails an in-flight request the moment the extension disconnects', async () => {
+    ext = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      // Accepts the request and never answers it.
+      handlers: { 'search.people': () => new Promise(() => {}) },
+    });
+    await ext.connect();
+
+    // The default 60 s timeout must not be what ends this. The rejection is
+    // captured up front so it is never briefly unhandled.
+    const inFlight = bridge.request('search.people', { keywords: 'x' }).catch((err) => err);
+    const startedAt = Date.now();
+    await new Promise((r) => setTimeout(r, 20));
+    await ext.close();
+    ext = null;
+
+    expect(await inFlight).toMatchObject({ code: 'EXTENSION_OFFLINE' });
+    expect(Date.now() - startedAt).toBeLessThan(1000);
+  });
+
+  it('fails an in-flight request when a newer extension replaces the old one', async () => {
+    const first = new FakeExtension({
+      port: bridge.port,
+      token: TOKEN,
+      handlers: { 'search.people': () => new Promise(() => {}) },
+    });
+    await first.connect();
+
+    const inFlight = bridge.request('search.people', { keywords: 'x' }).catch((err) => err);
+    await new Promise((r) => setTimeout(r, 20));
+
+    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    await ext.connect();
+
+    expect(await inFlight).toMatchObject({
+      code: 'EXTENSION_OFFLINE',
+      message: expect.stringContaining('reconnected'),
+    });
+    // The replacement connection is immediately usable.
+    await expect(bridge.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+    await first.close();
+  });
+
+  it('sends the optional origin field only when one is given', async () => {
+    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    await ext.connect();
+
+    await bridge.request('status.get', {}, { origin: 'cli' });
+    expect(ext.seen.at(-1)?.origin).toBe('cli');
+
+    await bridge.request('status.get', {});
+    expect(ext.seen.at(-1)?.origin).toBeUndefined();
+  });
+
   it('goes offline again when the extension disconnects', async () => {
     ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
     await ext.connect();

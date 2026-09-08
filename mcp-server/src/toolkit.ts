@@ -6,7 +6,7 @@ import { BridgeServer, BridgeError, type BridgeOptions } from './bridge.js';
 import { Db } from './db.js';
 import { Webhooks } from './webhooks.js';
 import type { ServerConfig } from './config.js';
-import type { ActionName, EventName } from './contract.js';
+import type { ActionName, EventName, RequestOrigin } from './contract.js';
 
 export type ToolkitOptions = {
   config: ServerConfig;
@@ -23,6 +23,10 @@ export type SyncResult = {
   totals: Record<string, number>;
 };
 
+/** How long an unclaimed research completion is remembered, and how many. */
+export const COMPLETED_RESEARCH_TTL_MS = 3_600_000;
+export const MAX_COMPLETED_RESEARCH = 500;
+
 export type ResearchPackResult =
   | { jobId: string; status: 'completed'; done: number; total: number; packs: unknown[] }
   | { jobId: string; status: 'running'; total: number; etaMs?: number; note: string };
@@ -34,7 +38,8 @@ export class Toolkit {
   readonly webhooks: Webhooks;
 
   private researchWaiters = new Map<string, (() => void)[]>();
-  private researchCompleted = new Set<string>();
+  /** jobId -> completion time, for jobs that finished before anyone waited. */
+  private researchCompleted = new Map<string, number>();
 
   constructor(options: ToolkitOptions) {
     this.config = options.config;
@@ -73,11 +78,15 @@ export class Toolkit {
     return this.bridge.isConnected();
   }
 
-  /** Call an action on the extension and mirror whatever it returns. */
+  /**
+   * Call an action on the extension and mirror whatever it returns.
+   * `origin` travels with the frame so the extension can tell an
+   * agent-originated write from a human one.
+   */
   async call(
     action: ActionName,
     params: unknown = {},
-    options: { timeoutMs?: number } = {},
+    options: { timeoutMs?: number; origin?: RequestOrigin } = {},
   ): Promise<unknown> {
     const data = await this.bridge.request(action, params, options);
     this.db.recordToolResult(action, data);
@@ -85,10 +94,10 @@ export class Toolkit {
   }
 
   /** `sync.pull` since the last sync, applied to the local mirror. */
-  async sync(since?: number): Promise<SyncResult> {
+  async sync(since?: number, origin?: RequestOrigin): Promise<SyncResult> {
     const from = since ?? this.db.lastSyncAt;
     const startedAt = Date.now();
-    const payload = (await this.bridge.request('sync.pull', { since: from })) as any;
+    const payload = (await this.bridge.request('sync.pull', { since: from }, { origin })) as any;
     const counts = this.db.upsertSync(payload, startedAt);
     this.db.lastSyncAt = startedAt;
     return {
@@ -106,10 +115,10 @@ export class Toolkit {
    */
   async researchPack(
     params: unknown,
-    options: { timeoutMs?: number } = {},
+    options: { timeoutMs?: number; origin?: RequestOrigin } = {},
   ): Promise<ResearchPackResult> {
     const timeoutMs = options.timeoutMs ?? this.config.researchTimeoutMs;
-    const started = (await this.call('research.pack', params)) as any;
+    const started = (await this.call('research.pack', params, { origin: options.origin })) as any;
     const jobId = String(started?.jobId ?? '');
     if (!jobId) {
       throw new BridgeError('INTERNAL', 'The extension did not return a research job id.');
@@ -126,7 +135,7 @@ export class Toolkit {
       };
     }
 
-    const result = (await this.call('research.get', { jobId })) as any;
+    const result = (await this.call('research.get', { jobId }, { origin: options.origin })) as any;
     return {
       jobId,
       status: 'completed',
@@ -138,6 +147,7 @@ export class Toolkit {
 
   /** Resolves true when the job completes, false on timeout. */
   waitForResearch(jobId: string, timeoutMs: number): Promise<boolean> {
+    this.pruneCompletedResearch();
     if (this.researchCompleted.has(jobId)) {
       this.researchCompleted.delete(jobId);
       return Promise.resolve(true);
@@ -162,10 +172,26 @@ export class Toolkit {
     const waiters = this.researchWaiters.get(jobId);
     this.researchWaiters.delete(jobId);
     if (!waiters || waiters.length === 0) {
-      this.researchCompleted.add(jobId);
+      // Nobody is waiting yet: remember it so a waiter arriving a moment later
+      // still sees the completion, but never let this grow without bound.
+      this.researchCompleted.set(jobId, Date.now());
+      this.pruneCompletedResearch();
       return;
     }
     for (const waiter of waiters) waiter();
+  }
+
+  /** Forget completions nobody claimed, oldest first. */
+  private pruneCompletedResearch(): void {
+    const cutoff = Date.now() - COMPLETED_RESEARCH_TTL_MS;
+    for (const [jobId, at] of this.researchCompleted) {
+      if (at < cutoff) this.researchCompleted.delete(jobId);
+    }
+    while (this.researchCompleted.size > MAX_COMPLETED_RESEARCH) {
+      const oldest = this.researchCompleted.keys().next().value;
+      if (oldest === undefined) break;
+      this.researchCompleted.delete(oldest);
+    }
   }
 
   private removeWaiter(jobId: string, waiter: () => void): void {

@@ -212,6 +212,12 @@ describe('search', () => {
     expect(JSON.parse(stdout())).toMatchSnapshot();
   });
 
+  it('marks its calls as cli-originated so the engine can tell it from an agent', async () => {
+    await startServer();
+    await run(['search', 'sre'], io);
+    expect(harness!.ext.seen.at(-1)?.origin).toBe('cli');
+  });
+
   it('passes source and count to the extension', async () => {
     await startServer();
     await run(['search', 'sre', '--source', 'salesnav', '--count', '1'], io);

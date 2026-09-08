@@ -29,7 +29,7 @@ export class FakeError extends Error {
 }
 
 export class FakeExtension {
-  readonly seen: { action: string; params: any }[] = [];
+  readonly seen: { action: string; params: any; origin?: string }[] = [];
   private ws: WebSocket | null = null;
   private handlers: Handlers;
   private readonly options: FakeExtensionOptions;
@@ -119,7 +119,7 @@ export class FakeExtension {
 
   private async answer(frame: any): Promise<void> {
     if (typeof frame?.id !== 'string' || typeof frame?.action !== 'string') return;
-    this.seen.push({ action: frame.action, params: frame.params });
+    this.seen.push({ action: frame.action, params: frame.params, origin: frame.origin });
     const handler = this.handlers[frame.action];
     if (!handler) {
       this.send({

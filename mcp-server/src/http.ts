@@ -11,10 +11,18 @@
  * listener binds to loopback only.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { BridgeError } from './bridge.js';
-import { isAction, PARAMS, toolByName, toolInputSchema, type ActionName } from './contract.js';
+import {
+  isAction,
+  ORIGIN_HEADER,
+  PARAMS,
+  toolByName,
+  toolInputSchema,
+  type ActionName,
+  type RequestOrigin,
+} from './contract.js';
 import { openApiDocument } from './openapi.js';
 import { createMcpServer, runTool, SERVER_VERSION } from './tools.js';
 import type { Toolkit } from './toolkit.js';
@@ -53,7 +61,10 @@ function applyCors(req: IncomingMessage, res: ServerResponse): void {
   if (!isLocalOrigin(Array.isArray(origin) ? origin[0] : origin)) return;
   res.setHeader('access-control-allow-origin', String(origin));
   res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-  res.setHeader('access-control-allow-headers', 'content-type, authorization, mcp-session-id');
+  res.setHeader(
+    'access-control-allow-headers',
+    `content-type, authorization, mcp-session-id, ${ORIGIN_HEADER}`,
+  );
   res.setHeader('access-control-expose-headers', 'mcp-session-id');
   res.setHeader('vary', 'origin');
 }
@@ -72,6 +83,25 @@ function bearerToken(req: IncomingMessage): string | null {
   if (typeof header !== 'string') return null;
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   return match ? match[1].trim() : null;
+}
+
+/** Constant-time comparison, so a wrong token leaks nothing through timing. */
+function tokenMatches(given: string | null, expected: string): boolean {
+  if (given === null) return false;
+  const a = Buffer.from(given, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Who is calling. The lit CLI sends the origin header; anything else — an MCP
+ * client, a Node or Python client, n8n — is treated as an agent.
+ */
+function originOf(req: IncomingMessage): RequestOrigin {
+  const header = req.headers[ORIGIN_HEADER];
+  const value = Array.isArray(header) ? header[0] : header;
+  return String(value ?? '').toLowerCase() === 'cli' ? 'cli' : 'mcp';
 }
 
 async function readBody(req: IncomingMessage): Promise<unknown> {
@@ -143,7 +173,7 @@ export class HttpServer {
   }
 
   private authorized(req: IncomingMessage): boolean {
-    return bearerToken(req) === this.toolkit.config.token;
+    return tokenMatches(bearerToken(req), this.toolkit.config.token);
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -247,10 +277,14 @@ export class HttpServer {
     }
 
     try {
-      const data = await this.toolkit.call(action as ActionName, {
-        ...(parsed.data as object),
-        ...(typeof (body as any)?.dry_run === 'boolean' ? { dry_run: (body as any).dry_run } : {}),
-      });
+      const data = await this.toolkit.call(
+        action as ActionName,
+        {
+          ...(parsed.data as object),
+          ...(typeof (body as any)?.dry_run === 'boolean' ? { dry_run: (body as any).dry_run } : {}),
+        },
+        { origin: originOf(req) },
+      );
       sendJson(res, 200, { id: randomUUID(), ok: true, data });
     } catch (err) {
       sendJson(res, 200, errorEnvelope(err));
@@ -290,7 +324,12 @@ export class HttpServer {
     }
 
     try {
-      const data = await runTool(this.toolkit, tool, parsed.data as Record<string, unknown>);
+      const data = await runTool(
+        this.toolkit,
+        tool,
+        parsed.data as Record<string, unknown>,
+        originOf(req),
+      );
       sendJson(res, 200, { id: randomUUID(), ok: true, data });
     } catch (err) {
       sendJson(res, 200, errorEnvelope(err));

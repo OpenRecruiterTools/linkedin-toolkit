@@ -614,17 +614,31 @@ export class Db {
     if (trimmed.includes(';')) {
       throw new Error('Only a single statement is allowed.');
     }
+    // Comments before the statement would let `--\nPRAGMA ...` or a block
+    // comment hide the real verb from the check below, so they are refused
+    // outright rather than stripped.
+    if (/^(--|\/\*)/.test(trimmed)) {
+      throw new Error('Comments are not allowed before the statement.');
+    }
     if (!/^(select|with)\b/i.test(trimmed)) {
       throw new Error('Only read-only SELECT or WITH queries are allowed.');
     }
 
-    // A separate read-only connection so no query can ever write, even if the
-    // statement checks above were somehow fooled.
+    // Defence in depth, in this order:
+    //   1. the verb check above,
+    //   2. a connection SQLite itself refuses writes on — a separate read-only
+    //      handle for a file database, `query_only` for an in-memory one,
+    //      whose single connection cannot be reopened read-only,
+    //   3. `statement.readonly`, which is false for a writing statement that
+    //      still returns rows, e.g. `WITH x AS (...) INSERT ... RETURNING *`.
     const inMemory = this.path === ':memory:';
     const readonlyDb = inMemory ? this.db : new Database(this.path, { readonly: true });
+    if (inMemory) readonlyDb.pragma('query_only = ON');
     try {
       const statement = readonlyDb.prepare(trimmed);
-      if (!statement.reader) throw new Error('Only read-only SELECT or WITH queries are allowed.');
+      if (!statement.reader || !statement.readonly) {
+        throw new Error('Only read-only SELECT or WITH queries are allowed.');
+      }
       const deadline = Date.now() + QUERY_TIMEOUT_MS;
       const rows: Record<string, unknown>[] = [];
       let truncated = false;
@@ -641,7 +655,8 @@ export class Db {
       const columns = statement.columns().map((c) => c.name);
       return { columns, rows, rowCount: rows.length, truncated };
     } finally {
-      if (!inMemory) readonlyDb.close();
+      if (inMemory) readonlyDb.pragma('query_only = OFF');
+      else readonlyDb.close();
     }
   }
 

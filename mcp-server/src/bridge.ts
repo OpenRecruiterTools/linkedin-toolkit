@@ -14,7 +14,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
-import type { ErrorCode, EventName } from './contract.js';
+import type { ErrorCode, EventName, RequestOrigin } from './contract.js';
 
 export const SERVER_VERSION = '2.0.0';
 
@@ -144,11 +144,7 @@ export class BridgeServer extends EventEmitter {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
-    for (const [id, pending] of this.pending) {
-      clearTimeout(pending.timer);
-      pending.reject(new BridgeError('INTERNAL', 'Bridge server stopped'));
-      this.pending.delete(id);
-    }
+    this.failPending(() => new BridgeError('INTERNAL', 'Bridge server stopped'));
     const socket = this.socket;
     this.socket = null;
     socket?.close();
@@ -168,13 +164,14 @@ export class BridgeServer extends EventEmitter {
   async request(
     action: string,
     params: unknown = {},
-    options: { timeoutMs?: number } = {},
+    options: { timeoutMs?: number; origin?: RequestOrigin } = {},
   ): Promise<unknown> {
     const socket = this.socket;
     if (!socket || socket.readyState !== WebSocket.OPEN) throw offlineError();
 
     const id = randomUUID();
     const timeoutMs = options.timeoutMs ?? this.defaultTimeoutMs;
+    const origin = options.origin;
 
     return await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -190,7 +187,9 @@ export class BridgeServer extends EventEmitter {
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
       try {
-        socket.send(JSON.stringify({ id, action, params: params ?? {} }));
+        socket.send(
+          JSON.stringify({ id, action, params: params ?? {}, ...(origin ? { origin } : {}) }),
+        );
       } catch (err) {
         clearTimeout(timer);
         this.pending.delete(id);
@@ -236,6 +235,8 @@ export class BridgeServer extends EventEmitter {
       if (this.socket === ws) {
         this.socket = null;
         this.extensionVersion = null;
+        // Nothing can answer these any more; failing now beats a 60 s timeout.
+        this.failPending(offlineError);
         this.emit('disconnected');
       }
     });
@@ -249,7 +250,31 @@ export class BridgeServer extends EventEmitter {
   private adopt(ws: WebSocket): void {
     const previous = this.socket;
     this.socket = ws;
-    if (previous && previous !== ws) previous.close(1000, 'replaced');
+    if (previous && previous !== ws) {
+      // Requests in flight belong to the socket being replaced: the extension
+      // that is going away will never answer them, and the new one has never
+      // seen them. Fail them now rather than letting them time out.
+      this.failPending(
+        () =>
+          new BridgeError(
+            'EXTENSION_OFFLINE',
+            'The extension reconnected while this request was in flight. Retry it.',
+            { howToFix: 'Retry the call; the new extension connection is already live.' },
+          ),
+      );
+      previous.close(1000, 'replaced');
+    }
+  }
+
+  /** Reject and clear every in-flight request. */
+  private failPending(makeError: () => BridgeError): void {
+    if (this.pending.size === 0) return;
+    const pending = [...this.pending.values()];
+    this.pending.clear();
+    for (const entry of pending) {
+      clearTimeout(entry.timer);
+      entry.reject(makeError());
+    }
   }
 
   private handleFrame(frame: any): void {

@@ -36,6 +36,8 @@ export class Webhooks {
   /** Resolves when every in-flight delivery has settled (tests await this). */
   private inflight = new Set<Promise<void>>();
   private closed = false;
+  /** Resolvers that cut a retry sleep short when the server shuts down. */
+  private sleepAborts = new Set<() => void>();
 
   constructor(options: WebhookOptions = {}) {
     this.url = options.url;
@@ -50,11 +52,14 @@ export class Webhooks {
   }
 
   /**
-   * Abandon pending retries. Shutdown must not wait 31 s for a dead receiver,
-   * and a webhook is fire-and-forget: an undelivered event is not an error.
+   * Abandon pending retries and wake anything sleeping between them. Shutdown
+   * must not wait 31 s for a dead receiver, and a webhook is fire-and-forget:
+   * an undelivered event is not an error.
    */
   close(): void {
     this.closed = true;
+    for (const abort of [...this.sleepAborts]) abort();
+    this.sleepAborts.clear();
   }
 
   get configured(): boolean {
@@ -69,10 +74,29 @@ export class Webhooks {
     void task.finally(() => this.inflight.delete(task));
   }
 
+  /**
+   * Wait for in-flight deliveries. Once closed there is nothing worth waiting
+   * for: retries have been abandoned and any request still on the wire is
+   * fire-and-forget, so shutdown returns immediately.
+   */
   async drain(): Promise<void> {
-    while (this.inflight.size > 0) {
+    if (this.closed) return;
+    while (this.inflight.size > 0 && !this.closed) {
       await Promise.all([...this.inflight]);
     }
+  }
+
+  /** A retry delay that `close()` can cut short. */
+  private async waitBeforeRetry(ms: number): Promise<void> {
+    if (this.closed) return;
+    await new Promise<void>((resolve) => {
+      const abort = () => {
+        this.sleepAborts.delete(abort);
+        resolve();
+      };
+      this.sleepAborts.add(abort);
+      void this.sleep(ms).then(abort);
+    });
   }
 
   private async send(delivery: WebhookDelivery): Promise<void> {
@@ -95,7 +119,7 @@ export class Webhooks {
         this.onError?.(err, attempt);
         const delay = this.retryDelaysMs[attempt];
         if (delay === undefined) return;
-        await this.sleep(delay);
+        await this.waitBeforeRetry(delay);
         if (this.closed) return;
       }
     }

@@ -90,6 +90,13 @@ describe('tool calls through the fake extension', () => {
     });
   });
 
+  it('marks calls as mcp-originated on the bridge frame', async () => {
+    await client.callTool({ name: 'linkedin_get_status', arguments: {} });
+    expect(harness.ext.seen.at(-1)?.origin).toBe('mcp');
+    await client.callTool({ name: 'linkedin_sync', arguments: {} });
+    expect(harness.ext.seen.at(-1)?.origin).toBe('mcp');
+  });
+
   it('mirrors returned profiles into SQLite', async () => {
     await client.callTool({
       name: 'linkedin_search_people',

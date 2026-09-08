@@ -97,6 +97,28 @@ describe('Webhooks', () => {
     expect(errors).toHaveLength(4);
   });
 
+  it('cuts a retry sleep short when closed', async () => {
+    const { url } = await receiver(() => 500);
+    // A real (unfaked) sleep ladder: only close() can end this quickly.
+    const hooks = new Webhooks({ url, retryDelaysMs: [30_000, 30_000, 30_000] });
+    hooks.deliver('quota_hit', {});
+    await new Promise((r) => setTimeout(r, 50));
+
+    const startedAt = Date.now();
+    hooks.close();
+    await hooks.drain();
+    expect(Date.now() - startedAt).toBeLessThan(1000);
+  });
+
+  it('drops deliveries queued after close', async () => {
+    const { url, received } = await receiver(() => 200);
+    const hooks = new Webhooks({ url });
+    hooks.close();
+    hooks.deliver('quota_hit', {});
+    await hooks.drain();
+    expect(received).toHaveLength(0);
+  });
+
   it('can be pointed at a new url at runtime', async () => {
     const { url, received } = await receiver(() => 200);
     const hooks = new Webhooks();

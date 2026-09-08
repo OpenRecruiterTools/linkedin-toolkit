@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { Webhooks } from '../src/webhooks.js';
+import { MAX_COMPLETED_RESEARCH } from '../src/toolkit.js';
 import { makeHarness, type Harness } from './helpers.js';
 
 let harness: Harness | null = null;
@@ -54,6 +55,19 @@ describe('bridge events', () => {
     expect(typeof bodies[0].at).toBe('number');
   });
 
+  it('let stop() return promptly even mid-retry against a dead receiver', async () => {
+    harness = await makeHarness();
+    harness.toolkit.webhooks.setUrl('http://127.0.0.1:1/nowhere');
+    harness.ext.emit('quota_hit', { kind: 'invite' });
+    // Long enough to be inside the first retry sleep.
+    await new Promise((r) => setTimeout(r, 100));
+
+    const startedAt = Date.now();
+    await harness.stop();
+    harness = null;
+    expect(Date.now() - startedAt).toBeLessThan(1000);
+  });
+
   it('do not break the bridge when the webhook receiver is dead', async () => {
     harness = await makeHarness();
     harness.toolkit.webhooks.setUrl('http://127.0.0.1:1/nowhere');
@@ -88,6 +102,18 @@ describe('Toolkit.waitForResearch', () => {
   it('resolves false when the job never completes', async () => {
     harness = await makeHarness();
     await expect(harness.toolkit.waitForResearch('never', 30)).resolves.toBe(false);
+  });
+
+  it('does not remember unclaimed completions without bound', async () => {
+    harness = await makeHarness();
+    for (let i = 0; i < MAX_COMPLETED_RESEARCH + 50; i++) {
+      harness.ext.emit('research_completed', { jobId: `job_${i}` });
+    }
+    await new Promise((r) => setTimeout(r, 200));
+    // Reading any job id triggers the prune.
+    await harness.toolkit.waitForResearch('nothing', 1);
+    const remembered = (harness.toolkit as any).researchCompleted as Map<string, number>;
+    expect(remembered.size).toBeLessThanOrEqual(MAX_COMPLETED_RESEARCH);
   });
 });
 

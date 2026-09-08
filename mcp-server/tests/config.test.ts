@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -70,6 +70,21 @@ describe('loadConfig', () => {
     const again = loadConfig();
     expect(again.createdToken).toBe(true);
     expect(again.config.token).toMatch(/^[0-9a-f]{32}$/);
+  });
+});
+
+describe('file permissions', () => {
+  // POSIX only: on Windows the mode bits are advisory and NTFS ACLs govern.
+  it.skipIf(process.platform === 'win32')('keeps the token file owner-only', () => {
+    const { path } = loadConfig();
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    writeRuntime({ httpPort: 1, bridgePort: 2, pid: 3, startedAt: 4 });
+    expect(statSync(runtimePath()).mode & 0o777).toBe(0o600);
+  });
+
+  it('writes a config file that can still be read back', () => {
+    const { config } = loadConfig();
+    expect(loadConfig().config.token).toBe(config.token);
   });
 });
 

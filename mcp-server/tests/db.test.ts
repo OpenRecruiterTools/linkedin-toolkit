@@ -159,6 +159,43 @@ describe('query', () => {
     expect(() => db.query('   ')).toThrow(/empty/i);
   });
 
+  it('rejects a statement hidden behind a comment', () => {
+    for (const sql of [
+      '-- harmless\nPRAGMA table_info(profiles)',
+      '/* harmless */ DELETE FROM profiles',
+      '--\nSELECT 1',
+    ]) {
+      expect(() => db.query(sql)).toThrow();
+    }
+    expect(db.counts().profiles).toBe(2);
+  });
+
+  it('rejects ATTACH and DETACH', () => {
+    expect(() => db.query("ATTACH DATABASE 'other.db' AS other")).toThrow(/read-only/i);
+    expect(() => db.query('DETACH DATABASE other')).toThrow(/read-only/i);
+  });
+
+  it('rejects a CTE that writes', () => {
+    expect(() =>
+      db.query(
+        "WITH x AS (SELECT 'hacked' AS n) INSERT INTO profiles (public_id, updated_at) SELECT n, 1 FROM x",
+      ),
+    ).toThrow(/read-only/i);
+    expect(db.counts().profiles).toBe(2);
+  });
+
+  it('rejects a writing statement that returns rows via RETURNING', () => {
+    // `statement.reader` is true here because RETURNING yields rows; only
+    // `statement.readonly` catches it.
+    expect(() =>
+      db.query(
+        "WITH x AS (SELECT 'hacked' AS n) INSERT INTO profiles (public_id, updated_at) SELECT n, 1 FROM x RETURNING public_id",
+      ),
+    ).toThrow(/read-only/i);
+    expect(() => db.query("DELETE FROM profiles RETURNING public_id")).toThrow(/read-only/i);
+    expect(db.counts().profiles).toBe(2);
+  });
+
   it('caps results at 1,000 rows and flags truncation', () => {
     const result = db.query(
       `WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 5000)
@@ -166,6 +203,40 @@ describe('query', () => {
     );
     expect(result.rowCount).toBe(ROW_CAP);
     expect(result.truncated).toBe(true);
+  });
+});
+
+describe('an in-memory database, which has only one connection', () => {
+  let memory: Db;
+
+  beforeEach(() => {
+    memory = new Db(':memory:');
+    memory.upsertProfile(ada);
+  });
+
+  afterEach(() => memory.close());
+
+  it('still answers reads', () => {
+    expect(memory.query('SELECT public_id FROM profiles').rows[0].public_id).toBe(ada.publicId);
+  });
+
+  it('refuses every write, including ones that return rows', () => {
+    for (const sql of [
+      'DELETE FROM profiles',
+      "WITH x AS (SELECT 'hacked' AS n) INSERT INTO profiles (public_id, updated_at) SELECT n, 1 FROM x",
+      "WITH x AS (SELECT 'hacked' AS n) INSERT INTO profiles (public_id, updated_at) SELECT n, 1 FROM x RETURNING public_id",
+      'PRAGMA table_info(profiles)',
+      "ATTACH DATABASE 'other.db' AS other",
+    ]) {
+      expect(() => memory.query(sql)).toThrow();
+    }
+    expect(memory.counts().profiles).toBe(1);
+  });
+
+  it('leaves the connection writable for the mirror after a query', () => {
+    memory.query('SELECT 1');
+    memory.upsertProfile(grace);
+    expect(memory.counts().profiles).toBe(2);
   });
 });
 

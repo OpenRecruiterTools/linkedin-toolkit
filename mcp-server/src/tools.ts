@@ -7,7 +7,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { BridgeError } from './bridge.js';
-import { TOOLS, toolInputSchema, type ActionName, type ToolDef } from './contract.js';
+import {
+  TOOLS,
+  toolInputSchema,
+  type ActionName,
+  type RequestOrigin,
+  type ToolDef,
+} from './contract.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 import type { Toolkit } from './toolkit.js';
@@ -45,6 +51,7 @@ export async function runTool(
   toolkit: Toolkit,
   tool: ToolDef,
   args: Record<string, unknown>,
+  origin: RequestOrigin = 'mcp',
 ): Promise<unknown> {
   switch (tool.name) {
     case 'linkedin_query_sql': {
@@ -54,12 +61,12 @@ export async function runTool(
     }
     case 'linkedin_sync': {
       const since = typeof args.since === 'number' ? args.since : undefined;
-      return await toolkit.sync(since);
+      return await toolkit.sync(since, origin);
     }
     case 'linkedin_research_pack':
-      return await toolkit.researchPack(args);
+      return await toolkit.researchPack(args, { origin });
     default:
-      return await toolkit.call(tool.action as ActionName, args);
+      return await toolkit.call(tool.action as ActionName, args, { origin });
   }
 }
 
@@ -78,7 +85,7 @@ export function registerTools(server: McpServer, toolkit: Toolkit): void {
       },
       async (args: Record<string, unknown>): Promise<CallToolResult> => {
         try {
-          return toolResult(await runTool(toolkit, tool, args ?? {}));
+          return toolResult(await runTool(toolkit, tool, args ?? {}, 'mcp'));
         } catch (err) {
           return toolError(err);
         }

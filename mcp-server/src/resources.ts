@@ -33,7 +33,7 @@ export function registerResources(server: McpServer, toolkit: Toolkit): void {
     },
     async (uri) => {
       try {
-        return contents(uri.href, await toolkit.call('status.get', {}));
+        return contents(uri.href, await toolkit.call('status.get', {}, { origin: 'mcp' }));
       } catch (err) {
         return failure(uri.href, err);
       }
@@ -50,7 +50,7 @@ export function registerResources(server: McpServer, toolkit: Toolkit): void {
     },
     async (uri) => {
       try {
-        return contents(uri.href, await toolkit.call('queue.list', { status: 'pending' }));
+        return contents(uri.href, await toolkit.call('queue.list', { status: 'pending' }, { origin: 'mcp' }));
       } catch (err) {
         return failure(uri.href, err);
       }
@@ -68,7 +68,7 @@ export function registerResources(server: McpServer, toolkit: Toolkit): void {
     async (uri, variables) => {
       const publicId = String(variables.publicId ?? '');
       try {
-        return contents(uri.href, await toolkit.call('profile.get', { publicId }));
+        return contents(uri.href, await toolkit.call('profile.get', { publicId }, { origin: 'mcp' }));
       } catch (err) {
         return failure(uri.href, err);
       }
@@ -87,8 +87,8 @@ export function registerResources(server: McpServer, toolkit: Toolkit): void {
       const listId = String(variables.listId ?? '');
       try {
         const [list, members] = await Promise.all([
-          toolkit.call('list.get', { listId }),
-          toolkit.call('list.members', { listId }),
+          toolkit.call('list.get', { listId }, { origin: 'mcp' }),
+          toolkit.call('list.members', { listId }, { origin: 'mcp' }),
         ]);
         return contents(uri.href, { ...(list as object), ...(members as object) });
       } catch (err) {

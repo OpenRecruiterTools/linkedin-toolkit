@@ -392,6 +392,16 @@ export type EventName = (typeof EVENTS)[number];
  * Envelope
  * ------------------------------------------------------------------ */
 
+/**
+ * Who asked for a request, carried on the bridge frame so the extension can
+ * apply Copilot-mode approval to agent-originated writes. Optional: a frame
+ * without it is treated exactly as before.
+ */
+export const REQUEST_ORIGINS = ['mcp', 'cli'] as const;
+export type RequestOrigin = (typeof REQUEST_ORIGINS)[number];
+
+export const ORIGIN_HEADER = 'x-linkedin-toolkit-origin';
+
 export const ErrorShapeSchema = z.object({
   code: z.enum(ERROR_CODES),
   message: z.string(),
