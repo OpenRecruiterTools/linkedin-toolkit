@@ -32,6 +32,16 @@ beforeEach(async () => {
 
 afterEach(() => vi.useRealTimers());
 
+/** A sent-invitations response listing these people as still pending. */
+function sentInvitations2(publicIds) {
+  return {
+    elements: publicIds.map((publicId) => ({
+      entityUrn: `urn:li:fs_invitation:${publicId}`,
+      invitee: { miniProfile: { publicIdentifier: publicId } },
+    })),
+  };
+}
+
 describe('search.people', () => {
   it('returns contract profiles and stores them', async () => {
     net.push(searchClusters);
@@ -242,15 +252,42 @@ describe('network.status', () => {
     expect(net.calls).toHaveLength(1);
   });
 
-  it('a batch of strangers runs out of hourly quota rather than firing 25 reads', async () => {
+  it('a batch of strangers stops reading at the hourly cap and says it is partial', async () => {
     await setConfig({ hourlyCap: 3 });
     net.push({ elements: [] });
     const publicIds = Array.from({ length: 25 }, (_, i) => `person${i}`);
 
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds });
-    expect(res.ok).toBe(false);
-    expect(res.error.code).toBe(ERROR.QUOTA_EXCEEDED);
-    expect(net.calls.length).toBeLessThanOrEqual(4); // the invitations call plus three reads
+
+    expect(res.ok).toBe(true);
+    expect(res.data.partial).toBe(true);
+    expect(res.data.reason).toBe(ERROR.QUOTA_EXCEEDED);
+    expect(Object.keys(res.data.statuses)).toHaveLength(25);
+    // Three reads, then it stops rather than re-reserving for each of the rest.
+    expect(net.calls.length).toBe(4); // the invitations call plus three reads
+    expect(res.data.statuses.person24).toBe('none');
+  });
+
+  it('keeps what it resolved and calls unread invitations pending', async () => {
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited1' });
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited2' });
+    await setConfig({ hourlyCap: 1 });
+
+    net.push({ elements: [] }); // nothing pending
+    net.push(inviteAccepted); // the one read we can afford
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, {
+      publicIds: ['invited1', 'invited2', 'stranger'],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.data.partial).toBe(true);
+    expect(res.data.statuses).toEqual({
+      invited1: 'connected',
+      invited2: 'pending',
+      stranger: 'none',
+    });
+    expect(net.calls).toHaveLength(2);
   });
 
   it('emits invite_accepted once when a pending invite has landed', async () => {
@@ -268,6 +305,59 @@ describe('network.status', () => {
 
     expect(seen.filter((f) => f.event === 'invite_accepted')).toHaveLength(1);
     events.setSink(null);
+  });
+
+  it('a read taken while the invitation was pending never answers the acceptance check', async () => {
+    const seen = [];
+    const events = await import('../../src/background/events.js');
+    events.setSink((f) => seen.push(f));
+
+    // The invite goes out…
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
+
+    // …and while it is still pending, a view step reads the profile: 2nd degree.
+    net.push(sentInvitations2(['adalovelace']));
+    expect(
+      (await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] })).data.statuses,
+    ).toEqual({ adalovelace: 'pending' });
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(0); // pending is free
+
+    net.push(profileView);
+    await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' }); // stamps degree 2
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(2);
+
+    // An hour later the invitation is gone from the pending list.
+    vi.setSystemTime(new Date(2026, 8, 9, 13, 0, 0));
+    net.push({ elements: [] });
+    net.push(inviteAccepted); // the refetch finds a first-degree connection
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+
+    expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
+    expect(seen.map((f) => f.event)).toContain('invite_accepted');
+    // The stale degree-2 record did not answer: a fresh read was made.
+    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(2);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
+    events.setSink(null);
+  });
+
+  it('a cached first-degree read still answers without another fetch', async () => {
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
+
+    net.push({ elements: [] });
+    net.push(inviteAccepted);
+    await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    const readsAfterFirst = net.calls.filter((c) => c.url.includes('/identity/profiles/')).length;
+
+    net.push({ elements: [] });
+    const again = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+
+    expect(again.data.statuses).toEqual({ adalovelace: 'connected' });
+    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(
+      readsAfterFirst,
+    );
   });
 
   describe('when the invitations collection is unavailable', () => {
@@ -316,6 +406,7 @@ describe('network.status', () => {
       });
 
       expect(res.data.statuses).toEqual({ adalovelace: 'pending', bobbright: 'pending' });
+      expect(res.data.partial).toBe(true);
       expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
       events.setSink(null);
     });

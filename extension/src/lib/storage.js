@@ -166,6 +166,31 @@ function trimProfile(profile) {
 }
 
 /**
+ * Merge a sparse record over a fuller one without erasing anything.
+ *
+ * A search hit carries `urn: ''`, `company: ''`, `skills: []` for everything it
+ * does not know. Spreading that over a full profile read would blank the urn
+ * we just paid a profile view for, and the next caller would fetch it again.
+ * An empty value never overwrites a value we already have.
+ */
+function mergeKnown(existing, incoming) {
+  const out = { ...existing };
+  for (const [key, value] of Object.entries(incoming)) {
+    const isEmpty =
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      (Array.isArray(value) && value.length === 0);
+    const had = out[key];
+    const hadSomething =
+      had !== undefined && had !== null && had !== '' && !(Array.isArray(had) && !had.length);
+    if (isEmpty && hadSomething) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
  * Upsert a Profile. Existing fields survive a partial write, so a cheap search
  * hit never erases a full capture.
  */
@@ -177,7 +202,7 @@ export async function putProfile(profile) {
   const merged = await withKeyLock(key, async () => {
     const existing = await get(key, null);
     const record = stamp(
-      trimProfile({ ...(existing || {}), ...profile, publicId }),
+      trimProfile({ ...mergeKnown(existing || {}, profile), publicId }),
       profile.updatedAt || Date.now(),
     );
     await set(key, record);

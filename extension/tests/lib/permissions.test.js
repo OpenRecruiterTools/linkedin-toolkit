@@ -29,8 +29,13 @@ describe('originPatternFor', () => {
     expect(permissions.originPatternFor('https://api.anthropic.com/v1/messages')).toBe(
       'https://api.anthropic.com/*',
     );
+    // A Chrome match pattern has no port: one makes the whole pattern invalid.
     expect(permissions.originPatternFor('http://127.0.0.1:11434/api/chat')).toBe(
-      'http://127.0.0.1:11434/*',
+      'http://127.0.0.1/*',
+    );
+    expect(permissions.originPatternFor('http://box.local:1234/v1')).toBe('http://box.local/*');
+    expect(permissions.originPatternFor('https://api.openai.com:443/v1')).toBe(
+      'https://api.openai.com/*',
     );
     expect(permissions.originPatternFor('not a url')).toBe('');
   });
@@ -83,14 +88,14 @@ describe('hasHostAccess / requestHostAccess', () => {
     await permissions.requestHostAccess('http://box.local:1234/v1/chat/completions');
 
     const granted = await chrome.permissions.getAll();
-    expect(granted.origins).toEqual(['http://box.local:1234/*']);
+    expect(granted.origins).toEqual(['http://box.local/*']);
     expect(granted.origins).not.toContain('https://*/*');
     expect(granted.origins).not.toContain('http://*/*');
 
-    // The grant is that origin and nothing near it.
+    // That host over that scheme, and nothing else.
     expect(await permissions.hasHostAccess('http://box.local:1234/v1/models')).toBe(true);
-    expect(await permissions.hasHostAccess('http://box.local:9999/v1/models')).toBe(false);
-    expect(await permissions.hasHostAccess('https://box.local:1234/v1/models')).toBe(false);
+    expect(await permissions.hasHostAccess('https://box.local/v1/models')).toBe(false);
+    expect(await permissions.hasHostAccess('http://other.local/v1/models')).toBe(false);
   });
 
   it('the manifest keeps the wildcards so a custom base URL can be granted at all', () => {

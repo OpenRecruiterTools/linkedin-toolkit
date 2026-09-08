@@ -17,6 +17,7 @@
  * concurrent reads cannot both slip past the last unit of the cap.
  */
 
+import { ERROR, EngineError } from '../lib/actions.js';
 import { getStoredProfile, putProfile } from '../lib/storage.js';
 import * as quota from './quota.js';
 import * as voyager from './voyager.js';
@@ -72,22 +73,50 @@ export async function cachedProfile(publicId, { maxAgeMs = PROFILE_CACHE_MS, aft
   return meteredProfile(publicId, source);
 }
 
+/** Resolve a urn, or throw. An empty urn is a missing urn, not an answer. */
+export async function requireProfileUrn(publicId) {
+  const cached = await cachedProfile(publicId, { source: 'urn' });
+  const fromCache = voyager.toFsdProfileUrn(cached.urn);
+  if (fromCache) return fromCache;
+
+  // What we had on file has no urn, so pay for a fresh look rather than
+  // falling through to an unmetered fetch somewhere downstream.
+  const fresh = await meteredProfile(publicId, 'urn');
+  const urn = voyager.toFsdProfileUrn(fresh.urn);
+  if (urn) return urn;
+
+  throw new EngineError(
+    ERROR.NOT_FOUND,
+    `Could not resolve a profile urn for ${publicId}.`,
+    { howToFix: 'Check the profile still exists and is visible to this account.' },
+  );
+}
+
 /** Resolve a profile urn, reusing today's read rather than making another. */
 export async function meteredProfileUrn(publicId) {
-  const profile = await cachedProfile(publicId, { source: 'urn' });
-  return voyager.toFsdProfileUrn(profile.urn);
+  return requireProfileUrn(publicId);
 }
 
 /**
  * Connection degree for a public identifier, reusing today's read.
+ *
+ * `positiveOnly` is what an acceptance check passes. A cached record that says
+ * "not connected" is evidence of nothing once an invitation has left the
+ * pending list — the acceptance is exactly the event that would have changed
+ * it — so only a cached *first degree* is allowed to answer, and anything else
+ * is refetched. Without that, one read taken while the invitation was still
+ * pending would answer every acceptance check for the next 24 hours and the
+ * branch would take its else arm permanently.
+ *
  * @returns {Promise<{connected: boolean, degree: number, urn: string, cached: boolean}>}
  */
 export async function meteredConnectionStatus(
   publicId,
-  { maxAgeMs = PROFILE_CACHE_MS, after = 0 } = {},
+  { maxAgeMs = PROFILE_CACHE_MS, after = 0, positiveOnly = false } = {},
 ) {
   const stored = await getStoredProfile(publicId);
-  const cached = isFresh(stored, maxAgeMs, after);
+  const usable = isFresh(stored, maxAgeMs, after) && (!positiveOnly || stored.connectionDegree === 1);
+  const cached = usable;
   const profile = cached ? stored : await meteredProfile(publicId, 'connection-check');
   return {
     connected: profile.connectionDegree === 1,

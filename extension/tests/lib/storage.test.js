@@ -65,6 +65,39 @@ describe('profile store', () => {
     expect(ada.company).toBe('Analytical Engines');
   });
 
+  it('never lets a sparse record erase what we already knew', async () => {
+    await storage.putProfile({
+      publicId: 'ada',
+      urn: 'urn:li:fsd_profile:ACoAAAada',
+      company: 'Analytical Engines',
+      skills: ['Maths'],
+      headline: 'Chief Analyst',
+    });
+
+    // A search hit carries empty strings and empty arrays for everything it
+    // does not know; spreading it over the record would blank the urn we paid
+    // a profile view for.
+    await storage.putProfile({
+      publicId: 'ada',
+      urn: '',
+      company: '',
+      skills: [],
+      location: 'London',
+    });
+
+    const ada = await storage.getStoredProfile('ada');
+    expect(ada.urn).toBe('urn:li:fsd_profile:ACoAAAada');
+    expect(ada.company).toBe('Analytical Engines');
+    expect(ada.skills).toEqual(['Maths']);
+    expect(ada.location).toBe('London');
+  });
+
+  it('still lets a real value replace an old one', async () => {
+    await storage.putProfile({ publicId: 'ada', company: 'Old Co' });
+    await storage.putProfile({ publicId: 'ada', company: 'Analytical Engines' });
+    expect((await storage.getStoredProfile('ada')).company).toBe('Analytical Engines');
+  });
+
   it('truncates very large pageText', async () => {
     await storage.putProfile({ publicId: 'big', pageText: 'x'.repeat(120000) });
     const rec = await storage.getStoredProfile('big');

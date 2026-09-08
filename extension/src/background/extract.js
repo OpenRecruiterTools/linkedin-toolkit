@@ -225,6 +225,11 @@ async function invitedAt() {
  * backed off, the quota is gone) an invited person is reported `pending`,
  * because an unconfirmed guess of `connected` would stop a campaign dead and
  * fire a false acceptance for everybody we have ever invited.
+ *
+ * Running out of quota part way through is not a failure of the whole call:
+ * what was resolved is returned, the rest is reported conservatively, and
+ * `partial: true` says so. It throws only when it would otherwise have to
+ * invent an answer — a stranger, with nothing resolved yet.
  */
 register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
   if (publicIds.length > MAX_STATUS_IDS) {
@@ -251,6 +256,11 @@ register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
   }
 
   const statuses = {};
+  /** Set once a read has been refused; we stop trying rather than re-reserving. */
+  let readsBlocked = null;
+
+  /** What to say about somebody we could not look at. */
+  const unresolved = (publicId) => (invited.has(publicId) ? 'pending' : 'none');
 
   for (const publicId of publicIds) {
     if (invitationsOk && pending.has(publicId)) {
@@ -260,16 +270,33 @@ register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
 
     const wasInvited = invited.has(publicId);
 
+    if (readsBlocked) {
+      statuses[publicId] = unresolved(publicId);
+      continue;
+    }
+
     let degree = null;
     try {
-      // A read taken before the invitation went out cannot confirm it landed.
+      // A read taken before the invitation went out cannot confirm it landed,
+      // and for an invited person only a positive cached answer counts.
       degree = (
-        await meteredConnectionStatus(publicId, { after: invited.get(publicId) || 0 })
+        await meteredConnectionStatus(publicId, {
+          after: invited.get(publicId) || 0,
+          positiveOnly: wasInvited,
+        })
       ).degree;
     } catch (e) {
-      if (!wasInvited && STOP_EXPORT.has(e.code)) throw e;
-      // Unknown, and an invitation we cannot confirm stays outstanding.
-      statuses[publicId] = wasInvited ? 'pending' : 'none';
+      if (STOP_EXPORT.has(e.code)) {
+        // We throw only when we would otherwise be inventing an answer: for
+        // somebody we invited, 'pending' is honest without any read, so the
+        // batch degrades instead. For a stranger with nothing resolved yet
+        // there is no honest answer, so say why.
+        if (!Object.keys(statuses).length && !wasInvited) throw e;
+        readsBlocked = e;
+        statuses[publicId] = unresolved(publicId);
+        continue;
+      }
+      statuses[publicId] = unresolved(publicId);
       continue;
     }
 
@@ -288,7 +315,9 @@ register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
     statuses[publicId] = wasInvited ? 'pending' : 'none';
   }
 
-  return { statuses };
+  return readsBlocked
+    ? { statuses, partial: true, reason: readsBlocked.code }
+    : { statuses };
 });
 
 /* ================================================================== */

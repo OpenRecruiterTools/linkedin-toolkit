@@ -11,11 +11,20 @@
  * callers check first and say something useful instead.
  */
 
-/** `https://api.anthropic.com/v1/messages` → `https://api.anthropic.com/*`. */
+/**
+ * `https://api.anthropic.com/v1/messages` → `https://api.anthropic.com/*`.
+ *
+ * The host part of a Chrome match pattern is a *hostname*: a port makes the
+ * whole pattern invalid and `chrome.permissions.request` rejects it. So a
+ * local model server on `http://box.local:1234/v1` is granted as
+ * `http://box.local/*`, which is what Chrome accepts and what the manifest's
+ * `http://127.0.0.1/*` already looks like.
+ */
 export function originPatternFor(url) {
   try {
     const parsed = new URL(url);
-    return `${parsed.protocol}//${parsed.host}/*`;
+    if (!parsed.hostname) return '';
+    return `${parsed.protocol}//${parsed.hostname}/*`;
   } catch {
     return '';
   }

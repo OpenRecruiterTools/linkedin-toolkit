@@ -183,6 +183,31 @@ describe('the send path', () => {
     expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
   });
 
+  it('a profile with no urn is read again, metered, rather than resolved for free', async () => {
+    // A cached record from a search hit: no urn, and never profile-viewed.
+    await storage.putProfile({ publicId: 'adalovelace', fullName: 'Ada Lovelace', urn: '' });
+
+    net.push(profileView); // the metered read that actually has the urn
+    net.push({}); // the invite
+
+    const res = await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'adalovelace', note: 'Hi' }, 'popup');
+
+    expect(res.ok).toBe(true);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+    expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).toContain('fsd_profile');
+  });
+
+  it('gives up rather than sending when no urn can be found at all', async () => {
+    net.push({ included: [] }); // a profile read with nothing in it
+    net.push({ included: [] }); // and the retry finds nothing either
+
+    const res = await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'ghost', note: 'Hi' }, 'popup');
+
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('NOT_FOUND');
+    expect(net.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+  });
+
   it('a stranger costs exactly one visit for the whole invite', async () => {
     net.push(profileView); // the urn resolution
     net.push({}); // the invite
