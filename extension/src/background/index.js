@@ -6,12 +6,10 @@
  * `engine.handle`. Feature modules (quota, queue, lists, campaigns, inbox, ai,
  * research, bridge) land alongside it and register their own actions.
  *
- * LEGACY_MAP keeps the v1 popup, options page and content script working
- * unchanged by translating their old `type` message strings into contract
- * actions. It is removed once the v2 popup ships.
+ * Every inbound message is a contract envelope: { action, params }.
  */
 
-import { ACTIONS, ERROR, EngineError, clampConfig } from '../lib/actions.js';
+import { ACTIONS, ERROR, EngineError, clampConfig, err } from '../lib/actions.js';
 import { handle, register } from './engine.js';
 
 import {
@@ -135,13 +133,6 @@ async function activeTab() {
   return tabs[0];
 }
 
-async function activeProfilePublicId() {
-  const tab = await activeTab();
-  const publicId = extractPublicId(tab.url || '');
-  if (!publicId) throw new Error('Not on a LinkedIn profile page.');
-  return publicId;
-}
-
 /** v1 normalized profile (or search hit) → contract Profile. */
 function toContractProfile(p, source) {
   const publicId = p.publicIdentifier || p.publicId || '';
@@ -163,30 +154,6 @@ function toContractProfile(p, source) {
     summary: p.summary || p.snippet || '',
     capturedAt: Date.now(),
     source: source || 'profile',
-  };
-}
-
-/** Contract Profile → the flat shape the v1 popup and content script expect. */
-function toLegacyProfile(p) {
-  return {
-    firstName: p.firstName,
-    lastName: p.lastName,
-    fullName: p.fullName,
-    headline: p.headline,
-    title: p.title,
-    company: p.company,
-    location: p.location,
-    summary: p.summary || '',
-    industry: p.industry,
-    skills: p.skills || [],
-    education: p.education || [],
-    publicIdentifier: p.publicId,
-    linkedinUrl: p.url,
-    profileUrn: p.urn,
-    entityUrn: p.urn,
-    connectionDistance: p.connectionDegree || '',
-    snippet: p.summary || '',
-    image: p.photoUrl || '',
   };
 }
 
@@ -242,20 +209,6 @@ function profilesToCsv(profiles) {
     ),
   );
   return [header, ...rows].join('\n');
-}
-
-/**
- * A service worker has no `URL.createObjectURL`, so the CSV is handed to the
- * downloads API as a data URL.
- */
-async function downloadCsv(csv, filename) {
-  if (!csv) throw new Error('No data to export.');
-  await chrome.downloads.download({
-    url: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`,
-    filename,
-    saveAs: true,
-  });
-  return { ok: true, filename };
 }
 
 /* ================================================================== */
@@ -686,163 +639,20 @@ register(ACTIONS.EXPORT_CSV, async ({ kind, profiles }) => {
 });
 
 /* ================================================================== */
-/*  Legacy message adapters (removed with the v1 popup)               */
-/* ================================================================== */
-
-const usageView = (rl) => ({ hourly: rl.hourlyUsed, daily: rl.dailyUsed });
-
-/** v2 Config → the key names the v1 popup and options page still use. */
-function toLegacyConfig(config) {
-  return {
-    minDelayMs: config.minDelayMs,
-    maxDelayMs: config.maxDelayMs,
-    maxPerHour: config.hourlyCap,
-    windowStartHour: config.businessStart,
-    windowEndHour: config.businessEnd,
-    windowWeekdaysOnly: config.weekdaysOnly,
-    maxInvitesPerDay: config.dailyInviteCap,
-    maxMessagesPerDay: config.dailyMessageCap,
-  };
-}
-
-/** v1 config keys → v2 Config keys (unknown keys pass straight through). */
-function fromLegacyConfig(legacy = {}) {
-  const RENAME = {
-    maxPerHour: 'hourlyCap',
-    windowStartHour: 'businessStart',
-    windowEndHour: 'businessEnd',
-    windowWeekdaysOnly: 'weekdaysOnly',
-    maxInvitesPerDay: 'dailyInviteCap',
-    maxMessagesPerDay: 'dailyMessageCap',
-  };
-  const out = {};
-  for (const [key, value] of Object.entries(legacy)) out[RENAME[key] || key] = value;
-  return out;
-}
-
-const LEGACY_MAP = {
-  GET_CONFIG: { action: ACTIONS.CONFIG_GET, result: toLegacyConfig },
-  SET_CONFIG: {
-    action: ACTIONS.CONFIG_SET,
-    params: (msg) => fromLegacyConfig(msg.config),
-    result: toLegacyConfig,
-  },
-
-  GET_USAGE: {
-    action: ACTIONS.STATUS_GET,
-    result: (status) => ({
-      action: usageView(status.quotas.visit),
-      invite: usageView(status.quotas.invite),
-      message: usageView(status.quotas.message),
-    }),
-  },
-  GET_QUOTAS: {
-    action: ACTIONS.STATUS_GET,
-    result: (status) => ({
-      maxPerHour: status.quotas.invite.hourlyCap,
-      maxInvitesPerDay: status.quotas.invite.dailyCap,
-      maxMessagesPerDay: status.quotas.message.dailyCap,
-    }),
-  },
-
-  UNFOLLOW_COUNT: { action: ACTIONS.NETWORK_UNFOLLOW_COUNT },
-  UNFOLLOW_ALL: {
-    action: ACTIONS.NETWORK_UNFOLLOW_ALL,
-    result: (data) => ({ ok: true, unfollowed: data.unfollowed, errors: data.errors || 0 }),
-  },
-
-  EXPORT_PROFILE: {
-    action: ACTIONS.PROFILE_GET,
-    params: async () => ({ publicId: await activeProfilePublicId() }),
-    result: toLegacyProfile,
-  },
-
-  SEARCH_EXPORT: {
-    action: ACTIONS.SEARCH_PEOPLE,
-    params: (msg) => ({ keywords: msg.keywords, count: msg.count || 25 }),
-    result: (data) => data.profiles.map(toLegacyProfile),
-  },
-
-  DOWNLOAD_CSV: {
-    action: ACTIONS.EXPORT_CSV,
-    params: (msg) => ({ kind: 'profiles', profiles: msg.profiles }),
-    result: async (data, msg) => {
-      await downloadCsv(data.csv, data.filename);
-      return { ok: true, filename: data.filename, count: (msg.profiles || []).length };
-    },
-  },
-
-  SEND_INVITE: {
-    action: ACTIONS.OUTREACH_INVITE,
-    params: (msg) => ({
-      publicId: msg.publicIdentifier || msg.publicId,
-      note: msg.note,
-      profileUrn: msg.profileUrn,
-    }),
-  },
-  SEND_MESSAGE: {
-    action: (msg) =>
-      msg.subtype === 'INMAIL' ? ACTIONS.OUTREACH_INMAIL : ACTIONS.OUTREACH_MESSAGE,
-    params: async (msg) => ({
-      publicId: msg.publicIdentifier || msg.publicId || (await activeProfilePublicId()),
-      body: msg.body,
-      subject: msg.inmailSubject,
-      recipientUrn: msg.recipientUrn,
-    }),
-  },
-
-  GET_CAMPAIGNS: { action: ACTIONS.CAMPAIGN_GET_ALL, result: (data) => data.campaigns },
-  CREATE_CAMPAIGN: {
-    action: ACTIONS.CAMPAIGN_CREATE,
-    params: (msg) => ({
-      name: msg.name || 'Untitled Campaign',
-      steps: msg.steps || [],
-      contacts: msg.contacts || [],
-    }),
-  },
-  UPDATE_CAMPAIGN_STATUS: {
-    action: (msg) => (msg.status === 'paused' ? ACTIONS.CAMPAIGN_PAUSE : ACTIONS.CAMPAIGN_RESUME),
-    params: (msg) => ({ campaignId: msg.campaignId }),
-  },
-  DELETE_CAMPAIGN: {
-    action: ACTIONS.CAMPAIGN_DELETE,
-    params: (msg) => ({ campaignId: msg.campaignId }),
-    result: () => ({ ok: true }),
-  },
-  RUN_CAMPAIGN_TICK: { action: ACTIONS.CAMPAIGN_TICK, result: () => ({ ok: true }) },
-};
-
-/* ================================================================== */
 /*  Router                                                            */
 /* ================================================================== */
 
-async function routeLegacy(msg) {
-  const entry = LEGACY_MAP[msg.type];
-  if (!entry) return { error: `Unknown message type: ${msg.type}` };
-
-  try {
-    const action = typeof entry.action === 'function' ? entry.action(msg) : entry.action;
-    const params = entry.params ? await entry.params(msg) : {};
-    const res = await handle(action, params, 'popup');
-    if (!res.ok) return { error: res.error.message };
-    return entry.result ? await entry.result(res.data, msg) : res.data;
-  } catch (e) {
-    return { error: e.message };
-  }
-}
-
 export async function route(msg) {
-  if (!msg || typeof msg !== 'object') return { error: 'Empty message' };
-  if (typeof msg.action === 'string') {
-    return handle(msg.action, msg.params || {}, msg.origin || 'popup');
+  if (!msg || typeof msg !== 'object' || typeof msg.action !== 'string') {
+    return err(null, ERROR.INVALID_PARAMS, 'Message must be { action, params }');
   }
-  return routeLegacy(msg);
+  return handle(msg.action, msg.params || {}, msg.origin || 'popup');
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   route(msg)
     .then(sendResponse)
-    .catch((e) => sendResponse({ error: e.message }));
+    .catch((e) => sendResponse(err(null, ERROR.INTERNAL, e.message)));
   return true;
 });
 
@@ -878,5 +688,3 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onStartup.addListener(reconnectBridge);
 chrome.runtime.onInstalled.addListener(reconnectBridge);
-
-export { LEGACY_MAP, toLegacyConfig, fromLegacyConfig };
