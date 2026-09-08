@@ -7,7 +7,7 @@ Tools over the HTTP action API.
 ```bash
 npx linkedin-toolkit-mcp     # pair the extension once
 lit serve --http             # 127.0.0.1:47830
-export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
 ```
 
 Add `--fake` to `lit serve` to run without a LinkedIn account: real envelopes, real error codes,

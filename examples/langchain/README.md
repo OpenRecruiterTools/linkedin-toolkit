@@ -11,14 +11,14 @@ lit serve --http --fake         # drop --fake for a real session
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export OPENAI_API_KEY=sk-...
-export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
 python source_and_draft.py "Heads of data engineering at Series B fintechs in London"
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:LINKEDIN_TOOLKIT_TOKEN = (Get-Content "$env:USERPROFILE\.linkedin-toolkit\config.json" | ConvertFrom-Json).bridge.token
+$env:LINKEDIN_TOOLKIT_TOKEN = (Get-Content "$env:USERPROFILE\.linkedin-toolkit\config.json" | ConvertFrom-Json).token
 ```
 
 ## What it shows

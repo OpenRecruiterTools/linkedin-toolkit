@@ -13,7 +13,7 @@ cd my-app && npm i ai @ai-sdk/openai zod
 cp path/to/route.ts app/api/chat/route.ts
 
 export OPENAI_API_KEY=sk-...
-export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
 npm run dev
 ```
 

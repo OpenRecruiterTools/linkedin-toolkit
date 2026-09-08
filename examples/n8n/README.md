@@ -33,8 +33,8 @@ lit serve --http                # 127.0.0.1:47830
 | `LinkedIn Toolkit bearer token` | Header Auth | Name `Authorization`, Value `Bearer <token>` |
 | `OpenAI account` | OpenAI API | your key |
 
-The token is `bridge.token` in `~/.linkedin-toolkit/config.json`
-(`%USERPROFILE%\.linkedin-toolkit\config.json` on Windows).
+The token is `token` in `~/.linkedin-toolkit/config.json`
+(`%USERPROFILE%\.linkedin-toolkit\config.json` on Windows), or run `lit config get token --reveal`.
 
 **4. Point the toolkit at the webhook**
 

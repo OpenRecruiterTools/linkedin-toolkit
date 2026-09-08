@@ -6,7 +6,7 @@
  *
  *   npm i ai @ai-sdk/openai zod
  *   export OPENAI_API_KEY=sk-...
- *   export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+ *   export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
  *
  * The toolkit runs on the user's own machine, so this route only works for a locally-run app.
  * If you deploy it, the server has no access to 127.0.0.1:47830 — which is the point. See the
