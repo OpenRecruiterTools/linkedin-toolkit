@@ -3,6 +3,23 @@
  * tabs. Files are parsed and built in the popup; nothing is uploaded anywhere.
  */
 
+/**
+ * Read a picked file as text. `Blob.text()` where it exists, `FileReader`
+ * otherwise — the popup never uploads a file anywhere.
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
+export function readTextFile(file) {
+  if (!file) return Promise.reject(new Error('Choose a file first.'));
+  if (typeof file.text === 'function') return file.text();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.readAsText(file);
+  });
+}
+
 const BOM = 0xfeff;
 
 /** Spreadsheets love a byte-order mark; it must not become part of a header. */

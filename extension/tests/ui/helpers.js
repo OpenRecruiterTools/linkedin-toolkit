@@ -48,10 +48,11 @@ export function stubEngine(handlers = {}) {
 }
 
 /** Let queued microtasks (and the odd timer) run. */
-export function flush(times = 4) {
-  let chain = Promise.resolve();
-  for (let i = 0; i < times; i += 1) chain = chain.then(() => undefined);
-  return chain;
+export async function flush(times = 4) {
+  for (let i = 0; i < times; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 /** A fresh `<div>` attached to the document, used as a tab container. */
