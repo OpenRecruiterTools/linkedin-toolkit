@@ -143,6 +143,8 @@ describe('--help', () => {
       'sql',
       'export',
       'sync',
+      'config',
+      'token',
       'research',
     ]) {
       expect(help).toContain(command);

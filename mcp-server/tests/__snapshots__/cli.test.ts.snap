@@ -36,6 +36,10 @@ Commands:
                                      CSV.
   sync [options]                     Pull everything changed in the extension
                                      into the local mirror.
+  config                             Read and change this server's local
+                                     settings
+                                     (~/.linkedin-toolkit/config.json).
+  token <action>                     Manage the pairing token.
   research [options] <input>         Turn a CSV of rows into research packs.
   help [command]                     display help for command"
 `;

@@ -13,9 +13,11 @@ import { join, resolve } from 'node:path';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   clearRuntime,
+  generateToken,
   loadConfig,
   pairingInstructions,
   readRuntime,
+  saveConfig,
   withOverrides,
   writeRuntime,
   type ServerConfig,
@@ -167,6 +169,68 @@ export function table(rows: Record<string, unknown>[], columns: string[]): strin
  * HTTP client for the running server
  * ------------------------------------------------------------------ */
 
+/** Settable keys of the local server config. `token` is deliberately absent. */
+export const SETTABLE_KEYS = [
+  'bridgePort',
+  'httpPort',
+  'webhookUrl',
+  'dbPath',
+  'researchTimeoutMs',
+] as const;
+
+export type SettableKey = (typeof SETTABLE_KEYS)[number];
+
+/** Show only the last four characters, so a shoulder or a screen share leaks nothing. */
+export function maskToken(token: string): string {
+  if (!token) return '';
+  return token.length <= 4 ? '*'.repeat(token.length) : `${'*'.repeat(token.length - 4)}${token.slice(-4)}`;
+}
+
+/** Parse and validate one `lit config set` value. Throws CliError on bad input. */
+export function coerceSetting(key: string, raw: string): { key: SettableKey; value: unknown } {
+  if (!(SETTABLE_KEYS as readonly string[]).includes(key)) {
+    throw new CliError(
+      `"${key}" is not a settable key. Choose one of: ${SETTABLE_KEYS.join(', ')}.\n` +
+        'The pairing token is rotated with `lit token rotate`; LinkedIn behaviour settings ' +
+        '(delays, caps, autopilot) live in the extension, not here.',
+    );
+  }
+  const settable = key as SettableKey;
+
+  if (settable === 'bridgePort' || settable === 'httpPort') {
+    const port = Number(raw);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new CliError(`${settable} must be a whole number between 1 and 65535, not "${raw}".`);
+    }
+    return { key: settable, value: port };
+  }
+
+  if (settable === 'researchTimeoutMs') {
+    const ms = Number(raw);
+    if (!Number.isInteger(ms) || ms < 1000) {
+      throw new CliError(`researchTimeoutMs must be a whole number of at least 1000, not "${raw}".`);
+    }
+    return { key: settable, value: ms };
+  }
+
+  if (settable === 'webhookUrl') {
+    if (raw === '' || raw === 'none') return { key: settable, value: undefined };
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new CliError(`webhookUrl must be a URL, not "${raw}". Pass "" to unset it.`);
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new CliError(`webhookUrl must be http or https, not "${url.protocol}".`);
+    }
+    return { key: settable, value: url.toString() };
+  }
+
+  if (raw.trim() === '') throw new CliError('dbPath cannot be empty.');
+  return { key: settable, value: resolve(raw) };
+}
+
 export class ServerClient {
   constructor(
     readonly baseUrl: string,
@@ -174,13 +238,21 @@ export class ServerClient {
   ) {}
 
   /**
-   * Prefer the port a running `lit serve` actually bound over the configured
-   * default, so `lit serve --http --port 9000` does not strand every other
-   * command on 47830.
+   * Where to find the server, most specific first:
+   *   1. `LINKEDIN_TOOLKIT_URL` / `LINKEDIN_TOOLKIT_TOKEN` — the same names the
+   *      docs and the Node and Python clients use, so one export points them
+   *      all at the same place;
+   *   2. the port a running `lit serve` actually bound, so
+   *      `lit serve --http --port 9000` does not strand every other command;
+   *   3. the configured default.
    */
   static fromConfig(config: ServerConfig): ServerClient {
     const port = readRuntime()?.httpPort ?? config.httpPort;
-    return new ServerClient(`http://127.0.0.1:${port}`, config.token);
+    const baseUrl = (process.env.LINKEDIN_TOOLKIT_URL || `http://127.0.0.1:${port}`).replace(
+      /\/+$/,
+      '',
+    );
+    return new ServerClient(baseUrl, process.env.LINKEDIN_TOOLKIT_TOKEN || config.token);
   }
 
   private async post(path: string, body: unknown): Promise<any> {
@@ -706,6 +778,88 @@ export function buildProgram(io: Io = defaultIo): Command {
           `Mirror now holds ${data.totals.profiles} profiles. Query it with: lit sql "SELECT ..."`,
         ].join('\n');
       });
+    });
+
+  const configCommand = program
+    .command('config')
+    .description('Read and change this server\'s local settings (~/.linkedin-toolkit/config.json).');
+
+  configCommand
+    .command('get')
+    .argument('[key]', `one of: token, ${SETTABLE_KEYS.join(', ')}`)
+    .description('Print the local server settings, or one of them. The token is masked.')
+    .option('--reveal', 'print the pairing token in full instead of masking it')
+    .option('--json', 'print raw JSON')
+    .action((key, options) => {
+      const { config } = loadConfig();
+      const shown: Record<string, unknown> = {
+        ...config,
+        token: options.reveal ? config.token : maskToken(config.token),
+      };
+      if (config.webhookUrl === undefined) shown.webhookUrl = '';
+
+      if (key) {
+        if (!(key in shown)) {
+          throw new CliError(
+            `"${key}" is not a setting. Choose one of: token, ${SETTABLE_KEYS.join(', ')}.`,
+          );
+        }
+        io.out(options.json ? JSON.stringify(shown[key]) : String(shown[key] ?? ''));
+        return;
+      }
+
+      print(io, options.json, shown, () =>
+        [
+          table(
+            Object.entries(shown).map(([name, value]) => ({
+              setting: name,
+              value: String(value ?? ''),
+            })),
+            ['setting', 'value'],
+          ),
+          '',
+          options.reveal
+            ? 'Pair the extension with the token above: popup > Settings > Bridge.'
+            : 'The token is masked. Show it with: lit config get token --reveal',
+        ].join('\n'),
+      );
+    });
+
+  configCommand
+    .command('set')
+    .argument('<key>', SETTABLE_KEYS.join(' | '))
+    .argument('<value>', 'the new value; pass "" to unset webhookUrl')
+    .description('Change one local server setting.')
+    .action((key, value) => {
+      const { config } = loadConfig();
+      const { key: settable, value: parsed } = coerceSetting(key, value);
+      const next = { ...config };
+      if (parsed === undefined) delete next[settable as 'webhookUrl'];
+      else (next as any)[settable] = parsed;
+      saveConfig(next);
+      io.out(`${settable} = ${parsed === undefined ? '(unset)' : String(parsed)}`);
+      if (settable === 'bridgePort' || settable === 'httpPort' || settable === 'dbPath') {
+        io.out('Restart the server for this to take effect: lit serve --http');
+      }
+    });
+
+  program
+    .command('token')
+    .argument('<action>', 'rotate')
+    .description('Manage the pairing token.')
+    .action((action) => {
+      if (action !== 'rotate') {
+        throw new CliError(`Unknown token action "${action}". The only action is: rotate`);
+      }
+      const { config } = loadConfig();
+      const rotated = { ...config, token: generateToken() };
+      saveConfig(rotated);
+      io.out('Pairing token rotated. The old token no longer works.');
+      io.out('');
+      io.out(pairingInstructions(rotated, { http: true }));
+      io.out('');
+      io.out('Re-pair the extension with the new token, and restart a running server so it');
+      io.out('starts accepting the new one: lit serve --http');
     });
 
   program
