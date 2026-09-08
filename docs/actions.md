@@ -51,7 +51,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `queue.reject` | `{ ids: string[] }` | `{ rejected: number }` — same origin rule as `queue.approve` |
 | `ai.complete` | `{ task: 'opener'\|'summary'\|'sentiment'\|'comment'\|'score', input: object }` | `{ output: string \| object, provider, model }` |
 | `export.csv` | `{ kind: 'profiles'\|'list'\|'campaign'\|'inbox', id? }` | `{ csv: string, filename }` |
-| `research.resolve` | `{ rows: ResearchRow[] }` | `{ resolved: ResolvedRow[] }` |
+| `research.resolve` | `{ rows: ResearchRow[] }` | `{ resolved: ResolvedRow[] }` — a row that names a person resolves to `kind: 'person'` or to `'unresolved'`, never to their employer's page. Confidence is `1` for a LinkedIn URL, `1` for a near-exact name whose company or headline agrees, `0.85` for a near-exact name alone; two plausible namesakes come back `'unresolved'` with both in `candidates`. `kind: 'company'` is only for rows with no name |
 | `research.pack` | `{ rows: ResearchRow[], listName?, enrich?: boolean, full?: boolean }` | `{ jobId, total, etaMs }` then events `research_progress {jobId, done, total, row, packSummary}`, `research_completed {jobId, listId}` |
 | `research.get` | `{ jobId }` | `{ jobId, status, done, total, packs: Pack[] }` |
 | `sync.pull` | `{ since?: number }` | `{ profiles, lists, listMembers, campaigns, enrollments, actions, threads, messages, events }` (all arrays, items changed since `since`) |
