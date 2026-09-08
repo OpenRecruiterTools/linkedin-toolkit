@@ -11,10 +11,17 @@
     "node": ">=20"
   },
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "eslint . --ext .js,.ts"
+    "lint": "eslint . --ext .js,.ts",
+    "gen": "npm run gen -w mcp-server",
+    "sequences": "node sequences/validate.mjs",
+    "zip:extension": "node scripts/zip-extension.mjs",
+    "test:python": "node scripts/python-check.mjs",
+    "release:check": "npm run build && npm run gen && git diff --exit-code -- mcp-server/openapi.json mcp-server/tools.json && npm run lint && npm test && npm run test:python && npm run sequences && npm run zip:extension"
   },
   "devDependencies": {
+    "adm-zip": "^0.5.16",
     "eslint": "^8.57.1",
     "prettier": "^3.3.3"
   }
