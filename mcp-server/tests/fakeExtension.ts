@@ -22,6 +22,11 @@ export type { FakeExtensionOptions };
 export const FakeError = FakeActionError;
 
 export class FakeExtension extends FakeExtensionClient {
+  /** Put an arbitrary frame on the wire — for protocol-level tests. */
+  sendRaw(frame: unknown): void {
+    this.send(frame);
+  }
+
   /** Connect expecting the server to reject the token; resolves with the close code. */
   static async expectRejected(options: FakeExtensionOptions): Promise<number> {
     const host = options.host ?? '127.0.0.1';

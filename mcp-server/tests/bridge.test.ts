@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BridgeServer, BridgeError, offlineError } from '../src/bridge.js';
 import { FakeExtension, FakeError } from './fakeExtension.js';
 import { defaultHandlers, ada } from './fixtures.js';
@@ -192,5 +192,64 @@ describe('BridgeServer', () => {
     await gone;
     expect(bridge.isConnected()).toBe(false);
     await expect(bridge.request('status.get')).rejects.toBeInstanceOf(BridgeError);
+  });
+
+  it('tolerates a pong frame without treating it as a response or an event', async () => {
+    ext = new FakeExtension({ port: bridge.port, token: TOKEN, handlers: defaultHandlers() });
+    await ext.connect();
+
+    const events: string[] = [];
+    bridge.on('event', (name) => events.push(name));
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    ext.sendRaw({ type: 'pong' });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(events).toEqual([]);
+    expect(errors).not.toHaveBeenCalled();
+    expect(warnings).not.toHaveBeenCalled();
+    // The socket is still perfectly usable.
+    await expect(bridge.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+
+    errors.mockRestore();
+    warnings.mockRestore();
+  });
+});
+
+/**
+ * The JSON keepalive is not the same thing as the protocol ping. A browser
+ * answers a protocol ping without ever waking the extension's service worker,
+ * which Chrome then kills after ~30 s — holding an open socket. A `{type:
+ * 'ping'}` message is JavaScript the worker has to run.
+ */
+describe('BridgeServer keepalive', () => {
+  it('sends a JSON ping within the interval, alongside the protocol ping', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval'] });
+    const server = new BridgeServer({ port: 0, token: TOKEN, pingIntervalMs: 20_000 });
+    let client: FakeExtension | null = null;
+
+    try {
+      await server.start();
+      client = new FakeExtension({ port: server.port, token: TOKEN, handlers: defaultHandlers() });
+      await client.connect();
+      expect(client.pings).toBe(0);
+
+      vi.advanceTimersByTime(20_000);
+      // Delivery is real socket I/O, so wait for it on the real clock.
+      const deadline = Date.now() + 2000;
+      while (client.pings === 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+
+      expect(client.pings).toBeGreaterThanOrEqual(1);
+      // The pong it answered with did not break the connection.
+      expect(server.isConnected()).toBe(true);
+      await expect(server.request('status.get')).resolves.toMatchObject({ loggedIn: true });
+    } finally {
+      vi.useRealTimers();
+      await client?.close();
+      await server.stop();
+    }
   });
 });

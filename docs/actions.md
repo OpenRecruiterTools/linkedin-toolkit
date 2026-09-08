@@ -117,7 +117,7 @@ Event names: `invite_accepted`, `reply_received`, `positive_reply`, `campaign_st
 ### Bridge protocol
 
 - Server: WebSocket on `127.0.0.1:47829`. First frame from extension must be `{ type: 'hello', token, extensionVersion }`; server replies `{ type: 'hello_ok', serverVersion }` or closes with code 4001 (`UNAUTHORIZED`).
-- Thereafter server sends requests, extension sends responses and events, per the envelope above. Server pings every 20 s; extension responds to pings natively.
+- Thereafter server sends requests, extension sends responses and events, per the envelope above. Every 20 s the server sends both a protocol ping — which the browser answers natively, keeping the socket alive — and a `{ type: 'ping' }` message, which the extension answers with `{ type: 'pong' }`. The second one exists because only running JavaScript resets the MV3 service worker's idle timer; a frame the browser answers for it does not. The server ignores every `type` frame the extension sends back.
 - Extension reconnects with backoff 1 s → 2 s → 4 s → … → 60 s, reset on success. Reconnect on `chrome.runtime.onStartup`, `onInstalled`, and every alarm tick.
 - A request frame may carry an optional `origin: 'mcp' | 'cli'` naming who asked, so the engine can tell an agent-originated write from a human one; a frame without it keeps the engine's existing default.
 

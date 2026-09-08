@@ -133,8 +133,20 @@ export class BridgeServer extends EventEmitter {
       wss.on('connection', (ws) => this.handleConnection(ws));
     });
 
+    // Two pings, on purpose. The protocol-level ping keeps the socket itself
+    // alive and is answered by the browser, invisibly to the extension. But an
+    // MV3 service worker is killed after ~30 s of no *JavaScript* activity, and
+    // a frame the browser answers for it is not activity — so the worker dies
+    // holding an open socket. The JSON ping is a message the worker has to
+    // wake up and handle; it answers `{type:'pong'}`, which resets its timer.
     this.pingTimer = setInterval(() => {
-      if (this.socket && this.socket.readyState === WebSocket.OPEN) this.socket.ping();
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+      this.socket.ping();
+      try {
+        this.socket.send(JSON.stringify({ type: 'ping' }));
+      } catch {
+        /* the socket is going away; 'close' handles it */
+      }
     }, this.pingIntervalMs);
     this.pingTimer.unref?.();
   }
@@ -278,6 +290,10 @@ export class BridgeServer extends EventEmitter {
   }
 
   private handleFrame(frame: any): void {
+    // The extension's answer to the JSON keepalive, and any other typed
+    // housekeeping frame. Nothing to do, and nothing worth logging.
+    if (typeof frame?.type === 'string') return;
+
     if (typeof frame?.event === 'string') {
       this.emit('event', frame.event as EventName, frame.payload);
       return;

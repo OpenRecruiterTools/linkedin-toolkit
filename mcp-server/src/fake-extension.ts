@@ -34,6 +34,8 @@ export class FakeActionError extends Error {
 export class FakeExtensionClient {
   /** Every request this client has been asked to answer, in order. */
   readonly seen: { action: string; params: any; origin?: string }[] = [];
+  /** JSON keepalive pings received, answered with `{type:'pong'}` as the real extension does. */
+  pings = 0;
   private ws: WebSocket | null = null;
   private handlers: FakeHandlers;
   private readonly options: FakeExtensionOptions;
@@ -86,6 +88,13 @@ export class FakeExtensionClient {
           resolve();
           return;
         }
+        // The JSON keepalive. The real extension answers this in its own
+        // service worker, which is the whole point of it — see bridge.ts.
+        if (frame?.type === 'ping') {
+          this.pings += 1;
+          this.send({ type: 'pong' });
+          return;
+        }
         void this.answer(frame);
       });
     });
@@ -134,7 +143,7 @@ export class FakeExtensionClient {
     }
   }
 
-  private send(frame: unknown): void {
+  protected send(frame: unknown): void {
     this.ws?.send(JSON.stringify(frame));
   }
 }
