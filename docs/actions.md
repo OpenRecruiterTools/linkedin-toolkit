@@ -19,7 +19,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `event.attendees` | `{ eventUrl, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.connections` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.followers` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
-| `network.status` | `{ publicIds: string[] }` (≤ 25) | `{ statuses: Record<string, 'connected'\|'pending'\|'none'>, partial?: boolean }` |
+| `network.status` | `{ publicIds: string[] }` (≤ 25) | `{ statuses: Record<string, 'connected'\|'pending'\|'none'>, partial?: boolean, reason?: string }` |
 | `network.unfollowCount` | `{}` | `{ count: number }` |
 | `network.unfollowAll` | `{}` | `{ unfollowed: number }` |
 | `outreach.view` | `{ publicId }` | `WriteResult` |

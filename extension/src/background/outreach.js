@@ -110,18 +110,34 @@ function isDryRun(params) {
 }
 
 /**
+ * Urns a caller may not supply for themselves.
+ *
+ * A urn skips the profile read that would have resolved it, so an agent could
+ * send a thousand invitations without a single metered visit — and a
+ * *malformed* non-empty urn would sail past the engine's check and land in
+ * voyager's own unmetered `resolveProfileUrn` fallback. Only a human working
+ * the popup, where every action is one click, may hand one in; for anybody
+ * else the engine resolves it and pays for it.
+ */
+const CLIENT_URN_FIELDS = ['profileUrn', 'recipientUrn'];
+
+/**
  * Split the caller's params into what LinkedIn is asked for and what only the
  * engine cares about. The campaign fields have to survive a spell in the
  * approval queue, or the action log written on approval cannot be attributed
  * and the campaign's stats read zero.
  */
-function splitParams(params) {
+function splitParams(params, origin) {
   const rest = { ...params };
   const { campaignId, stepIndex } = rest;
   delete rest.dry_run;
   delete rest.dryRun;
   delete rest.campaignId;
   delete rest.stepIndex;
+
+  if (!DIRECT_ORIGINS.has(origin)) {
+    for (const field of CLIENT_URN_FIELDS) delete rest[field];
+  }
 
   const context = {};
   if (campaignId) {
@@ -136,7 +152,7 @@ function splitParams(params) {
  * @returns {Promise<{status: 'sent'|'queued'|'dryRun', queueId?, wouldSend?, sentAt?}>}
  */
 export async function dispatch(action, rawParams, origin) {
-  const { params, context } = splitParams(rawParams);
+  const { params, context } = splitParams(rawParams, origin);
 
   if (isDryRun(rawParams)) {
     return { status: 'dryRun', wouldSend: { action, params } };

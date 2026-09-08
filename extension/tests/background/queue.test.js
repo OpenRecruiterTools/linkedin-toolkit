@@ -208,6 +208,78 @@ describe('the send path', () => {
     expect(net.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
   });
 
+  describe('a client-supplied urn never bypasses metering', () => {
+    it.each(['mcp', 'cli', 'campaign'])('strips profileUrn from a %s invite', async (origin) => {
+      await setConfig({ autopilot: true });
+      net.push(profileView); // the metered read the engine makes anyway
+      net.push({}); // the invite
+
+      const res = await handle(
+        ACTIONS.OUTREACH_INVITE,
+        { publicId: 'adalovelace', note: 'Hi', profileUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        origin,
+      );
+
+      expect(res.data.status).toBe('sent');
+      expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+      expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).not.toContain('HANDED_IN');
+    });
+
+    it('strips recipientUrn from an agent message', async () => {
+      await setConfig({ autopilot: true });
+      net.push(profileView);
+      net.push({});
+
+      await handle(
+        ACTIONS.OUTREACH_MESSAGE,
+        { publicId: 'adalovelace', body: 'Hello', recipientUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        'mcp',
+      );
+
+      expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+      const payload = net.calls[net.calls.length - 1].json.conversationCreate;
+      expect(payload.recipients[0]).not.toContain('HANDED_IN');
+    });
+
+    it('a malformed urn cannot reach voyager unmetered', async () => {
+      await setConfig({ autopilot: true });
+      // Non-empty but nonsense: the old code would have passed it straight
+      // through, and voyager's own fallback would have fetched for free.
+      net.push(profileView);
+      net.push({});
+
+      await handle(
+        ACTIONS.OUTREACH_INVITE,
+        { publicId: 'adalovelace', note: 'Hi', profileUrn: 'not-a-urn' },
+        'cli',
+      );
+
+      expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+      expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).not.toBe('not-a-urn');
+    });
+
+    it('never lands in the queue item either', async () => {
+      const res = await handle(
+        ACTIONS.OUTREACH_INVITE,
+        { publicId: 'adalovelace', note: 'Hi', profileUrn: 'urn:li:fsd_profile:HANDED_IN' },
+        'mcp',
+      );
+      const item = (await queue.list('pending')).find((i) => i.id === res.data.queueId);
+      expect(item.params.profileUrn).toBeUndefined();
+    });
+
+    it('the popup may still hand one in — one click, one action', async () => {
+      net.push({});
+      await handle(
+        ACTIONS.OUTREACH_FOLLOW,
+        { publicId: 'adalovelace', profileUrn: 'urn:li:fsd_profile:ACoAAAada' },
+        'popup',
+      );
+      expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+      expect(net.calls).toHaveLength(1);
+    });
+  });
+
   it('a stranger costs exactly one visit for the whole invite', async () => {
     net.push(profileView); // the urn resolution
     net.push({}); // the invite

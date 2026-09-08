@@ -54,6 +54,16 @@ describe('profile', () => {
     expect(typeof p.capturedAt).toBe('number');
   });
 
+  it('sets connectionDegree to null when the response carries no distance', () => {
+    const raw = structuredClone(profileView);
+    const profile = raw.included.find((e) => e.publicIdentifier === 'adalovelace');
+    delete profile.distance;
+
+    const p = v.normalizeProfileView(raw);
+    expect(p.connectionDegree).toBe(null);
+    expect('connectionDegree' in p).toBe(true);
+  });
+
   it('viewProfile hits the profileView path and returns the Profile', async () => {
     net.push(profileView);
     const p = await v.viewProfile('adalovelace');

@@ -172,15 +172,17 @@ function trimProfile(profile) {
  * does not know. Spreading that over a full profile read would blank the urn
  * we just paid a profile view for, and the next caller would fetch it again.
  * An empty value never overwrites a value we already have.
+ *
+ * `null` is the exception, and the distinction matters: `undefined`, `''` and
+ * `[]` mean "this record does not carry that field", while `null` means "we
+ * looked and could not tell". An explicit unknown has to win, or a stale
+ * `connectionDegree` would survive the very read that failed to confirm it.
  */
 function mergeKnown(existing, incoming) {
   const out = { ...existing };
   for (const [key, value] of Object.entries(incoming)) {
     const isEmpty =
-      value === undefined ||
-      value === null ||
-      value === '' ||
-      (Array.isArray(value) && value.length === 0);
+      value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
     const had = out[key];
     const hadSomething =
       had !== undefined && had !== null && had !== '' && !(Array.isArray(had) && !had.length);

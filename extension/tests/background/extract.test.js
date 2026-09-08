@@ -262,10 +262,11 @@ describe('network.status', () => {
     expect(res.ok).toBe(true);
     expect(res.data.partial).toBe(true);
     expect(res.data.reason).toBe(ERROR.QUOTA_EXCEEDED);
-    expect(Object.keys(res.data.statuses)).toHaveLength(25);
     // Three reads, then it stops rather than re-reserving for each of the rest.
     expect(net.calls.length).toBe(4); // the invitations call plus three reads
-    expect(res.data.statuses.person24).toBe('none');
+    // The 22 it never looked at are absent, not guessed at.
+    expect(Object.keys(res.data.statuses)).toEqual(['person0', 'person1', 'person2']);
+    expect('person24' in res.data.statuses).toBe(false);
   });
 
   it('keeps what it resolved and calls unread invitations pending', async () => {
@@ -282,11 +283,8 @@ describe('network.status', () => {
 
     expect(res.ok).toBe(true);
     expect(res.data.partial).toBe(true);
-    expect(res.data.statuses).toEqual({
-      invited1: 'connected',
-      invited2: 'pending',
-      stranger: 'none',
-    });
+    expect(res.data.statuses).toEqual({ invited1: 'connected', invited2: 'pending' });
+    expect('stranger' in res.data.statuses).toBe(false);
     expect(net.calls).toHaveLength(2);
   });
 
@@ -340,6 +338,25 @@ describe('network.status', () => {
     expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
     events.setSink(null);
+  });
+
+  it('a cached unknown degree never answers an acceptance check', async () => {
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
+
+    // A read that came back without a parsable distance.
+    const noDistance = structuredClone(profileView);
+    delete noDistance.included.find((e) => e.publicIdentifier === 'adalovelace').distance;
+    net.push(noDistance);
+    await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' });
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(null);
+
+    net.push({ elements: [] }); // the invitation is gone
+    net.push(inviteAccepted); // so it looks again, and finds the acceptance
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
   });
 
   it('a cached first-degree read still answers without another fetch', async () => {
@@ -433,9 +450,51 @@ describe('network.status', () => {
     net.push({ elements: [] });
 
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['a', 'b', 'c'] });
-    expect(res.ok).toBe(false);
-    expect(res.error.code).toBe(ERROR.QUOTA_EXCEEDED);
+
+    // Nothing could be checked, so nothing is claimed — but a spent quota is
+    // an ordinary condition, not a failure of the call.
+    expect(res.ok).toBe(true);
+    expect(res.data.statuses).toEqual({});
+    expect(res.data.partial).toBe(true);
+    expect(res.data.reason).toBe(ERROR.QUOTA_EXCEEDED);
     expect(net.calls).toHaveLength(1);
+  });
+
+  it('degrades for the working window too', async () => {
+    await setConfig({ businessHoursOnly: true, businessStart: 9, businessEnd: 18 });
+    vi.setSystemTime(new Date(2026, 8, 9, 22, 0, 0));
+    net.push({ elements: [] });
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['a'] });
+    expect(res.ok).toBe(true);
+    expect(res.data.partial).toBe(true);
+    expect(res.data.reason).toBe(ERROR.OUTSIDE_BUSINESS_HOURS);
+  });
+
+  describe('hard stops are never dressed up as a partial result', () => {
+    it.each([
+      ['a security challenge', 451, ERROR.CHALLENGE_DETECTED],
+      ['a rate limit', 429, ERROR.RATE_LIMITED],
+    ])('%s throws, even after ids have resolved', async (_name, status, code) => {
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'invited1' });
+
+      net.push(sentInvitations2(['invited1'])); // invited1 resolves cheaply
+      net.push({ __status: status, body: {} }); // the first real read is refused
+
+      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['invited1', 'stranger'] });
+
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe(code);
+    });
+
+    it('a lost session throws', async () => {
+      net.push({ elements: [] });
+      net.push({ __status: 401, body: {} });
+
+      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['stranger'] });
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe(ERROR.NOT_LOGGED_IN);
+    });
   });
 });
 

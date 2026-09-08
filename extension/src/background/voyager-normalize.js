@@ -75,7 +75,13 @@ export function toProfile(fields = {}, source = 'profile') {
     source,
   };
   if (fields.companyUrn) profile.companyUrn = fields.companyUrn;
-  if (fields.connectionDegree) profile.connectionDegree = fields.connectionDegree;
+
+  // Always present, and explicitly `null` when the response carried no
+  // parsable distance. Leaving it off would let an older degree survive a
+  // newer read: the record would be stamped fresh while still claiming a
+  // connection state nobody has checked.
+  profile.connectionDegree =
+    fields.connectionDegree === undefined ? null : fields.connectionDegree;
   if (fields.summary) profile.summary = fields.summary;
   if (fields.pageText) profile.pageText = fields.pageText;
   if (fields.photoDataUrl) profile.photoDataUrl = fields.photoDataUrl;

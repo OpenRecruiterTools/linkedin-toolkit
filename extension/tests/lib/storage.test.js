@@ -92,6 +92,19 @@ describe('profile store', () => {
     expect(ada.location).toBe('London');
   });
 
+  it('lets an explicit unknown clear a stale value', async () => {
+    // `undefined` means "this record does not carry the field"; `null` means
+    // "we looked and could not tell", and that has to win — otherwise a degree
+    // nobody has checked survives the read that failed to confirm it.
+    await storage.putProfile({ publicId: 'ada', connectionDegree: 1 });
+    await storage.putProfile({ publicId: 'ada', connectionDegree: null });
+    expect((await storage.getStoredProfile('ada')).connectionDegree).toBe(null);
+
+    await storage.putProfile({ publicId: 'ada', connectionDegree: 2 });
+    await storage.putProfile({ publicId: 'ada', company: 'Somewhere' });
+    expect((await storage.getStoredProfile('ada')).connectionDegree).toBe(2);
+  });
+
   it('still lets a real value replace an old one', async () => {
     await storage.putProfile({ publicId: 'ada', company: 'Old Co' });
     await storage.putProfile({ publicId: 'ada', company: 'Analytical Engines' });
