@@ -152,7 +152,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "config",
     "operation": "set",
     "displayName": "Set",
-    "description": "Run the `config.set` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+    "description": "Run the `config.set` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
     "write": false,
     "required": [],
     "optional": [
@@ -811,7 +811,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "outreach",
     "operation": "view",
     "displayName": "View",
-    "description": "Visit a profile so the visit shows up in their \"who viewed your profile\". Use it as a light warm-up touch before an invite. Counts against the 500 visits/day cap. Returns a WriteResult; pass dry_run to preview.",
+    "description": "Visit a profile so the visit shows up in their \"who viewed your profile\". Use it as a light warm-up touch before an invite. This is a direct, metered action: it is paced and drawn from the visit bucket (500 visits/day) but never queued for approval, so the result status is \"sent\". Pass dry_run to preview.",
     "write": true,
     "required": [
       {
@@ -842,7 +842,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "outreach",
     "operation": "follow",
     "displayName": "Follow",
-    "description": "Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. Returns a WriteResult; pass dry_run to preview.",
+    "description": "Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is \"sent\". Pass dry_run to preview.",
     "write": true,
     "required": [
       {
@@ -1002,7 +1002,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "outreach",
     "operation": "like",
     "displayName": "Like",
-    "description": "Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. Returns a WriteResult; pass dry_run to preview.",
+    "description": "Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is \"sent\". Unlike a comment, a like carries no words of yours. Pass dry_run to preview.",
     "write": true,
     "required": [
       {
@@ -1285,7 +1285,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "list",
     "operation": "remove",
     "displayName": "Remove",
-    "description": "Run the `list.remove` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+    "description": "Run the `list.remove` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
     "write": false,
     "required": [
       {
@@ -1355,7 +1355,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "list",
     "operation": "delete",
     "displayName": "Delete",
-    "description": "Run the `list.delete` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+    "description": "Run the `list.delete` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
     "write": false,
     "required": [
       {
@@ -1376,7 +1376,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "list",
     "operation": "importCsv",
     "displayName": "Import CSV",
-    "description": "Run the `list.importCsv` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+    "description": "Run the `list.importCsv` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
     "write": false,
     "required": [
       {
@@ -1607,7 +1607,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "campaign",
     "operation": "delete",
     "displayName": "Delete",
-    "description": "Run the `campaign.delete` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+    "description": "Run the `campaign.delete` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
     "write": false,
     "required": [
       {

@@ -150,18 +150,40 @@ function envelopeSchema(action: ActionName): JsonSchema {
   };
 }
 
+/**
+ * The four actions that really do wait for a human in Copilot mode. Everything
+ * else in `WRITE_ACTIONS` is a write in the contract's sense — it changes
+ * state — but `config.set`, `list.delete` and the rest never reach LinkedIn
+ * and never wait for anybody, and a blanket "queues for approval" on them was
+ * simply untrue.
+ */
+const QUEUEING_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>([
+  'outreach.invite',
+  'outreach.message',
+  'outreach.inmail',
+  'outreach.comment',
+]);
+
+function writeNote(action: ActionName): string {
+  if (!isWriteAction(action)) return '';
+  if (QUEUEING_ACTIONS.has(action)) {
+    return ' This is a write action: it is rate-capped and queues for human approval in Copilot mode.';
+  }
+  if (action.startsWith('outreach.')) {
+    return ' This is a write action: it is rate-capped and metered against the visit bucket, and is sent directly rather than queued.';
+  }
+  return ' This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.';
+}
+
 export function buildOpenApi(): JsonSchema {
   const paths: Record<string, unknown> = {};
 
   for (const action of ACTIONS) {
-    const write = isWriteAction(action);
     paths[`/actions/${action}`] = {
       post: {
         operationId: `action_${action.replace('.', '_')}`,
         summary: action,
-        description: `Run the \`${action}\` action on the connected extension.${
-          write ? ' This is a write action: it is rate-capped and queues for approval in Copilot mode.' : ''
-        }`,
+        description: `Run the \`${action}\` action on the connected extension.${writeNote(action)}`,
         tags: [action.split('.')[0]],
         security: [{ bearerAuth: [] }],
         requestBody: {
@@ -269,8 +291,8 @@ export function buildOpenApi(): JsonSchema {
       description:
         'Local HTTP API for the LinkedIn Toolkit. The server runs on the user\'s own machine and ' +
         'drives their own logged-in Chrome through the toolkit extension; nothing is hosted and no ' +
-        'credentials are stored. Every write is rate-capped by the extension and queues for human ' +
-        'approval in Copilot mode.',
+        'credentials are stored. Every write is rate-capped by the extension; invites, messages, ' +
+        'InMails and comments additionally queue for human approval in Copilot mode.',
       license: { name: 'MIT' },
     },
     servers: [{ url: 'http://127.0.0.1:47830', description: 'lit serve --http' }],

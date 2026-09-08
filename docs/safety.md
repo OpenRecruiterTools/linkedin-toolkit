@@ -47,8 +47,17 @@ account that has not been actively used for outreach in the last month.
 
 ### 4. Copilot mode
 
-Every write originating from an agent, the CLI, or a campaign lands in the approval queue. You see
-what would be sent, edit it, approve or reject it, in the popup. Nothing goes out until you say so.
+Every invite, message, InMail and comment originating from an agent, the CLI, or a campaign lands
+in the approval queue. You see what would be sent, edit it, approve or reject it, in the popup.
+Nothing goes out until you say so.
+
+Profile views, follows and likes do not queue. They carry no words of yours and cannot be edited,
+so there would be nothing to approve; they are metered against the visit bucket and paced like
+everything else, and they go out directly.
+
+Approving is a human action. An agent asking to approve its own queue is refused — `queue.approve`
+and `queue.reject` answer `UNAUTHORIZED` from an MCP client unless you have turned Autopilot on.
+The popup and `lit queue approve` at your own terminal are you, so both work.
 
 Autopilot exists, and turning it on is a decision only you can make, in the popup — no config
 file, no API call, no agent. Turn it on when you have watched a few hundred drafts and trust what

@@ -3,7 +3,7 @@
   "info": {
     "title": "LinkedIn Toolkit",
     "version": "2.0.0",
-    "description": "Local HTTP API for the LinkedIn Toolkit. The server runs on the user's own machine and drives their own logged-in Chrome through the toolkit extension; nothing is hosted and no credentials are stored. Every write is rate-capped by the extension and queues for human approval in Copilot mode.",
+    "description": "Local HTTP API for the LinkedIn Toolkit. The server runs on the user's own machine and drives their own logged-in Chrome through the toolkit extension; nothing is hosted and no credentials are stored. Every write is rate-capped by the extension; invites, messages, InMails and comments additionally queue for human approval in Copilot mode.",
     "license": {
       "name": "MIT"
     }
@@ -1340,7 +1340,7 @@
       "post": {
         "operationId": "action_config_set",
         "summary": "config.set",
-        "description": "Run the `config.set` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `config.set` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "config"
         ],
@@ -2792,7 +2792,7 @@
       "post": {
         "operationId": "action_outreach_view",
         "summary": "outreach.view",
-        "description": "Run the `outreach.view` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.view` action on the connected extension. This is a write action: it is rate-capped and metered against the visit bucket, and is sent directly rather than queued.",
         "tags": [
           "outreach"
         ],
@@ -2874,7 +2874,7 @@
       "post": {
         "operationId": "action_outreach_follow",
         "summary": "outreach.follow",
-        "description": "Run the `outreach.follow` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.follow` action on the connected extension. This is a write action: it is rate-capped and metered against the visit bucket, and is sent directly rather than queued.",
         "tags": [
           "outreach"
         ],
@@ -2956,7 +2956,7 @@
       "post": {
         "operationId": "action_outreach_invite",
         "summary": "outreach.invite",
-        "description": "Run the `outreach.invite` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.invite` action on the connected extension. This is a write action: it is rate-capped and queues for human approval in Copilot mode.",
         "tags": [
           "outreach"
         ],
@@ -3041,7 +3041,7 @@
       "post": {
         "operationId": "action_outreach_message",
         "summary": "outreach.message",
-        "description": "Run the `outreach.message` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.message` action on the connected extension. This is a write action: it is rate-capped and queues for human approval in Copilot mode.",
         "tags": [
           "outreach"
         ],
@@ -3127,7 +3127,7 @@
       "post": {
         "operationId": "action_outreach_inmail",
         "summary": "outreach.inmail",
-        "description": "Run the `outreach.inmail` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.inmail` action on the connected extension. This is a write action: it is rate-capped and queues for human approval in Copilot mode.",
         "tags": [
           "outreach"
         ],
@@ -3217,7 +3217,7 @@
       "post": {
         "operationId": "action_outreach_like",
         "summary": "outreach.like",
-        "description": "Run the `outreach.like` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.like` action on the connected extension. This is a write action: it is rate-capped and metered against the visit bucket, and is sent directly rather than queued.",
         "tags": [
           "outreach"
         ],
@@ -3299,7 +3299,7 @@
       "post": {
         "operationId": "action_outreach_comment",
         "summary": "outreach.comment",
-        "description": "Run the `outreach.comment` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `outreach.comment` action on the connected extension. This is a write action: it is rate-capped and queues for human approval in Copilot mode.",
         "tags": [
           "outreach"
         ],
@@ -3678,7 +3678,7 @@
       "post": {
         "operationId": "action_list_create",
         "summary": "list.create",
-        "description": "Run the `list.create` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `list.create` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "list"
         ],
@@ -3935,7 +3935,7 @@
       "post": {
         "operationId": "action_list_add",
         "summary": "list.add",
-        "description": "Run the `list.add` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `list.add` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "list"
         ],
@@ -4042,7 +4042,7 @@
       "post": {
         "operationId": "action_list_remove",
         "summary": "list.remove",
-        "description": "Run the `list.remove` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `list.remove` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "list"
         ],
@@ -4246,7 +4246,7 @@
       "post": {
         "operationId": "action_list_delete",
         "summary": "list.delete",
-        "description": "Run the `list.delete` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `list.delete` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "list"
         ],
@@ -4338,7 +4338,7 @@
       "post": {
         "operationId": "action_list_importCsv",
         "summary": "list.importCsv",
-        "description": "Run the `list.importCsv` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `list.importCsv` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "list"
         ],
@@ -4441,7 +4441,7 @@
       "post": {
         "operationId": "action_campaign_create",
         "summary": "campaign.create",
-        "description": "Run the `campaign.create` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `campaign.create` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "campaign"
         ],
@@ -4720,7 +4720,7 @@
       "post": {
         "operationId": "action_campaign_enroll",
         "summary": "campaign.enroll",
-        "description": "Run the `campaign.enroll` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `campaign.enroll` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "campaign"
         ],
@@ -4822,7 +4822,7 @@
       "post": {
         "operationId": "action_campaign_pause",
         "summary": "campaign.pause",
-        "description": "Run the `campaign.pause` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `campaign.pause` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "campaign"
         ],
@@ -4904,7 +4904,7 @@
       "post": {
         "operationId": "action_campaign_resume",
         "summary": "campaign.resume",
-        "description": "Run the `campaign.resume` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `campaign.resume` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "campaign"
         ],
@@ -4986,7 +4986,7 @@
       "post": {
         "operationId": "action_campaign_delete",
         "summary": "campaign.delete",
-        "description": "Run the `campaign.delete` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `campaign.delete` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "campaign"
         ],
@@ -5253,7 +5253,7 @@
       "post": {
         "operationId": "action_queue_approve",
         "summary": "queue.approve",
-        "description": "Run the `queue.approve` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `queue.approve` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "queue"
         ],
@@ -5362,7 +5362,7 @@
       "post": {
         "operationId": "action_queue_reject",
         "summary": "queue.reject",
-        "description": "Run the `queue.reject` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `queue.reject` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "queue"
         ],
@@ -5775,7 +5775,7 @@
       "post": {
         "operationId": "action_research_pack",
         "summary": "research.pack",
-        "description": "Run the `research.pack` action on the connected extension. This is a write action: it is rate-capped and queues for approval in Copilot mode.",
+        "description": "Run the `research.pack` action on the connected extension. This is a write action: it changes state on this machine and in the extension, and sends nothing to LinkedIn.",
         "tags": [
           "research"
         ],
@@ -7069,7 +7069,7 @@
       "post": {
         "operationId": "tool_linkedin_view_profile",
         "summary": "linkedin_view_profile",
-        "description": "Visit a profile so the visit shows up in their \"who viewed your profile\". Use it as a light warm-up touch before an invite. Counts against the 500 visits/day cap. Returns a WriteResult; pass dry_run to preview.",
+        "description": "Visit a profile so the visit shows up in their \"who viewed your profile\". Use it as a light warm-up touch before an invite. This is a direct, metered action: it is paced and drawn from the visit bucket (500 visits/day) but never queued for approval, so the result status is \"sent\". Pass dry_run to preview.",
         "tags": [
           "tools"
         ],
@@ -7118,7 +7118,7 @@
       "post": {
         "operationId": "tool_linkedin_follow",
         "summary": "linkedin_follow",
-        "description": "Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. Returns a WriteResult; pass dry_run to preview.",
+        "description": "Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is \"sent\". Pass dry_run to preview.",
         "tags": [
           "tools"
         ],
@@ -7329,7 +7329,7 @@
       "post": {
         "operationId": "tool_linkedin_like_post",
         "summary": "linkedin_like_post",
-        "description": "Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. Returns a WriteResult; pass dry_run to preview.",
+        "description": "Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is \"sent\". Unlike a comment, a like carries no words of yours. Pass dry_run to preview.",
         "tags": [
           "tools"
         ],

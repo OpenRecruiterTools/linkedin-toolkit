@@ -102,6 +102,8 @@ Every `profileView` fetch — `profile.get`, each row of `profile.export`, a con
 
 `hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
 
+`Campaign.settings.autopilot` is **reserved**. It is stored and returned as part of the campaign, defaults to `false`, and is not read by the engine: whether a campaign step queues or sends is decided solely by the global `Config.autopilot`, which only the popup can change. Do not treat a campaign-level `autopilot: true` as permission to send.
+
 `export.csv` reads its rows from the engine's own stores (`kind: 'profiles'` from the profile store, `'list'` from list members, `'campaign'` from enrollments and the action log, `'inbox'` from stored threads); `kind: 'profiles'` also accepts an optional `profiles: Profile[]` override, which the popup uses to download an ad-hoc result set it already holds, and an optional `download: boolean` that additionally hands the CSV to `chrome.downloads` as a `data:` URL for callers (the popup, the content script) that cannot download for themselves.
 
 ### Envelope and errors

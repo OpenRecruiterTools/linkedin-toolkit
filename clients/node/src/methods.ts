@@ -95,12 +95,12 @@ export abstract class GeneratedActions {
     return this.call('network.unfollowAll', params);
   }
 
-  /** `outreach.view` — Visit a profile so the visit shows up in their "who viewed your profile". Use it as a light warm-up touch before an invite. Counts against the 500 visits/day cap. Returns a WriteResult; pass dry_run to preview. */
+  /** `outreach.view` — Visit a profile so the visit shows up in their "who viewed your profile". Use it as a light warm-up touch before an invite. This is a direct, metered action: it is paced and drawn from the visit bucket (500 visits/day) but never queued for approval, so the result status is "sent". Pass dry_run to preview. */
   outreachView(params: ParamsOf<'outreach.view'> & { dry_run?: boolean }): Promise<ResultOf<'outreach.view'>> {
     return this.call('outreach.view', params);
   }
 
-  /** `outreach.follow` — Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. Returns a WriteResult; pass dry_run to preview. */
+  /** `outreach.follow` — Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is "sent". Pass dry_run to preview. */
   outreachFollow(params: ParamsOf<'outreach.follow'> & { dry_run?: boolean }): Promise<ResultOf<'outreach.follow'>> {
     return this.call('outreach.follow', params);
   }
@@ -120,7 +120,7 @@ export abstract class GeneratedActions {
     return this.call('outreach.inmail', params);
   }
 
-  /** `outreach.like` — Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. Returns a WriteResult; pass dry_run to preview. */
+  /** `outreach.like` — Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is "sent". Unlike a comment, a like carries no words of yours. Pass dry_run to preview. */
   outreachLike(params: ParamsOf<'outreach.like'> & { dry_run?: boolean }): Promise<ResultOf<'outreach.like'>> {
     return this.call('outreach.like', params);
   }

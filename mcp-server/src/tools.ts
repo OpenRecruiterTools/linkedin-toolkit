@@ -111,11 +111,12 @@ export function createMcpServer(toolkit: Toolkit): McpServer {
     {
       instructions:
         'LinkedIn Toolkit drives the user\'s own logged-in Chrome through a local extension. ' +
-        'Call linkedin_get_status first. Reads (search, profile, company, engagers, inbox) are safe; ' +
-        'writes (invite, message, inmail, like, comment) are rate-capped by the extension and, in the ' +
-        'default Copilot mode, queue for human approval instead of sending. Pass dry_run to preview a ' +
-        'write. Use linkedin_sync then linkedin_query_sql to work over past captures instead of ' +
-        're-scraping.',
+        'Call linkedin_get_status first. Reads (search, profile, company, engagers, inbox) are safe. ' +
+        'Every write is rate-capped by the extension; invites, messages, InMails and comments also ' +
+        'queue for human approval instead of sending in the default Copilot mode, while views, ' +
+        'follows and likes are metered against the visit bucket and go out directly. Approving is ' +
+        'the user\'s job in the popup, not yours. Pass dry_run to preview a write. Use linkedin_sync ' +
+        'then linkedin_query_sql to work over past captures instead of re-scraping.',
     },
   );
   registerTools(server, toolkit);

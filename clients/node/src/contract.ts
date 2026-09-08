@@ -849,14 +849,14 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_view_profile',
     action: 'outreach.view',
     description:
-      'Visit a profile so the visit shows up in their "who viewed your profile". Use it as a light warm-up touch before an invite. Counts against the 500 visits/day cap. Returns a WriteResult; pass dry_run to preview.',
+      'Visit a profile so the visit shows up in their "who viewed your profile". Use it as a light warm-up touch before an invite. This is a direct, metered action: it is paced and drawn from the visit bucket (500 visits/day) but never queued for approval, so the result status is "sent". Pass dry_run to preview.',
     write: true,
   },
   {
     name: 'linkedin_follow',
     action: 'outreach.follow',
     description:
-      'Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. Returns a WriteResult; pass dry_run to preview.',
+      'Follow a person without sending a connection invite. Use it when an invite would be too strong a first touch. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is "sent". Pass dry_run to preview.',
     write: true,
   },
   {
@@ -884,7 +884,7 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_like_post',
     action: 'outreach.like',
     description:
-      'Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. Returns a WriteResult; pass dry_run to preview.',
+      'Like a post by URL. Use it as a low-risk warm-up touch before inviting the author. This is a direct, metered action: it is paced and drawn from the visit bucket but never queued for approval, so the result status is "sent". Unlike a comment, a like carries no words of yours. Pass dry_run to preview.',
     write: true,
   },
   {
