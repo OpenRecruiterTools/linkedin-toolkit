@@ -1,0 +1,48 @@
+{
+  "name": "n8n-nodes-linkedin-toolkit",
+  "version": "2.0.0",
+  "description": "n8n community node for LinkedIn Toolkit: every action of the local HTTP API plus a webhook trigger.",
+  "license": "MIT",
+  "keywords": [
+    "n8n-community-node-package",
+    "linkedin",
+    "automation"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "index.js",
+  "files": [
+    "dist",
+    "index.js",
+    "README.md"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/LinkedInToolkitApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/LinkedInToolkit/LinkedInToolkit.node.js",
+      "dist/nodes/LinkedInToolkitTrigger/LinkedInToolkitTrigger.node.js"
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-icons.mjs",
+    "gen": "tsx scripts/gen.ts",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "n8n-core": "*",
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "n8n-workflow": "^1.82.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
