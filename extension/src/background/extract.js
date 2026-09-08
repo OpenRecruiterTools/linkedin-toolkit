@@ -9,7 +9,7 @@
 
 import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
 import { register } from './engine.js';
-import { allActions, logAction, putProfile, putProfiles } from '../lib/storage.js';
+import { allActions, getStoredProfile, logAction, putProfile, putProfiles } from '../lib/storage.js';
 import { emit } from './events.js';
 import * as quota from './quota.js';
 import * as voyager from './voyager.js';
@@ -47,8 +47,34 @@ export function universalNameFrom({ universalName, url }) {
   return decodeURIComponent(match[1]);
 }
 
+/**
+ * Save a page of people, without letting a list read undo a confirmed
+ * connection.
+ *
+ * Search results, followers and post engagers all state a connection degree,
+ * and it is usually right. But LinkedIn's search index lags behind the graph:
+ * a page that still says "2nd" for somebody who accepted an hour ago would
+ * overwrite the first-degree read we paid a profile view for, and the campaign
+ * `accepted` branch would flap between arms. A list may raise a degree, and it
+ * may state one we did not have; it may not lower one.
+ */
 async function store(profiles) {
-  await putProfiles(profiles);
+  const safe = [];
+  for (const profile of profiles) {
+    if (!profile.publicId || !(profile.connectionDegree > 1)) {
+      safe.push(profile);
+      continue;
+    }
+    const stored = await getStoredProfile(profile.publicId);
+    if (stored && stored.connectionDegree === 1) {
+      const kept = { ...profile };
+      delete kept.connectionDegree;
+      safe.push(kept);
+    } else {
+      safe.push(profile);
+    }
+  }
+  await putProfiles(safe);
   return profiles;
 }
 

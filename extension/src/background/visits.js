@@ -48,8 +48,14 @@ export async function meteredProfile(publicId, source = 'profile', { full = fals
 
   const profile = await voyager.getProfileNormalized(publicId, source, { full });
   profile.profileViewedAt = Date.now();
-  await putProfile(profile);
-  return profile;
+
+  // The stored record is what we return, not the raw read. A profile
+  // decoration does not carry everything: LinkedIn serves no photo on the
+  // top card for anyone but ourselves, for instance, while the connections
+  // list and search hits do. `putProfile` merges without erasing, so the
+  // merged record is strictly the better answer — and it is also what a
+  // later `sync.pull` will hand out, so the caller sees the same thing.
+  return (await putProfile(profile)) || profile;
 }
 
 /**
