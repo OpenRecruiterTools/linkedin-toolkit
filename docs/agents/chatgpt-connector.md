@@ -42,7 +42,7 @@ ChatGPT → Settings → Connectors → *Add custom connector*:
 |---|---|
 | MCP server URL | `https://your-tunnel.trycloudflare.com/mcp` |
 | Authentication | Bearer token |
-| Token | `bridge.token` from `~/.linkedin-toolkit/config.json` |
+| Token | `token` from `~/.linkedin-toolkit/config.json`, or run `lit config get token --reveal` |
 
 Deep research and agent mode can use custom connectors; availability varies by plan and changes
 often.

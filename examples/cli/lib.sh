@@ -12,7 +12,7 @@ CONFIG="$HOME/.linkedin-toolkit/config.json"
 
 if [ -z "${LINKEDIN_TOOLKIT_TOKEN:-}" ]; then
   if [ -f "$CONFIG" ]; then
-    LINKEDIN_TOOLKIT_TOKEN="$(jq -r '.bridge.token' "$CONFIG")"
+    LINKEDIN_TOOLKIT_TOKEN="$(jq -r '.token' "$CONFIG")"
   else
     echo "No token. Set LINKEDIN_TOOLKIT_TOKEN, or start the server once so $CONFIG exists." >&2
     exit 1

@@ -42,7 +42,7 @@ Then add the server to your host's config. The exact block for your host is in t
 
 If you are not an MCP host, use HTTP. The user runs `lit serve --http` and you call
 `POST http://127.0.0.1:47830/actions/{action}` with `Authorization: Bearer <token>`, where the
-token is `bridge.token` in `~/.linkedin-toolkit/config.json`.
+token is `token` in `~/.linkedin-toolkit/config.json` (or `lit config get token --reveal`).
 [Language-specific setup](../../examples/).
 
 ## Your first call, always

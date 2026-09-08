@@ -12,14 +12,14 @@ lit serve --http --fake         # drop --fake to use a real LinkedIn session
 # 2. agent
 npm install
 export OPENAI_API_KEY=sk-...
-export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
 npx tsx sourcing-agent.ts "Heads of data engineering at Series B fintechs in London"
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:LINKEDIN_TOOLKIT_TOKEN = (Get-Content "$env:USERPROFILE\.linkedin-toolkit\config.json" | ConvertFrom-Json).bridge.token
+$env:LINKEDIN_TOOLKIT_TOKEN = (Get-Content "$env:USERPROFILE\.linkedin-toolkit\config.json" | ConvertFrom-Json).token
 ```
 
 ## What it shows

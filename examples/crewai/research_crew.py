@@ -6,7 +6,7 @@ lands in the human approval queue.
 
     pip install -r requirements.txt
     export OPENAI_API_KEY=sk-...
-    export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+    export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
     python research_crew.py "Heads of data engineering at Series B fintechs in London"
 
 Requires `lit serve --http` (add --fake to run without a LinkedIn account).

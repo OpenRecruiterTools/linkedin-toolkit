@@ -29,11 +29,11 @@ Check it is alive:
 curl -s http://127.0.0.1:47830/health
 ```
 
-The bearer token is the bridge token in `~/.linkedin-toolkit/config.json`
-(`%USERPROFILE%\.linkedin-toolkit\config.json` on Windows):
+The bearer token is the top-level `token` in `~/.linkedin-toolkit/config.json`
+(`%USERPROFILE%\.linkedin-toolkit\config.json` on Windows), or run `lit config get token --reveal`:
 
 ```bash
-export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.bridge.token' ~/.linkedin-toolkit/config.json)
+export LINKEDIN_TOOLKIT_TOKEN=$(jq -r '.token' ~/.linkedin-toolkit/config.json)
 export LINKEDIN_TOOLKIT_URL=http://127.0.0.1:47830
 ```
 

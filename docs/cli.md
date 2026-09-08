@@ -17,7 +17,7 @@ lit serve --http --fake                # fake extension client: no LinkedIn acco
 ```
 
 `GET /health` for a liveness check, `GET /openapi.json` for the generated OpenAPI 3.1 document.
-Bearer token is `bridge.token` in `~/.linkedin-toolkit/config.json`.
+Bearer token is `token` in `~/.linkedin-toolkit/config.json`, or run `lit config get token --reveal`.
 
 ## Read
 
@@ -69,8 +69,9 @@ lit sync                                              # pull everything changed 
 ## Config
 
 ```bash
-lit config get                                        # the whole config
+lit config get                                        # the whole config, token redacted
 lit config get webhookUrl                             # one key
+lit config get token --reveal                         # print the bridge token in full
 lit config set webhookUrl https://your-n8n/webhook/linkedin-events
 lit config set dailyInviteCap 20
 lit token rotate                                      # new bridge token; re-pair the popup after
@@ -92,6 +93,6 @@ talking to an already-running server.
 | Variable | Default | What |
 |---|---|---|
 | `LINKEDIN_TOOLKIT_URL` | `http://127.0.0.1:47830` | Where the HTTP surface is |
-| `LINKEDIN_TOOLKIT_TOKEN` | — | The bridge token, otherwise read from `~/.linkedin-toolkit/config.json` |
+| `LINKEDIN_TOOLKIT_TOKEN` | — | The bridge token, otherwise read from `token` in `~/.linkedin-toolkit/config.json` |
 
 Full action reference: [`actions.md`](actions.md). Shell examples: [`../examples/cli/`](../examples/cli/).

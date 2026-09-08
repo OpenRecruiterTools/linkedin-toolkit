@@ -14,7 +14,7 @@ lit serve --http             # 127.0.0.1:47830
 One credential, then every action is reachable.
 
 **Credential:** *Header Auth* — Name `Authorization`, Value `Bearer <token>`. The token is
-`bridge.token` in `~/.linkedin-toolkit/config.json`.
+`token` in `~/.linkedin-toolkit/config.json`, or run `lit config get token --reveal`.
 
 **Node:** HTTP Request → POST → `http://127.0.0.1:47830/actions/search.people`, Header Auth
 credential, JSON body:
