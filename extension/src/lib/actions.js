@@ -151,11 +151,13 @@ export const DEFAULT_CONFIG = {
   accountPreset: 'free',
   warmup: { enabled: false, days: 14 },
   ai: { provider: 'none' },
+  enrichment: { provider: 'none' },
   bridge: { enabled: false, port: 47829 },
 };
 
 const ACCOUNT_PRESETS = ['free', 'premium', 'salesnav', 'recruiter'];
 const AI_PROVIDERS = ['none', 'anthropic', 'openai', 'gemini', 'ollama', 'openai-compatible'];
+const ENRICHMENT_PROVIDERS = ['none', 'hunter'];
 
 /* ================================================================== */
 /*  Errors and envelopes                                              */
@@ -482,6 +484,7 @@ export function clampConfig(cfg = {}) {
       : d.accountPreset,
     warmup: { ...d.warmup, ...(input.warmup || {}) },
     ai: { ...d.ai, ...(input.ai || {}) },
+    enrichment: { ...d.enrichment, ...(input.enrichment || {}) },
     bridge: { ...d.bridge, ...(input.bridge || {}) },
   };
 
@@ -492,6 +495,9 @@ export function clampConfig(cfg = {}) {
   }
 
   if (!AI_PROVIDERS.includes(out.ai.provider)) out.ai.provider = d.ai.provider;
+  if (!ENRICHMENT_PROVIDERS.includes(out.enrichment.provider)) {
+    out.enrichment.provider = d.enrichment.provider;
+  }
 
   out.bridge.enabled = toBoolean(out.bridge.enabled, d.bridge.enabled);
   out.bridge.port = clampInt(out.bridge.port, d.bridge.port, 1, 65535);
