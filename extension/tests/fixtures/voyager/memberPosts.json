@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.feed.render.UpdateV2",
+      "entityUrn": "urn:li:fs_updateV2:(urn:li:activity:7000000000000000001,MEMBER_SHARES)",
+      "permalink": "https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/",
+      "commentary": {
+        "text": {
+          "text": "We are hiring two analysts this quarter."
+        }
+      },
+      "socialDetail": {
+        "totalSocialActivityCounts": {
+          "numLikes": 42,
+          "numComments": 7
+        }
+      },
+      "createdAt": 1757000000000
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 24
+  }
+}

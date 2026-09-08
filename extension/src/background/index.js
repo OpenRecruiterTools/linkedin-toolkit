@@ -17,14 +17,10 @@ import * as quota from './quota.js';
 import { getConfig, setConfig } from '../lib/config.js';
 import { logAction } from '../lib/storage.js';
 
-import {
-  getProfile,
-  normalizeProfile,
-  searchPeople,
-  normalizeSearchCluster,
-  sendInvite,
-  sendMessage,
-} from './voyager.js';
+import { getProfileNormalized, resolveProfileUrn, sendInvite, sendMessage } from './voyager.js';
+
+// Feature modules register their own contract actions on import.
+import './extract.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; the engine reports them back    */
@@ -57,30 +53,6 @@ async function activeProfilePublicId() {
   return publicId;
 }
 
-/** v1 normalized profile (or search hit) → contract Profile. */
-function toContractProfile(p, source) {
-  const publicId = p.publicIdentifier || p.publicId || '';
-  return {
-    publicId,
-    urn: p.profileUrn || p.entityUrn || p.urn || '',
-    url: p.linkedinUrl || p.url || (publicId ? `https://www.linkedin.com/in/${publicId}/` : ''),
-    firstName: p.firstName || '',
-    lastName: p.lastName || '',
-    fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
-    headline: p.headline || '',
-    title: p.title || '',
-    company: p.company || '',
-    location: p.location || '',
-    industry: p.industry || '',
-    photoUrl: p.photoUrl || p.image || '',
-    skills: p.skills || [],
-    education: p.education || [],
-    summary: p.summary || p.snippet || '',
-    capturedAt: Date.now(),
-    source: source || 'profile',
-  };
-}
-
 /** Contract Profile → the flat shape the v1 popup and content script expect. */
 function toLegacyProfile(p) {
   return {
@@ -103,23 +75,6 @@ function toLegacyProfile(p) {
     snippet: p.summary || '',
     image: p.photoUrl || '',
   };
-}
-
-async function fetchProfile(publicId, source) {
-  try {
-    const raw = await getProfile(publicId);
-    return toContractProfile(normalizeProfile(raw), source);
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-}
-
-async function resolveRecipientUrn(publicId) {
-  const profile = await fetchProfile(publicId);
-  if (!profile.urn) {
-    throw new EngineError(ERROR.NOT_FOUND, `Could not resolve profile URN for ${publicId}`);
-  }
-  return profile.urn;
 }
 
 /* ================================================================== */
@@ -488,63 +443,13 @@ register(ACTIONS.STATUS_GET, async () => {
 register(ACTIONS.CONFIG_GET, () => getConfig());
 register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
 
-register(ACTIONS.SEARCH_PEOPLE, async ({ keywords, start = 0, count = 25 }) => {
-  await quota.check('search', count);
-  const profiles = [];
-  const pageSize = Math.min(count, 49);
-  let offset = start;
-
-  while (profiles.length < count) {
-    let batch;
-    try {
-      const raw = await searchPeople({ keywords, start: offset, count: pageSize });
-      batch = normalizeSearchCluster(raw);
-    } catch (e) {
-      throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-    }
-    if (!batch.length) break;
-    profiles.push(...batch.map((p) => toContractProfile(p, 'search')));
-    offset += pageSize;
-    if (profiles.length < count) await humanDelay();
-  }
-
-  const page = profiles.slice(0, count);
-  await quota.record('search', page.length);
-  return { profiles: page, nextStart: offset };
-});
-
-register(ACTIONS.PROFILE_GET, async ({ url, publicId }) => {
-  const id = publicId || extractPublicId(url);
-  if (!id) throw new EngineError(ERROR.INVALID_PARAMS, 'Could not read a public id from url');
-  return fetchProfile(id);
-});
-
-register(ACTIONS.PROFILE_EXPORT, async ({ urls }) => {
-  const profiles = [];
-  const failed = [];
-  for (const url of urls) {
-    const id = extractPublicId(url);
-    if (!id) {
-      failed.push({ url, error: 'Not a LinkedIn profile URL' });
-      continue;
-    }
-    try {
-      profiles.push(await fetchProfile(id));
-    } catch (e) {
-      failed.push({ url, error: e.message });
-    }
-    await humanDelay();
-  }
-  return { profiles, failed };
-});
-
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
 
 register(ACTIONS.OUTREACH_VIEW, async ({ publicId }, ctx) => {
   await quota.check('visit');
   await humanDelay();
-  await fetchProfile(publicId);
+  await getProfileNormalized(publicId);
   await quota.record('visit');
   const result = { status: 'sent', sentAt: Date.now() };
   await logAction({ action: ACTIONS.OUTREACH_VIEW, publicId, origin: ctx.origin, result });
@@ -567,7 +472,7 @@ register(ACTIONS.OUTREACH_INVITE, async ({ publicId, note, profileUrn }, ctx) =>
 
 register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }, ctx) => {
   await quota.check('message');
-  const urn = recipientUrn || (await resolveRecipientUrn(publicId));
+  const urn = recipientUrn || (await resolveProfileUrn(publicId));
   await humanDelay();
   try {
     await sendMessage({ recipientUrn: urn, body });
@@ -582,7 +487,7 @@ register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }, ctx)
 
 register(ACTIONS.OUTREACH_INMAIL, async ({ publicId, subject, body, recipientUrn }, ctx) => {
   await quota.check('message');
-  const urn = recipientUrn || (await resolveRecipientUrn(publicId));
+  const urn = recipientUrn || (await resolveProfileUrn(publicId));
   await humanDelay();
   try {
     await sendMessage({ recipientUrn: urn, body, subtype: 'INMAIL', inmailSubject: subject });

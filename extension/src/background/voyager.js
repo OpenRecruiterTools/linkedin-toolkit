@@ -1,495 +1,458 @@
 /**
- * LinkedIn Voyager API Client
- * Communicates with LinkedIn's internal API using the user's active session.
- * All requests use the JSESSIONID cookie for CSRF and session auth.
- */
-
-const VOYAGER_BASE = 'https://www.linkedin.com/voyager/api';
-
-/* ------------------------------------------------------------------ */
-/*  CSRF                                                              */
-/* ------------------------------------------------------------------ */
-
-export async function getCsrfToken() {
-  const cookie = await chrome.cookies.get({
-    url: 'https://www.linkedin.com',
-    name: 'JSESSIONID',
-  });
-  if (!cookie) throw new Error('Not logged in to LinkedIn — JSESSIONID cookie not found.');
-  // LinkedIn wraps the value in double-quotes
-  return cookie.value.replace(/"/g, '');
-}
-
-/* ------------------------------------------------------------------ */
-/*  Rate-limit / back-off helpers                                     */
-/* ------------------------------------------------------------------ */
-
-/**
- * Check whether a particular action is currently blocked by a backoff timer.
- * @param {string} action  e.g. 'search', 'invite', 'message', 'fetch'
- * @returns {Promise<{blocked: boolean, reason?: string, retryAfter?: number}>}
- */
-export async function isActionBlocked(action) {
-  const key = `backoff_${action}`;
-  const data = await chrome.storage.local.get(key);
-  const entry = data[key];
-  if (!entry) return { blocked: false };
-  if (Date.now() >= entry.until) {
-    await chrome.storage.local.remove(key);
-    return { blocked: false };
-  }
-  return {
-    blocked: true,
-    reason: entry.reason,
-    retryAfter: entry.until - Date.now(),
-  };
-}
-
-/**
- * Block an action for a given number of milliseconds.
- */
-export async function blockAction(action, ms, reason) {
-  const key = `backoff_${action}`;
-  await chrome.storage.local.set({
-    [key]: { until: Date.now() + ms, reason },
-  });
-}
-
-/**
- * Map known LinkedIn error codes / HTTP statuses to backoff durations.
- */
-export function backoffFor(errCode) {
-  const map = {
-    429: 15 * 60 * 1000,       // 15 min
-    401: 0,                    // re-auth needed, no point waiting
-    403: 5 * 60 * 1000,        // 5 min
-    451: 60 * 60 * 1000,       // security challenge — 1 hour
-    RATE_LIMITED: 15 * 60 * 1000,
-    SECURITY_CHALLENGE: 60 * 60 * 1000,
-  };
-  return map[errCode] || 60 * 1000; // default 1 min
-}
-
-/* ------------------------------------------------------------------ */
-/*  Core fetch wrapper                                                */
-/* ------------------------------------------------------------------ */
-
-/**
- * Make an authenticated request to LinkedIn's Voyager API.
- * Handles CSRF headers, rate-limit detection, and common error codes.
+ * LinkedIn Toolkit — Voyager endpoints.
  *
- * @param {string}  path     e.g. '/identity/profiles/johndoe/profileView'
- * @param {object}  options  fetch options (method, body, headers, etc.)
- * @returns {Promise<any>}   parsed JSON response
+ * Every LinkedIn call the engine makes lives here, using the user's own
+ * logged-in session. Paths that LinkedIn changes from time to time are all in
+ * the `ENDPOINTS` catalogue below so a smoke test has exactly one place to
+ * check. Response shaping lives in `voyager-normalize.js`; the transport lives
+ * in `voyager-core.js`.
  */
-export async function voyagerFetch(path, options = {}) {
-  // Check global fetch backoff
-  const status = await isActionBlocked('fetch');
-  if (status.blocked) {
-    throw new Error(`LinkedIn requests paused: ${status.reason}. Retry in ${Math.round(status.retryAfter / 1000)}s.`);
-  }
 
-  const csrf = await getCsrfToken();
+import { ERROR, EngineError } from '../lib/actions.js';
+import { LINKEDIN_BASE, generateTrackingId, qs, voyagerFetch } from './voyager-core.js';
+import {
+  normalizeComments,
+  normalizeCompany,
+  normalizeConversations,
+  normalizeMessages,
+  normalizePosts,
+  normalizeProfileView,
+  normalizeProfileCollection,
+  normalizeReactions,
+  normalizeRecruiterSearch,
+  normalizeSalesNavSearch,
+  normalizeSearchClusters,
+  normalizeTotal,
+  threadIdFromUrn,
+} from './voyager-normalize.js';
 
-  const url = path.startsWith('http') ? path : `${VOYAGER_BASE}${path}`;
+export * from './voyager-core.js';
+export * from './voyager-normalize.js';
 
-  const headers = {
-    'csrf-token': csrf,
-    'x-restli-protocol-version': '2.0.0',
-    accept: 'application/vnd.linkedin.normalized+json+2.1',
-    ...(options.headers || {}),
-  };
+/* ================================================================== */
+/*  Endpoint catalogue — the only place a LinkedIn path is written     */
+/* ================================================================== */
 
-  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-    headers['content-type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
-  }
+export const ENDPOINTS = Object.freeze({
+  /** Full profile view; `{publicId}` is substituted. */
+  profileView: '/identity/profiles/{publicId}/profileView',
+  dashProfiles: '/identity/dash/profiles',
+  searchClusters: '/search/dash/clusters',
+  salesNavSearch: `${LINKEDIN_BASE}/sales-api/salesApiPeopleSearch`,
+  recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
+  companies: '/organization/companies',
+  reactions: '/feed/reactions',
+  comments: '/feed/comments',
+  groupMemberships: '/groups/groupMemberships',
+  eventAttendees: '/events/dash/professionalEventAttendees',
+  connections: '/relationships/dash/connections',
+  followers: '/identity/dash/profileFollowers',
+  conversations: '/messaging/conversations',
+  conversationEvents: '/messaging/conversations/{threadId}/events',
+  memberPosts: '/identity/profileUpdatesV2',
+  followingStates: '/feed/dash/followingStates',
+  normInvitations: '/growth/normInvitations',
+  profileViewBeacon: '/identity/dash/profileViews',
+});
 
-  const resp = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+const SEARCH_DECORATION =
+  'com.linkedin.voyager.dash.deco.search.SearchClusterCollection-186';
 
-  // ---------- Error handling ----------
+/* ================================================================== */
+/*  URL parsing                                                       */
+/* ================================================================== */
 
-  if (resp.status === 429) {
-    const wait = backoffFor(429);
-    await blockAction('fetch', wait, 'Rate limited by LinkedIn (429)');
-    throw new Error('Rate limited by LinkedIn. Pausing requests for 15 minutes.');
-  }
-
-  if (resp.status === 401 || resp.status === 403) {
-    const wait = backoffFor(resp.status);
-    if (wait > 0) await blockAction('fetch', wait, `Auth error (${resp.status})`);
-    throw new Error(
-      resp.status === 401
-        ? 'LinkedIn session expired. Please log in again.'
-        : 'LinkedIn denied access (403). Your session may be flagged.'
-    );
-  }
-
-  if (resp.status === 451) {
-    const wait = backoffFor(451);
-    await blockAction('fetch', wait, 'Security challenge triggered');
-    throw new Error('LinkedIn security challenge detected. Open LinkedIn in your browser and complete it.');
-  }
-
-  if (!resp.ok) {
-    let errorBody = '';
-    try {
-      errorBody = await resp.text();
-    } catch (_) { /* ignore */ }
-
-    // Try to extract LinkedIn's error code
-    let errCode;
-    try {
-      const parsed = JSON.parse(errorBody);
-      errCode = parsed.errorCode || parsed.code || parsed.status;
-    } catch (_) { /* ignore */ }
-
-    if (errCode) {
-      const wait = backoffFor(errCode);
-      if (wait > 0) await blockAction('fetch', wait, `LinkedIn error: ${errCode}`);
-    }
-
-    throw new Error(`Voyager API error ${resp.status}: ${errorBody.slice(0, 500)}`);
-  }
-
-  // Some endpoints return 204 No Content
-  if (resp.status === 204) return { ok: true };
-
-  const text = await resp.text();
-  if (!text) return { ok: true };
-
-  return JSON.parse(text);
-}
-
-/* ------------------------------------------------------------------ */
-/*  Profile                                                           */
-/* ------------------------------------------------------------------ */
-
-/**
- * Fetch a full profile view for a given public identifier (vanity URL slug).
- */
-export async function getProfile(publicIdentifier) {
-  const check = await isActionBlocked('profile');
-  if (check.blocked) throw new Error(`Profile fetch paused: ${check.reason}`);
-
-  return voyagerFetch(
-    `/identity/profiles/${encodeURIComponent(publicIdentifier)}/profileView`
+/** `https://www.linkedin.com/feed/update/urn:li:activity:123/` → the urn. */
+export function activityUrnFromUrl(postUrl) {
+  const str = String(postUrl || '');
+  const direct = str.match(/urn:li:(?:activity|ugcPost|share):(\d+)/);
+  if (direct) return `urn:li:activity:${direct[1]}`;
+  const legacy = str.match(/activity[-:](\d{10,})/);
+  if (legacy) return `urn:li:activity:${legacy[1]}`;
+  throw new EngineError(
+    ERROR.INVALID_PARAMS,
+    'Could not read an activity urn from that post URL.',
+    { howToFix: 'Use the post permalink, e.g. .../feed/update/urn:li:activity:1234567890/' },
   );
 }
 
-/**
- * Extract a clean, flat profile object from the raw Voyager profileView response.
- */
-export function normalizeProfile(raw) {
-  const included = raw.included || [];
-
-  // Find the main profile entity
-  const profile = included.find(
-    (e) => e.$type === 'com.linkedin.voyager.identity.profile.Profile'
-  ) || included.find(
-    (e) => e.$type === 'com.linkedin.voyager.dash.identity.profile.Profile'
-  ) || {};
-
-  // Find positions (experience)
-  const positions = included.filter(
-    (e) =>
-      (e.$type || '').includes('Position') &&
-      !(e.$type || '').includes('Group')
-  );
-
-  // Current position
-  const current = positions.find((p) => !p.timePeriod?.endDate) || positions[0];
-
-  // Skills
-  const skills = included
-    .filter((e) => (e.$type || '').includes('Skill'))
-    .map((s) => s.name)
-    .filter(Boolean);
-
-  // Education
-  const education = included
-    .filter((e) => (e.$type || '').includes('Education'))
-    .map((ed) => ({
-      school: ed.schoolName || ed.school?.name || '',
-      degree: ed.degreeName || ed.degree || '',
-      field: ed.fieldOfStudy || '',
-    }));
-
-  const firstName = profile.firstName || '';
-  const lastName = profile.lastName || '';
-  const publicIdentifier = profile.publicIdentifier || profile.miniProfile?.publicIdentifier || '';
-
-  return {
-    firstName,
-    lastName,
-    fullName: `${firstName} ${lastName}`.trim(),
-    headline: profile.headline || '',
-    title: current?.title || profile.headline || '',
-    company: current?.companyName || '',
-    location: profile.locationName || profile.geoLocationName || '',
-    summary: profile.summary || '',
-    industry: profile.industryName || profile.industry || '',
-    skills,
-    education,
-    publicIdentifier,
-    linkedinUrl: publicIdentifier
-      ? `https://www.linkedin.com/in/${publicIdentifier}/`
-      : '',
-    profileUrn: profile.entityUrn || profile.objectUrn || '',
-    connectionDistance: profile.distance?.value || '',
-  };
+export function groupUrnFromUrl(groupUrl) {
+  const match = String(groupUrl || '').match(/\/groups\/(\d+)/);
+  if (!match) throw new EngineError(ERROR.INVALID_PARAMS, 'Could not read a group id from that URL.');
+  return `urn:li:group:${match[1]}`;
 }
 
-/* ------------------------------------------------------------------ */
+export function eventUrnFromUrl(eventUrl) {
+  const match = String(eventUrl || '').match(/\/events\/(?:[^/]*?-)?(\d{6,})/);
+  if (!match) throw new EngineError(ERROR.INVALID_PARAMS, 'Could not read an event id from that URL.');
+  return `urn:li:event:${match[1]}`;
+}
+
+/** `urn:li:fsd_profile:ACoAAA…` → `ACoAAA…` */
+export function urnId(urn) {
+  const str = String(urn || '');
+  const match = str.match(/:([^:()]+)\)?$/);
+  return match ? match[1] : str;
+}
+
+/* ================================================================== */
 /*  Search                                                            */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
 
-/**
- * Search for people on LinkedIn.
- * @param {object} params
- * @param {string} params.keywords  search query
- * @param {number} [params.start=0]   pagination offset
- * @param {number} [params.count=25]  results per page
- * @returns {Promise<object>}  raw search response
- */
-export async function searchPeople({ keywords, start = 0, count = 25 }) {
-  const check = await isActionBlocked('search');
-  if (check.blocked) throw new Error(`Search paused: ${check.reason}`);
+function searchQuery({ keywords, title, company, location, currentCompany, connectionOf, network }) {
+  const params = ['resultType:List(PEOPLE)'];
+  if (title) params.push(`title:List(${title})`);
+  if (company) params.push(`company:List(${company})`);
+  if (currentCompany) params.push(`currentCompany:List(${currentCompany})`);
+  if (location) params.push(`geoUrn:List(${location})`);
+  if (connectionOf) params.push(`connectionOf:List(${connectionOf})`);
+  if (network) params.push(`network:List(${network})`);
 
-  // Modern nested query format used by current LinkedIn UI
-  const queryParams = new URLSearchParams({
-    decorationId: 'com.linkedin.voyager.dash.deco.search.SearchClusterCollection-186',
+  const bits = ['flagshipSearchIntent:SEARCH_SRP'];
+  if (keywords) bits.unshift(`keywords:${keywords}`);
+  bits.push(`queryParameters:(${params.join(',')})`);
+  return `(${bits.join(',')})`;
+}
+
+async function runSearch(query, { start = 0, count = 25 } = {}) {
+  const search = qs({
+    decorationId: SEARCH_DECORATION,
     origin: 'GLOBAL_SEARCH_HEADER',
     q: 'all',
-    query: `(keywords:${encodeURIComponent(keywords)},resultType:(value:PEOPLE))`,
-    start: String(start),
-    count: String(count),
+    query,
+    start,
+    count,
   });
+  return voyagerFetch(`${ENDPOINTS.searchClusters}?${search}`);
+}
 
-  try {
-    return await voyagerFetch(`/search/dash/clusters?${queryParams.toString()}`);
-  } catch (err) {
-    // Fallback to flat params if nested format returns 400
-    if (err.message.includes('400')) {
-      const fallbackParams = new URLSearchParams({
-        decorationId: 'com.linkedin.voyager.dash.deco.search.SearchClusterCollection-186',
-        origin: 'GLOBAL_SEARCH_HEADER',
-        q: 'all',
-        keywords,
-        resultType: 'PEOPLE',
-        start: String(start),
-        count: String(count),
+/**
+ * People search across the three sources.
+ * @returns {Promise<{profiles: Profile[], total?: number, nextStart?: number}>}
+ */
+export async function searchProfiles({
+  keywords,
+  title,
+  company,
+  location,
+  source = 'search',
+  start = 0,
+  count = 25,
+} = {}) {
+  if (source === 'salesnav') return salesNavSearch({ keywords, title, company, location, start, count });
+  if (source === 'recruiter') return recruiterSearch({ keywords, title, company, location, start, count });
+
+  const raw = await runSearch(searchQuery({ keywords, title, company, location }), { start, count });
+  const { profiles, total } = normalizeSearchClusters(raw, 'search');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+/** Sales Navigator people search. */
+export async function salesNavSearch({ keywords, title, company, location, start = 0, count = 25 } = {}) {
+  const search = qs({ q: 'peopleSearchQuery', keywords, title, company, location, start, count });
+  const raw = await voyagerFetch(`${ENDPOINTS.salesNavSearch}?${search}`);
+  const { profiles, total } = normalizeSalesNavSearch(raw);
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+/** LinkedIn Recruiter search. */
+export async function recruiterSearch({ keywords, title, company, location, start = 0, count = 25 } = {}) {
+  const search = qs({ q: 'recruiterSearch', keywords, title, company, location, start, count });
+  const raw = await voyagerFetch(`${ENDPOINTS.recruiterSearch}?${search}`);
+  const { profiles, total } = normalizeRecruiterSearch(raw);
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+/* ================================================================== */
+/*  Profile                                                           */
+/* ================================================================== */
+
+/** Raw `profileView` response for a public identifier. */
+export async function getProfile(publicId) {
+  return voyagerFetch(ENDPOINTS.profileView.replace('{publicId}', encodeURIComponent(publicId)));
+}
+
+/** Fetch and normalize a profile. */
+export async function getProfileNormalized(publicId, source = 'profile') {
+  return normalizeProfileView(await getProfile(publicId), source);
+}
+
+/**
+ * Register a profile view.
+ *
+ * The authenticated `profileView` fetch is itself what LinkedIn records as a
+ * visit; `beacon: true` additionally posts to `ENDPOINTS.profileViewBeacon`
+ * (off by default because that path is the least stable of the catalogue).
+ */
+export async function viewProfile(publicId, { beacon = false } = {}) {
+  const profile = normalizeProfileView(await getProfile(publicId), 'visit');
+  if (beacon && profile.urn) {
+    try {
+      await voyagerFetch(ENDPOINTS.profileViewBeacon, {
+        method: 'POST',
+        body: { viewedProfileUrn: profile.urn, trackingId: generateTrackingId() },
       });
-      return voyagerFetch(`/search/dash/clusters?${fallbackParams.toString()}`);
+    } catch {
+      /* the view is already registered by the fetch above */
     }
-    throw err;
   }
+  return profile;
 }
 
-/**
- * Extract a flat array of candidate objects from the raw search cluster response.
- */
-export function normalizeSearchCluster(raw) {
-  const results = [];
-  const included = raw.included || [];
-  const elements = raw.data?.elements || raw.elements || [];
-
-  // Search results are nested inside cluster elements
-  for (const cluster of elements) {
-    const items = cluster.items || cluster.results || [];
-    for (const item of items) {
-      const entity =
-        item.item?.entityResult ||
-        item.entityResult ||
-        item.entity ||
-        item;
-
-      if (!entity) continue;
-
-      const title = entity.title?.text || entity.title || '';
-      const subtitle = entity.primarySubtitle?.text || entity.subtitle || '';
-      const summary = entity.summary?.text || entity.snippetText || '';
-      const navigationUrl = entity.navigationUrl || '';
-
-      // Extract public identifier from navigation URL
-      let publicIdentifier = '';
-      const match = navigationUrl.match(/linkedin\.com\/in\/([^/?]+)/);
-      if (match) publicIdentifier = decodeURIComponent(match[1]);
-
-      const image =
-        entity.image?.attributes?.[0]?.detailData?.nonEntityProfilePicture
-          ?.vectorImage?.artifacts?.[0]?.fileIdentifyingUrlPathSegment || '';
-
-      if (title || publicIdentifier) {
-        results.push({
-          fullName: title,
-          headline: subtitle,
-          snippet: summary,
-          publicIdentifier,
-          linkedinUrl: publicIdentifier
-            ? `https://www.linkedin.com/in/${publicIdentifier}/`
-            : navigationUrl,
-          entityUrn: entity.entityUrn || entity.objectUrn || '',
-          image,
-        });
-      }
-    }
-  }
-
-  // Fallback: scan included array for mini profiles if elements were sparse
-  if (results.length === 0) {
-    for (const inc of included) {
-      if (
-        inc.$type &&
-        (inc.$type.includes('MiniProfile') || inc.$type.includes('SearchProfile'))
-      ) {
-        const pi = inc.publicIdentifier || '';
-        results.push({
-          fullName: `${inc.firstName || ''} ${inc.lastName || ''}`.trim(),
-          headline: inc.occupation || inc.headline || '',
-          snippet: '',
-          publicIdentifier: pi,
-          linkedinUrl: pi ? `https://www.linkedin.com/in/${pi}/` : '',
-          entityUrn: inc.entityUrn || inc.objectUrn || '',
-          image: '',
-        });
-      }
-    }
-  }
-
-  return results;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Invitations                                                       */
-/* ------------------------------------------------------------------ */
-
-/**
- * Send a connection invitation.
- * @param {object} params
- * @param {string} params.publicIdentifier
- * @param {string} [params.profileUrn]   e.g. 'urn:li:fsd_profile:ABC123'
- * @param {string} [params.note]         optional note (max 300 chars)
- */
-export async function sendInvite({ publicIdentifier, profileUrn, note }) {
-  const check = await isActionBlocked('invite');
-  if (check.blocked) throw new Error(`Invites paused: ${check.reason}`);
-
-  // Resolve profile URN if not provided
-  if (!profileUrn && publicIdentifier) {
-    const profileData = await getProfile(publicIdentifier);
-    const included = profileData.included || [];
-    const prof = included.find(
-      (e) => (e.$type || '').includes('Profile') && e.publicIdentifier === publicIdentifier
-    );
-    profileUrn = prof?.entityUrn || prof?.objectUrn || '';
-  }
-
-  if (!profileUrn) {
-    throw new Error('Could not resolve profile URN for invitation.');
-  }
-
-  // Normalize URN format
-  const inviteeUrn = profileUrn.includes('fsd_profile')
-    ? profileUrn
-    : profileUrn.replace('fs_miniProfile', 'fsd_profile').replace('fs_profile', 'fsd_profile');
-
-  const body = {
-    inviteeProfileUrn: inviteeUrn,
-    trackingId: generateTrackingId(),
+/** Connection degree for a public identifier. */
+export async function getConnectionStatus(publicId) {
+  const profile = await getProfileNormalized(publicId);
+  return {
+    connected: profile.connectionDegree === 1,
+    degree: profile.connectionDegree || 0,
+    distance: profile.connectionDegree ? `DISTANCE_${profile.connectionDegree}` : '',
+    urn: profile.urn,
   };
-
-  if (note) {
-    body.message = note.slice(0, 300);
-  }
-
-  return voyagerFetch('/growth/normInvitations', {
-    method: 'POST',
-    body,
-  });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Messaging                                                         */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Company                                                           */
+/* ================================================================== */
+
+export async function getCompany(universalName) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.companies}?${qs({ q: 'universalName', universalName, decorate: true })}`,
+  );
+  const company = normalizeCompany(raw);
+  if (!company.name) throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
+  return company;
+}
+
+export async function getCompanyEmployees({ universalName, start = 0, count = 25 }) {
+  const raw = await runSearch(searchQuery({ currentCompany: universalName }), { start, count });
+  const { profiles, total } = normalizeSearchClusters(raw, 'company-employees');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+/* ================================================================== */
+/*  Post engagers                                                     */
+/* ================================================================== */
+
+async function fetchReactions(threadUrn, start, count) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.reactions}?${qs({ q: 'reactionType', threadUrn, start, count })}`,
+  );
+  return normalizeReactions(raw);
+}
+
+async function fetchComments(threadUrn, start, count) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.comments}?${qs({ q: 'comments', sortOrder: 'RELEVANCE', threadUrn, start, count })}`,
+  );
+  return normalizeComments(raw);
+}
 
 /**
- * Send a message to a LinkedIn user.
- * @param {object} params
- * @param {string} params.recipientUrn     e.g. 'urn:li:fsd_profile:ABC123'
- * @param {string} params.body             message text
- * @param {string} [params.subtype]        'MEMBER_TO_MEMBER' (default) or 'INMAIL'
- * @param {string} [params.inmailSubject]  subject for InMail
+ * Who liked and/or commented on a post.
+ * @returns {Promise<{engagers: Engager[], nextStart?: number}>}
  */
-export async function sendMessage({ recipientUrn, body, subtype = 'MEMBER_TO_MEMBER', inmailSubject }) {
-  const check = await isActionBlocked('message');
-  if (check.blocked) throw new Error(`Messages paused: ${check.reason}`);
+export async function getPostEngagers({ postUrl, kind = 'both', start = 0, count = 25 }) {
+  const threadUrn = activityUrnFromUrl(postUrl);
+  const engagers = [];
 
-  if (!recipientUrn) throw new Error('recipientUrn is required to send a message.');
-  if (!body) throw new Error('Message body cannot be empty.');
+  if (kind === 'likes' || kind === 'both') engagers.push(...(await fetchReactions(threadUrn, start, count)));
+  if (kind === 'comments' || kind === 'both') engagers.push(...(await fetchComments(threadUrn, start, count)));
+
+  const seen = new Map();
+  for (const e of engagers) {
+    const existing = seen.get(e.publicId);
+    seen.set(e.publicId, existing ? { ...existing, ...e } : e);
+  }
+  const merged = [...seen.values()];
+  return { engagers: merged, nextStart: merged.length ? start + count : undefined };
+}
+
+/* ================================================================== */
+/*  Audiences                                                         */
+/* ================================================================== */
+
+export async function getGroupMembers({ groupUrl, start = 0, count = 25 }) {
+  const groupUrn = groupUrnFromUrl(groupUrl);
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.groupMemberships}?${qs({ q: 'group', groupUrn, start, count })}`,
+  );
+  const { profiles, total } = normalizeProfileCollection(raw, 'group');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+export async function getEventAttendees({ eventUrl, start = 0, count = 25 }) {
+  const eventUrn = eventUrnFromUrl(eventUrl);
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.eventAttendees}?${qs({ q: 'eventAttendees', eventUrn, start, count })}`,
+  );
+  const { profiles, total } = normalizeProfileCollection(raw, 'event');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+export async function getConnections({ start = 0, count = 25 } = {}) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.connections}?${qs({ q: 'search', sortType: 'RECENTLY_ADDED', start, count })}`,
+  );
+  const { profiles, total } = normalizeProfileCollection(raw, 'connections');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+export async function getFollowers({ start = 0, count = 25 } = {}) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.followers}?${qs({ q: 'followersOfViewer', start, count })}`,
+  );
+  const { profiles, total } = normalizeProfileCollection(raw, 'followers');
+  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+}
+
+/* ================================================================== */
+/*  Messaging                                                         */
+/* ================================================================== */
+
+export async function getConversations({ count = 20, createdBefore } = {}) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.conversations}?${qs({ keyVersion: 'LEGACY_INBOX', count, createdBefore })}`,
+  );
+  return { threads: normalizeConversations(raw) };
+}
+
+export async function getConversationMessages({ threadId, count = 20, createdBefore }) {
+  const id = threadIdFromUrn(threadId);
+  const path = ENDPOINTS.conversationEvents.replace('{threadId}', encodeURIComponent(id));
+  const raw = await voyagerFetch(`${path}?${qs({ count, createdBefore })}`);
+  return { messages: normalizeMessages(raw, id) };
+}
+
+/* ================================================================== */
+/*  Activity and graph                                                */
+/* ================================================================== */
+
+export async function getMemberPosts({ publicId, profileUrn, count = 10 } = {}) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.memberPosts}?${qs({
+      q: 'memberShareFeed',
+      moduleKey: 'member-shares:phone',
+      includeLongTermHistory: true,
+      numComments: 0,
+      numLikes: 0,
+      count,
+      profileUrn,
+      publicIdentifier: profileUrn ? undefined : publicId,
+    })}`,
+  );
+  return normalizePosts(raw);
+}
+
+/** How many connections we share with a profile. */
+export async function getMutualConnectionsCount({ profileUrn }) {
+  const raw = await runSearch(
+    searchQuery({ connectionOf: urnId(profileUrn), network: 'F' }),
+    { start: 0, count: 0 },
+  );
+  return normalizeTotal(raw);
+}
+
+/* ================================================================== */
+/*  Writes                                                            */
+/* ================================================================== */
+
+function toFsdProfileUrn(urn) {
+  const str = String(urn || '');
+  if (!str) return '';
+  if (str.includes('fsd_profile')) return str;
+  return str.replace('fs_miniProfile', 'fsd_profile').replace('fs_profile', 'fsd_profile');
+}
+
+/** Resolve a profile urn from a public identifier when the caller has none. */
+export async function resolveProfileUrn(publicId) {
+  const profile = await getProfileNormalized(publicId);
+  const urn = toFsdProfileUrn(profile.urn);
+  if (!urn) throw new EngineError(ERROR.NOT_FOUND, `Could not resolve a profile urn for ${publicId}.`);
+  return urn;
+}
+
+/** Send a connection invitation (note ≤ 300 characters). */
+export async function sendInvite({ publicId, publicIdentifier, profileUrn, note }) {
+  const id = publicId || publicIdentifier;
+  const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(id));
+  const body = { inviteeProfileUrn: urn, trackingId: generateTrackingId() };
+  if (note) body.message = String(note).slice(0, 300);
+  return voyagerFetch(ENDPOINTS.normInvitations, { method: 'POST', body });
+}
+
+/** Send a message (`subtype: 'INMAIL'` for an InMail). */
+export async function sendMessage({
+  recipientUrn,
+  body,
+  subtype = 'MEMBER_TO_MEMBER',
+  inmailSubject,
+}) {
+  if (!recipientUrn) throw new EngineError(ERROR.INVALID_PARAMS, 'recipientUrn is required.');
+  if (!body) throw new EngineError(ERROR.INVALID_PARAMS, 'Message body cannot be empty.');
+
+  const message = {
+    attributedBody: { text: body, attributes: [] },
+    attachments: [],
+  };
+  if (subtype === 'INMAIL' && inmailSubject) message.subject = inmailSubject;
 
   const payload = {
     keyVersion: 'LEGACY_INBOX',
     conversationCreate: {
       eventCreate: {
-        value: {
-          'com.linkedin.voyager.messaging.create.MessageCreate': {
-            attributedBody: {
-              text: body,
-              attributes: [],
-            },
-            attachments: [],
-          },
-        },
+        value: { 'com.linkedin.voyager.messaging.create.MessageCreate': message },
       },
-      recipients: [recipientUrn],
+      recipients: [toFsdProfileUrn(recipientUrn)],
       subtype: subtype === 'INMAIL' ? 'INMAIL' : 'MEMBER_TO_MEMBER',
     },
   };
 
-  if (subtype === 'INMAIL' && inmailSubject) {
-    payload.conversationCreate.eventCreate.value[
-      'com.linkedin.voyager.messaging.create.MessageCreate'
-    ].subject = inmailSubject;
-  }
+  return voyagerFetch(`${ENDPOINTS.conversations}?action=create`, { method: 'POST', body: payload });
+}
 
-  return voyagerFetch('/messaging/conversations?action=create', {
+/** Send an InMail. */
+export async function sendInMail({ recipientUrn, subject, body }) {
+  return sendMessage({ recipientUrn, body, subtype: 'INMAIL', inmailSubject: subject });
+}
+
+/** Follow (or unfollow) a member without connecting. */
+export async function follow({ publicId, profileUrn, following = true }) {
+  const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(publicId));
+  const stateUrn = encodeURIComponent(`urn:li:fsd_followingState:${urn}`);
+  return voyagerFetch(`${ENDPOINTS.followingStates}/${stateUrn}?action=toggleFollow`, {
     method: 'POST',
-    body: payload,
+    body: { patch: { $set: { following: !!following } } },
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Connection status                                                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * Check whether the logged-in user is already connected to a profile.
- * @returns {Promise<{connected: boolean, distance: string}>}
- */
-export async function getConnectionStatus(publicIdentifier) {
-  const raw = await getProfile(publicIdentifier);
-  const normalized = normalizeProfile(raw);
-  const distance = normalized.connectionDistance || '';
-  return {
-    connected: distance === 'DISTANCE_1',
-    distance,
-  };
+/** Like a post. */
+export async function likePost({ postUrl, reactionType = 'LIKE' }) {
+  const threadUrn = activityUrnFromUrl(postUrl);
+  return voyagerFetch(`${ENDPOINTS.reactions}?${qs({ threadUrn })}`, {
+    method: 'POST',
+    body: { reactionType, threadUrn },
+  });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
+/** Comment on a post. */
+export async function commentPost({ postUrl, body }) {
+  const threadUrn = activityUrnFromUrl(postUrl);
+  if (!body) throw new EngineError(ERROR.INVALID_PARAMS, 'Comment body cannot be empty.');
+  return voyagerFetch(`${ENDPOINTS.comments}?${qs({ threadUrn })}`, {
+    method: 'POST',
+    body: {
+      threadUrn,
+      commentary: { text: body, attributes: [] },
+      trackingId: generateTrackingId(),
+    },
+  });
+}
 
-function generateTrackingId() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+/* ================================================================== */
+/*  v1 compatibility                                                  */
+/* ================================================================== */
+
+/** The v1 raw search call, kept so the untouched v1 popup keeps working. */
+export async function searchPeople({ keywords, start = 0, count = 25 }) {
+  return runSearch(searchQuery({ keywords }), { start, count });
 }

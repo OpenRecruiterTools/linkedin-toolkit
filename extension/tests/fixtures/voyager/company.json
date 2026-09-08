@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.organization.Company",
+      "entityUrn": "urn:li:fs_normalized_company:9001",
+      "name": "Analytical Engines",
+      "universalName": "analytical-engines",
+      "description": "We build difference engines for the modern era.",
+      "staffCount": 420,
+      "staffCountRange": {
+        "start": 201,
+        "end": 500
+      },
+      "companyIndustries": [
+        {
+          "localizedName": "Software Development"
+        }
+      ],
+      "headquarter": {
+        "city": "London",
+        "geographicArea": "England",
+        "country": "GB"
+      },
+      "companyPageUrl": "https://analytical-engines.example",
+      "followingInfo": {
+        "followerCount": 18400
+      }
+    }
+  ]
+}

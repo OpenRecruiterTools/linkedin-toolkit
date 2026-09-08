@@ -1,0 +1,95 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.messaging.Conversation",
+      "entityUrn": "urn:li:fs_conversation:2-abc123",
+      "unreadCount": 1,
+      "read": false,
+      "lastActivityAt": 1757200000000,
+      "participants": [
+        {
+          "com.linkedin.voyager.messaging.MessagingMember": {
+            "miniProfile": {
+              "firstName": "Ada",
+              "lastName": "Lovelace",
+              "publicIdentifier": "adalovelace",
+              "occupation": "Chief Analyst",
+              "entityUrn": "urn:li:fs_miniProfile:ACoAAAada"
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "createdAt": 1757200000000,
+          "from": {
+            "com.linkedin.voyager.messaging.MessagingMember": {
+              "miniProfile": {
+                "firstName": "Ada",
+                "lastName": "Lovelace",
+                "publicIdentifier": "adalovelace",
+                "occupation": "Chief Analyst",
+                "entityUrn": "urn:li:fs_miniProfile:ACoAAAada"
+              }
+            }
+          },
+          "eventContent": {
+            "com.linkedin.voyager.messaging.event.MessageEvent": {
+              "attributedBody": {
+                "text": "Sounds interesting, can we book a call?"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "$type": "com.linkedin.voyager.messaging.Conversation",
+      "entityUrn": "urn:li:fs_conversation:2-def456",
+      "unreadCount": 0,
+      "read": true,
+      "lastActivityAt": 1756900000000,
+      "participants": [
+        {
+          "com.linkedin.voyager.messaging.MessagingMember": {
+            "miniProfile": {
+              "firstName": "Bob",
+              "lastName": "Bright",
+              "publicIdentifier": "bobbright",
+              "occupation": "CTO",
+              "entityUrn": "urn:li:fs_miniProfile:ACoAAAbob"
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "createdAt": 1756900000000,
+          "from": {
+            "com.linkedin.voyager.messaging.MessagingMember": {
+              "miniProfile": {
+                "firstName": "Bob",
+                "lastName": "Bright",
+                "publicIdentifier": "bobbright",
+                "occupation": "CTO",
+                "entityUrn": "urn:li:fs_miniProfile:ACoAAAbob"
+              }
+            }
+          },
+          "eventContent": {
+            "com.linkedin.voyager.messaging.event.MessageEvent": {
+              "attributedBody": {
+                "text": "Not interested, please remove me."
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 20,
+    "total": 2
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.dash.relationships.Connection",
+      "createdAt": 1700000000000,
+      "connectedMemberResolutionResult": {
+        "firstName": "Ada",
+        "lastName": "Lovelace",
+        "publicIdentifier": "adalovelace",
+        "headline": "Chief Analyst at Analytical Engines",
+        "entityUrn": "urn:li:fsd_profile:ACoAAAada",
+        "geoLocation": {
+          "geo": {
+            "defaultLocalizedName": "London, United Kingdom"
+          }
+        }
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 204
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.dash.identity.profile.ProfileFollower",
+      "followerProfile": {
+        "firstName": "Dana",
+        "lastName": "Dupont",
+        "publicIdentifier": "danadupont",
+        "headline": "Investor",
+        "entityUrn": "urn:li:fsd_profile:ACoAAAdan"
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 1290
+  }
+}

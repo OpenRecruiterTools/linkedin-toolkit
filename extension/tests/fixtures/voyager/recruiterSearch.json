@@ -1,0 +1,25 @@
+{
+  "elements": [
+    {
+      "profile": {
+        "entityUrn": "urn:li:ts_profile:ACoAAAada",
+        "firstName": "Ada",
+        "lastName": "Lovelace",
+        "headline": "Chief Analyst at Analytical Engines",
+        "location": "London, United Kingdom",
+        "publicProfileUrl": "https://www.linkedin.com/in/adalovelace",
+        "currentPositions": [
+          {
+            "title": "Chief Analyst",
+            "companyName": "Analytical Engines"
+          }
+        ]
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 25,
+    "total": 58
+  }
+}

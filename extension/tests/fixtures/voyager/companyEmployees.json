@@ -1,0 +1,56 @@
+{
+  "data": {
+    "elements": [
+      {
+        "items": [
+          {
+            "item": {
+              "entityResult": {
+                "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+                "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAcar,SEARCH_SRP,DEFAULT)",
+                "trackingUrn": "urn:li:member:ACoAAAcar",
+                "title": {
+                  "text": "Carla Chen"
+                },
+                "primarySubtitle": {
+                  "text": "Head of Data at Analytical Engines"
+                },
+                "secondarySubtitle": {
+                  "text": "London, United Kingdom"
+                },
+                "summary": {
+                  "text": "Current: Head of Data at Analytical Engines"
+                },
+                "navigationUrl": "https://www.linkedin.com/in/carlachen?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAcar",
+                "image": {
+                  "attributes": [
+                    {
+                      "detailData": {
+                        "nonEntityProfilePicture": {
+                          "vectorImage": {
+                            "rootUrl": "https://media.licdn.com/dms/image/",
+                            "artifacts": [
+                              {
+                                "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "paging": {
+      "start": 0,
+      "count": 10,
+      "total": 42
+    }
+  },
+  "included": []
+}

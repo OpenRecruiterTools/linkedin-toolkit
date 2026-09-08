@@ -1,0 +1,19 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.events.ProfessionalEventAttendee",
+      "miniProfile": {
+        "firstName": "Fatima",
+        "lastName": "Farouk",
+        "publicIdentifier": "fatimafarouk",
+        "occupation": "Head of Talent at Delta",
+        "entityUrn": "urn:li:fs_miniProfile:ACoAAAfat"
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 310
+  }
+}

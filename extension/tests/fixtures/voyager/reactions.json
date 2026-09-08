@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "$type": "com.linkedin.voyager.feed.social.Reaction",
+      "reactionType": "LIKE",
+      "createdAt": 1757000000000,
+      "actorUrn": "urn:li:fsd_profile:ACoAAAada",
+      "reactorLockup": {
+        "title": {
+          "text": "Ada Lovelace"
+        },
+        "subtitle": {
+          "text": "Chief Analyst at Analytical Engines"
+        },
+        "navigationUrl": "https://www.linkedin.com/in/adalovelace"
+      }
+    }
+  ],
+  "paging": {
+    "start": 0,
+    "count": 10,
+    "total": 88
+  }
+}

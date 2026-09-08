@@ -1,0 +1,83 @@
+{
+  "data": {
+    "*elements": []
+  },
+  "included": [
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Profile",
+      "entityUrn": "urn:li:fs_profile:ACoAAAada",
+      "objectUrn": "urn:li:member:1001",
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "headline": "Chief Analyst at Analytical Engines",
+      "publicIdentifier": "adalovelace",
+      "locationName": "London, United Kingdom",
+      "geoLocationName": "London Area, United Kingdom",
+      "industryName": "Software Development",
+      "summary": "Wrote the first algorithm intended for a machine.",
+      "distance": {
+        "value": "DISTANCE_2"
+      },
+      "picture": {
+        "rootUrl": "https://media.licdn.com/dms/image/",
+        "artifacts": [
+          {
+            "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
+          }
+        ]
+      }
+    },
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Position",
+      "entityUrn": "urn:li:fs_position:(ACoAAAada,1)",
+      "title": "Chief Analyst",
+      "companyName": "Analytical Engines",
+      "companyUrn": "urn:li:fs_miniCompany:9001",
+      "description": "Leads the analysis team.",
+      "timePeriod": {
+        "startDate": {
+          "month": 6,
+          "year": 2026
+        }
+      }
+    },
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Position",
+      "entityUrn": "urn:li:fs_position:(ACoAAAada,2)",
+      "title": "Research Fellow",
+      "companyName": "Royal Society",
+      "timePeriod": {
+        "startDate": {
+          "month": 1,
+          "year": 2018
+        },
+        "endDate": {
+          "month": 5,
+          "year": 2026
+        }
+      }
+    },
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Education",
+      "schoolName": "University of London",
+      "degreeName": "BSc",
+      "fieldOfStudy": "Mathematics",
+      "timePeriod": {
+        "startDate": {
+          "year": 2012
+        },
+        "endDate": {
+          "year": 2015
+        }
+      }
+    },
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Skill",
+      "name": "Mathematics"
+    },
+    {
+      "$type": "com.linkedin.voyager.identity.profile.Skill",
+      "name": "Algorithms"
+    }
+  ]
+}
