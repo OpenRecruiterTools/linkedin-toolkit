@@ -167,13 +167,12 @@ describe('the send path', () => {
     await handle(ACTIONS.OUTREACH_VIEW, { publicId: 'adalovelace' }, 'popup');
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
 
-    // A follow costs its own visit plus the profile read that resolves the urn.
-    net.push(profileView);
+    // The view already read the profile, so the follow reuses it for the urn
+    // and only pays for its own visit.
     net.push({});
     await handle(ACTIONS.OUTREACH_FOLLOW, { publicId: 'adalovelace' }, 'popup');
-    expect((await quota.snapshot('visit')).dailyUsed).toBe(3);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
 
-    net.push(profileView);
     net.push({});
     await handle(
       ACTIONS.OUTREACH_INMAIL,
@@ -181,7 +180,15 @@ describe('the send path', () => {
       'popup',
     );
     expect((await quota.snapshot('message')).dailyUsed).toBe(1);
-    expect((await quota.snapshot('visit')).dailyUsed).toBe(4);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
+  });
+
+  it('a stranger costs exactly one visit for the whole invite', async () => {
+    net.push(profileView); // the urn resolution
+    net.push({}); // the invite
+    await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'stranger', note: 'Hi' }, 'popup');
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+    expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
   });
 
   it('a caller that already has the urn is not charged a second visit', async () => {

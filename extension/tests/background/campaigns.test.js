@@ -221,8 +221,9 @@ describe('branching', () => {
     net.push({}); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    // The invitation is no longer pending, so network.status calls it accepted
-    // without spending a profile view.
+    // The invitation is no longer pending; the branch confirms with one read
+    // that post-dates the invitation, and finds a first-degree connection.
+    net.route('/identity/profiles/', inviteAccepted);
     net.push({}); // the message
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -441,6 +442,18 @@ describe('already connected', () => {
     expect(log).toContain(ACTIONS.OUTREACH_MESSAGE);
     expect(log).not.toContain(ACTIONS.OUTREACH_INVITE);
     expect(log).not.toContain(ACTIONS.OUTREACH_FOLLOW);
+  });
+
+  it('spends exactly one profile view on an invite to a stranger', async () => {
+    await makeCampaign([{ type: 'invite', note: 'Hi' }]);
+    net.push({}); // the invite
+
+    const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+
+    expect(res.data.executed).toBe(1);
+    // The pre-check read the profile; the urn resolution reused it.
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+    expect(net.calls.filter((x) => x.url.includes('/identity/profiles/'))).toHaveLength(1);
   });
 
   it('still invites someone we are not connected to', async () => {

@@ -169,13 +169,39 @@ describe('network.status', () => {
     expect((await quota.snapshot('visit')).dailyUsed).toBe(0);
   });
 
-  it('calls an invite that is no longer pending accepted, without a profile view', async () => {
+  it('confirms an invitation that has left the pending list with one profile read', async () => {
     await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
-    net.push({ elements: [] });
+    net.push({ elements: [] }); // nothing pending any more
+    net.push(inviteAccepted); // …and they are 1st degree: a real acceptance
 
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
-    expect(net.calls).toHaveLength(1);
+    expect(net.calls).toHaveLength(2);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+  });
+
+  it('does not call a withdrawn or expired invitation an acceptance', async () => {
+    const seen = [];
+    const events = await import('../../src/background/events.js');
+    events.setSink((f) => seen.push(f));
+
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    net.push({ elements: [] }); // gone from the pending list
+    net.push(profileView); // but still only 2nd degree
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
+    expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
+    events.setSink(null);
+  });
+
+  it('a message or a comment is not an invitation', async () => {
+    await storage.logAction({ action: ACTIONS.OUTREACH_MESSAGE, publicId: 'adalovelace' });
+    net.push({ elements: [] });
+    net.push(profileView); // 2nd degree
+
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+    expect(res.data.statuses).toEqual({ adalovelace: 'none' });
   });
 
   it('falls back to a profile view for somebody we never invited, and meters it', async () => {
@@ -234,12 +260,80 @@ describe('network.status', () => {
 
     await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
     net.push({ elements: [] });
+    net.push(inviteAccepted);
     await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+
     net.push({ elements: [] });
     await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
 
     expect(seen.filter((f) => f.event === 'invite_accepted')).toHaveLength(1);
     events.setSink(null);
+  });
+
+  describe('when the invitations collection is unavailable', () => {
+    /** LinkedIn moved the endpoint, or we are backed off. */
+    function invitationsFail() {
+      net.push({ __status: 404, body: {} });
+    }
+
+    it('never reports an unconfirmed invitation as connected', async () => {
+      const seen = [];
+      const events = await import('../../src/background/events.js');
+      events.setSink((f) => seen.push(f));
+
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      invitationsFail();
+      net.push(profileView); // 2nd degree
+
+      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
+      expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
+      events.setSink(null);
+    });
+
+    it('still confirms a genuine acceptance from the profile', async () => {
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      invitationsFail();
+      net.push(inviteAccepted);
+
+      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
+    });
+
+    it('reports pending, not connected, when the profile read is unavailable too', async () => {
+      const seen = [];
+      const events = await import('../../src/background/events.js');
+      events.setSink((f) => seen.push(f));
+
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'bobbright' });
+      await setConfig({ accountPreset: 'free' });
+      await quota.record('visit', 80); // no visits left
+
+      invitationsFail();
+      const res = await handle(ACTIONS.NETWORK_STATUS, {
+        publicIds: ['adalovelace', 'bobbright'],
+      });
+
+      expect(res.data.statuses).toEqual({ adalovelace: 'pending', bobbright: 'pending' });
+      expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
+      events.setSink(null);
+    });
+
+    it('an endpoint that answers with a different shape reads as nothing pending, not as accepted', async () => {
+      const seen = [];
+      const events = await import('../../src/background/events.js');
+      events.setSink((f) => seen.push(f));
+
+      await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+      net.push({ data: { paging: { total: 3 } }, included: [] }); // shape LinkedIn changed
+      net.push(profileView); // and the profile says 2nd degree
+
+      const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+      expect(res.data.statuses).toEqual({ adalovelace: 'pending' });
+      expect(seen.map((f) => f.event)).not.toContain('invite_accepted');
+      events.setSink(null);
+    });
   });
 
   it('stops rather than firing 25 profile reads when the visit quota is spent', async () => {

@@ -372,6 +372,18 @@ describe('pacing', () => {
     expect(delays.length).toBeGreaterThanOrEqual(3 * 2 + 2);
   });
 
+  it('spends exactly one profile view per row', async () => {
+    await handle(ACTIONS.RESEARCH_PACK, {
+      rows: [{ linkedinUrl: 'https://www.linkedin.com/in/adalovelace/' }],
+    });
+    pushRows(1);
+
+    await research.progress();
+
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+    expect(net.calls.filter((x) => x.url.includes('/identity/profiles/'))).toHaveLength(1);
+  });
+
   it('narrows the ETA as rows complete', async () => {
     const started = await handle(ACTIONS.RESEARCH_PACK, { rows: rows(12) });
     expect(started.data.etaMs).toBe(12 * 20000);

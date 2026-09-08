@@ -54,6 +54,38 @@ describe('the storage key lock', () => {
     expect(await storage.get('counter', 0)).toBe(1);
   });
 
+  it('drops a key from the lock map once nothing is queued behind it', async () => {
+    await storage.drainLocks();
+    const before = storage.lockCount();
+
+    await Promise.all(
+      Array.from({ length: 50 }, (_, i) => storage.update(`key${i}`, () => i, null)),
+    );
+    await storage.drainLocks();
+    // The delete happens on the microtask after the chain settles.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(storage.lockCount()).toBe(before);
+  });
+
+  it('keeps the key while work is still queued behind it', async () => {
+    await storage.drainLocks();
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+
+    const first = storage.update('busy', async (v) => {
+      await gate;
+      return v;
+    }, 0);
+    const second = storage.update('busy', (v) => v, 0);
+
+    expect(storage.lockCount()).toBeGreaterThan(0);
+    release();
+    await Promise.all([first, second]);
+  });
+
   it('does not lose entries when the action log is written concurrently', async () => {
     await Promise.all(
       Array.from({ length: 25 }, (_, i) =>

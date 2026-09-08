@@ -7,6 +7,7 @@ import * as ai from '../../src/background/ai.js';
 import * as enrich from '../../src/background/enrich.js';
 import '../../src/background/ai.js';
 import { stubFetch } from '../helpers/net.js';
+import manifest from '../../manifest.json';
 
 let net;
 
@@ -75,6 +76,30 @@ describe('hasHostAccess / requestHostAccess', () => {
     expect(await permissions.hasHostAccess('https://api.hunter.io/v2/x')).toBe(true);
     await permissions.dropHostAccess('https://api.hunter.io/v2/x');
     expect(await permissions.hasHostAccess('https://api.hunter.io/v2/x')).toBe(false);
+  });
+
+  it('asks for the one origin it needs, never the wildcard the manifest allows', async () => {
+    denyAll();
+    await permissions.requestHostAccess('http://box.local:1234/v1/chat/completions');
+
+    const granted = await chrome.permissions.getAll();
+    expect(granted.origins).toEqual(['http://box.local:1234/*']);
+    expect(granted.origins).not.toContain('https://*/*');
+    expect(granted.origins).not.toContain('http://*/*');
+
+    // The grant is that origin and nothing near it.
+    expect(await permissions.hasHostAccess('http://box.local:1234/v1/models')).toBe(true);
+    expect(await permissions.hasHostAccess('http://box.local:9999/v1/models')).toBe(false);
+    expect(await permissions.hasHostAccess('https://box.local:1234/v1/models')).toBe(false);
+  });
+
+  it('the manifest keeps the wildcards so a custom base URL can be granted at all', () => {
+    const optional = manifest.optional_host_permissions;
+    expect(optional).toContain('https://*/*');
+    expect(optional).toContain('http://*/*');
+    expect(optional).toContain('https://api.anthropic.com/*');
+    // The install-time grant stays narrow.
+    expect(manifest.host_permissions).toEqual(['https://www.linkedin.com/*']);
   });
 
   it('refuses a URL it cannot parse', async () => {

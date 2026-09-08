@@ -14,7 +14,7 @@
 
 import { ACTIONS } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
-import { getStoredProfile, logAction } from '../lib/storage.js';
+import { getStoredProfile, logAction, putProfile } from '../lib/storage.js';
 import { register, setRateLimitProvider } from './engine.js';
 import * as queue from './queue.js';
 import * as quota from './quota.js';
@@ -40,7 +40,13 @@ const DIRECT_ORIGINS = new Set(['popup', 'approved']);
 /* ================================================================== */
 
 const SENDERS = {
-  [ACTIONS.OUTREACH_VIEW]: ({ publicId }) => voyager.viewProfile(publicId),
+  // A view already reserved its visit in send(); storing what it read means
+  // the follow or message after it does not pay for a second one.
+  [ACTIONS.OUTREACH_VIEW]: async ({ publicId }) => {
+    const profile = await voyager.viewProfile(publicId);
+    await putProfile({ ...profile, profileViewedAt: Date.now() });
+    return profile;
+  },
   [ACTIONS.OUTREACH_FOLLOW]: async ({ publicId, profileUrn }) =>
     voyager.follow({ publicId, profileUrn: profileUrn || (await meteredProfileUrn(publicId)) }),
   [ACTIONS.OUTREACH_INVITE]: async ({ publicId, note, profileUrn }) =>

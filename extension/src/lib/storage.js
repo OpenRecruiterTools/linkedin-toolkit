@@ -69,15 +69,26 @@ const locks = new Map();
 export function withKeyLock(key, fn) {
   const previous = locks.get(key) || Promise.resolve();
   const run = previous.then(fn, fn);
-  // Keep the chain alive whether or not this callback threw.
-  locks.set(
-    key,
-    run.then(
-      () => undefined,
-      () => undefined,
-    ),
+
+  // Keep the chain alive whether or not this callback threw, and drop the
+  // entry once nothing is queued behind it — otherwise a long-running worker
+  // that has touched `profile:<id>` for ten thousand people keeps ten thousand
+  // settled promises alive for the rest of the session.
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
   );
+  locks.set(key, settled);
+  settled.then(() => {
+    if (locks.get(key) === settled) locks.delete(key);
+  });
+
   return run;
+}
+
+/** How many keys currently have a lock chain. Tests, and leak checks. */
+export function lockCount() {
+  return locks.size;
 }
 
 /** Wait for every queued mutation to settle (tests, and shutdown). */

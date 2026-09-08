@@ -9,7 +9,7 @@
 
 import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
 import { register } from './engine.js';
-import { allActions, contactedSet, logAction, putProfile, putProfiles } from '../lib/storage.js';
+import { allActions, logAction, putProfile, putProfiles } from '../lib/storage.js';
 import { emit } from './events.js';
 import * as quota from './quota.js';
 import * as voyager from './voyager.js';
@@ -193,18 +193,38 @@ register(ACTIONS.NETWORK_FOLLOWERS, async ({ start = 0, count = 25 } = {}) => {
 export const MAX_STATUS_IDS = 25;
 
 /**
+ * Everyone we have actually sent an invitation to, and when the latest one
+ * went out. Only `outreach.invite` counts — a message or a comment is contact,
+ * not an invitation, and must never make somebody look "pending".
+ */
+async function invitedAt() {
+  const log = await allActions();
+  const out = new Map();
+  for (const entry of log) {
+    if (entry.action !== ACTIONS.OUTREACH_INVITE) continue;
+    if (entry.result && entry.result.status && entry.result.status !== 'sent') continue;
+    if (!entry.publicId) continue;
+    out.set(entry.publicId, Math.max(out.get(entry.publicId) || 0, entry.at || 0));
+  }
+  return out;
+}
+
+/**
  * Connection status for a handful of people, spending as few profile views as
- * possible.
+ * possible — and never guessing.
  *
  * One call to the sent-invitations collection answers "still pending?" for
- * everybody at once. For anyone we invited who is no longer pending, the
- * invitation landed — that is the accepted case, and it needs no profile view
- * at all. Only someone we have never invited forces a profileView, and that
- * one is metered as the visit it is.
+ * everybody at once, which is the case that matters during a campaign and
+ * costs nothing. An invitation that has *left* that list has either been
+ * accepted, withdrawn or expired, and only a profile read can tell those
+ * apart, so that is what happens — once, cached for the day.
  *
- * (An invitation can also leave the pending list by being withdrawn or by
- * expiring after a year. Both are rare next to acceptance, and both resolve
- * themselves the next time we actually look at the profile.)
+ * `invite_accepted` is only ever emitted on a positive signal: the invitation
+ * is gone *and* the profile reads as a first-degree connection. When the
+ * invitations collection is unavailable (LinkedIn moved the endpoint, we are
+ * backed off, the quota is gone) an invited person is reported `pending`,
+ * because an unconfirmed guess of `connected` would stop a campaign dead and
+ * fire a false acceptance for everybody we have ever invited.
  */
 register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
   if (publicIds.length > MAX_STATUS_IDS) {
@@ -215,43 +235,57 @@ register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
     );
   }
 
-  const invited = await contactedSet();
-  const alreadyAccepted = new Set(
+  const invited = await invitedAt();
+  const announced = new Set(
     (await allActions()).filter((e) => e.action === EVENTS.INVITE_ACCEPTED).map((e) => e.publicId),
   );
 
   let pending = new Set();
+  let invitationsOk = true;
   try {
     pending = new Set((await voyager.getSentInvitations()).map((i) => i.publicId));
   } catch {
-    // No invitations collection: fall back to profile reads below.
+    // The endpoint is gone, or we are backed off. Fall back to profile reads
+    // for anyone we invited, and never conclude anything from its silence.
+    invitationsOk = false;
   }
 
   const statuses = {};
 
   for (const publicId of publicIds) {
-    if (pending.has(publicId)) {
+    if (invitationsOk && pending.has(publicId)) {
       statuses[publicId] = 'pending';
       continue;
     }
 
-    if (invited.has(publicId)) {
+    const wasInvited = invited.has(publicId);
+
+    let degree = null;
+    try {
+      // A read taken before the invitation went out cannot confirm it landed.
+      degree = (
+        await meteredConnectionStatus(publicId, { after: invited.get(publicId) || 0 })
+      ).degree;
+    } catch (e) {
+      if (!wasInvited && STOP_EXPORT.has(e.code)) throw e;
+      // Unknown, and an invitation we cannot confirm stays outstanding.
+      statuses[publicId] = wasInvited ? 'pending' : 'none';
+      continue;
+    }
+
+    if (degree === 1) {
       statuses[publicId] = 'connected';
-      if (!alreadyAccepted.has(publicId)) {
-        alreadyAccepted.add(publicId);
+      if (wasInvited && !announced.has(publicId)) {
+        announced.add(publicId);
         await logAction({ action: EVENTS.INVITE_ACCEPTED, publicId, origin: 'system' });
         await emit(EVENTS.INVITE_ACCEPTED, { publicId });
       }
       continue;
     }
 
-    try {
-      const { connected } = await meteredConnectionStatus(publicId);
-      statuses[publicId] = connected ? 'connected' : 'none';
-    } catch (e) {
-      if (STOP_EXPORT.has(e.code)) throw e;
-      statuses[publicId] = 'none';
-    }
+    // Invited but not connected: the invitation is outstanding, or it was
+    // withdrawn or expired. Either way it is not an acceptance.
+    statuses[publicId] = wasInvited ? 'pending' : 'none';
   }
 
   return { statuses };
