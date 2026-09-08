@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+dist
+extension
+clients
+examples
+skills
+sequences
+.git
+.superpowers
