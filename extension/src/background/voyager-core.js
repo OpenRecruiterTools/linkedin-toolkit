@@ -91,6 +91,7 @@ export async function voyagerFetch(path, options = {}) {
     'csrf-token': csrf,
     'x-restli-protocol-version': '2.0.0',
     accept: 'application/vnd.linkedin.normalized+json+2.1',
+    'x-li-lang': 'en_US',
     ...(options.headers || {}),
   };
 
@@ -152,4 +153,71 @@ export function qs(params) {
     out.set(k, String(v));
   }
   return out.toString();
+}
+
+/* ------------------------------------------------------------------ */
+/*  GraphQL                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Encode one value the way Rest.li 2.0 wants it inside a `variables=(…)`
+ * string.
+ *
+ * The structural characters `(`, `)`, `,` and `:` are the syntax, so they stay
+ * literal — which is what lets a urn (`urn:li:fsd_profile:ACoAA…`) be written
+ * inline. Everything else is percent-encoded, so a space becomes `%20` and a
+ * `&` in a keyword cannot end the query string early.
+ *
+ * `URLSearchParams` cannot be used for any of this: it would escape the
+ * parentheses and LinkedIn would reject the request.
+ */
+export function encodeValue(value) {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return `List(${value.map(encodeValue).join(',')})`;
+  if (typeof value === 'object') return encodeVariables(value);
+  return encodeURIComponent(String(value))
+    .replace(/%3A/gi, ':')
+    .replace(/%2C/gi, ',');
+}
+
+/**
+ * `{ start: 0, query: { keywords: 'head of talent' } }` →
+ * `(start:0,query:(keywords:head%20of%20talent))`.
+ *
+ * Keys whose value is `undefined`, `null` or `''` are dropped, so a caller can
+ * pass an optional filter without building the string conditionally.
+ */
+export function encodeVariables(variables) {
+  const parts = [];
+  for (const [key, value] of Object.entries(variables || {})) {
+    if (value === undefined || value === null || value === '') continue;
+    parts.push(`${key}:${encodeValue(value)}`);
+  }
+  return `(${parts.join(',')})`;
+}
+
+/**
+ * A Voyager GraphQL call.
+ *
+ * @param {string} queryId the persisted-query id, from `ENDPOINTS.queryIds`
+ * @param {object} variables encoded with `encodeVariables`
+ * @param {{includeWebMetadata?: boolean, path?: string}} [options]
+ */
+export async function graphql(queryId, variables, options = {}) {
+  const { includeWebMetadata = true, path = '/graphql' } = options;
+  const parts = [];
+  if (includeWebMetadata) parts.push('includeWebMetadata=true');
+  parts.push(`variables=${encodeVariables(variables)}`);
+  parts.push(`queryId=${queryId}`);
+  return voyagerFetch(`${path}?${parts.join('&')}`);
+}
+
+/**
+ * The messaging GraphQL surface, which lives on its own path and puts the
+ * queryId first.
+ */
+export async function messagingGraphql(queryId, variables) {
+  return voyagerFetch(
+    `/voyagerMessagingGraphQL/graphql?queryId=${queryId}&variables=${encodeVariables(variables)}`,
+  );
 }
