@@ -22,6 +22,15 @@ __all__ = ["LinkedInToolkit", "AsyncLinkedInToolkit", "ACTION_METHODS"]
 
 DEFAULT_TIMEOUT = 120.0
 
+#: ``POST /tools/linkedin_research_pack`` does not return a job id — the server
+#: waits for the job to finish, up to its ``researchTimeoutMs`` (10 minutes by
+#: default) before falling back to polling. A 120 s client timeout would abandon
+#: a run the server is still doing perfectly well, so this one tool gets a
+#: budget wider than the server's own. ``research_pack()`` (the action, not the
+#: tool) returns immediately with a job id and is unaffected.
+RESEARCH_PACK_TOOL = "linkedin_research_pack"
+RESEARCH_PACK_TIMEOUT = 660.0
+
 
 def _envelope_to_data(payload: Any, action: str, status_code: int, url: str) -> Any:
     if isinstance(payload, dict) and payload.get("ok") is True:
@@ -69,6 +78,11 @@ class _Common:
         self.base_url = self.config.base_url
         self.token = self.config.token
         self.timeout = timeout
+
+    def _timeout_for(self, tool_name: str) -> float:
+        if tool_name == RESEARCH_PACK_TOOL:
+            return max(self.timeout, RESEARCH_PACK_TIMEOUT)
+        return self.timeout
 
     def _headers(self, authorised: bool = True) -> dict[str, str]:
         # No X-LinkedIn-Toolkit-Origin header: these clients are agent surfaces,
@@ -125,10 +139,14 @@ class LinkedInToolkit(_Common, ActionMethods):
             self._client = httpx.Client(timeout=self.timeout)
         return self._client
 
-    def _post(self, path: str, params: dict[str, Any], action: str) -> Any:
+    def _post(
+        self, path: str, params: dict[str, Any], action: str, timeout: Optional[float] = None
+    ) -> Any:
         url = self._url(path)
         try:
-            response = self._http().post(url, json=params, headers=self._headers())
+            response = self._http().post(
+                url, json=params, headers=self._headers(), timeout=timeout or self.timeout
+            )
         except httpx.HTTPError as cause:
             raise _unreachable(self.base_url, action, cause) from cause
         try:
@@ -150,7 +168,7 @@ class LinkedInToolkit(_Common, ActionMethods):
 
     def call_tool(self, name: str, arguments: Optional[dict[str, Any]] = None) -> Any:
         """Call one of the 39 MCP tools by name, including the server-local ones."""
-        return self._post(f"/tools/{name}", arguments or {}, name)
+        return self._post(f"/tools/{name}", arguments or {}, name, self._timeout_for(name))
 
     def health(self) -> dict[str, Any]:
         """``GET /health``. No token required, so this works before pairing."""
@@ -200,10 +218,14 @@ class AsyncLinkedInToolkit(_Common, ActionMethods):
             self._client = httpx.AsyncClient(timeout=self.timeout)
         return self._client
 
-    async def _post(self, path: str, params: dict[str, Any], action: str) -> Any:
+    async def _post(
+        self, path: str, params: dict[str, Any], action: str, timeout: Optional[float] = None
+    ) -> Any:
         url = self._url(path)
         try:
-            response = await self._http().post(url, json=params, headers=self._headers())
+            response = await self._http().post(
+                url, json=params, headers=self._headers(), timeout=timeout or self.timeout
+            )
         except httpx.HTTPError as cause:
             raise _unreachable(self.base_url, action, cause) from cause
         try:
@@ -223,7 +245,7 @@ class AsyncLinkedInToolkit(_Common, ActionMethods):
         return await self._post(f"/actions/{action}", params or {}, action)
 
     async def call_tool(self, name: str, arguments: Optional[dict[str, Any]] = None) -> Any:
-        return await self._post(f"/tools/{name}", arguments or {}, name)
+        return await self._post(f"/tools/{name}", arguments or {}, name, self._timeout_for(name))
 
     async def health(self) -> dict[str, Any]:
         url = self._url("/health")

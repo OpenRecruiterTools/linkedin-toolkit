@@ -211,3 +211,24 @@ def test_the_method_names_are_the_documented_ones():
 def test_the_client_can_be_used_as_a_context_manager():
     with LinkedInToolkit(base_url=BASE_URL, token=TOKEN) as instance:
         assert instance.base_url == BASE_URL
+
+
+def test_the_research_pack_tool_gets_a_wider_timeout_than_the_default(client):
+    """The server blocks on this tool for up to 10 minutes; 120 s would abandon a good run."""
+    assert client._timeout_for("linkedin_research_pack") == 660.0
+    assert client._timeout_for("linkedin_sync") == client.timeout
+
+
+def test_a_deliberately_raised_timeout_is_never_lowered():
+    generous = LinkedInToolkit(base_url=BASE_URL, token=TOKEN, timeout=900.0)
+    assert generous._timeout_for("linkedin_research_pack") == 900.0
+
+
+@respx.mock
+def test_the_research_pack_timeout_reaches_httpx(client):
+    route = respx.post(f"{BASE_URL}/tools/linkedin_research_pack").mock(
+        return_value=httpx.Response(200, json=envelope({"jobId": "j_1"}))
+    )
+    assert client.call_tool("linkedin_research_pack", {"rows": []}) == {"jobId": "j_1"}
+    assert route.called
+    assert route.calls.last.request.extensions["timeout"]["read"] == 660.0

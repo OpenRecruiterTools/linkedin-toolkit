@@ -41,6 +41,11 @@ contract the server validates against, so a wrong field name is a compile error.
 `call(action, params)` is the untyped escape hatch; `callTool(name, args)` reaches the three tools
 that are not a bare action (`linkedin_query_sql`, `linkedin_sync`, `linkedin_research_pack`).
 
+Requests time out after 120 s by default (`timeoutMs`). `linkedin_research_pack` is the exception:
+the server waits for that job to finish, so the client gives it 11 minutes — wider than the
+server's own 10-minute budget. `client.researchPack(...)`, the action rather than the tool, returns
+a job id immediately and is unaffected.
+
 ## Configuration
 
 Nothing is required. In order:

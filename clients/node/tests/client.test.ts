@@ -250,6 +250,57 @@ describe('callTool', () => {
   });
 });
 
+describe('the research pack tool', () => {
+  /** A fetch that answers after `delayMs`, or rejects the moment it is aborted. */
+  const slowFetch = (delayMs: number) =>
+    ((_url: string, init: { signal: AbortSignal }) =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            resolve(
+              new Response(JSON.stringify({ id: 'r', ok: true, data: { jobId: 'j_1' } }), {
+                headers: { 'content-type': 'application/json' },
+              }),
+            ),
+          delayMs,
+        );
+        init.signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(new Error('aborted'));
+        });
+      })) as unknown as typeof fetch;
+
+  it('outlives a client timeout that any other tool would hit', async () => {
+    // The server blocks on /tools/linkedin_research_pack for up to its
+    // researchTimeoutMs (10 min by default). A default-timeout client would
+    // abandon a run that is going perfectly well.
+    const instance = new LinkedInToolkit({
+      baseUrl: server.baseUrl,
+      token: 't',
+      timeoutMs: 60,
+      fetch: slowFetch(250),
+    });
+
+    await expect(instance.callTool('linkedin_research_pack', { rows: [] })).resolves.toEqual({
+      jobId: 'j_1',
+    });
+
+    const abandoned = (await instance
+      .callTool('linkedin_sync', {})
+      .catch((e: unknown) => e)) as LinkedInToolkitError;
+    expect(abandoned.code).toBe('INTERNAL');
+    expect(abandoned.message).toContain('timed out after 60 ms');
+  });
+
+  it('never lowers a timeout the caller deliberately raised', async () => {
+    const instance = new LinkedInToolkit({ baseUrl: server.baseUrl, token: 't', timeoutMs: 900_000 });
+    server.respondWithData({ jobId: 'j_2' });
+    await expect(instance.callTool('linkedin_research_pack', { rows: [] })).resolves.toEqual({
+      jobId: 'j_2',
+    });
+  });
+});
+
 describe('health and tools', () => {
   it('reads /health without a token', async () => {
     server.respondWith(() => ({ body: { ok: true, extensionConnected: false, version: '2.0.0' } }));

@@ -24,6 +24,19 @@ import type {
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/**
+ * `POST /tools/linkedin_research_pack` does not return a job id — the server
+ * waits for the job to finish, up to its `researchTimeoutMs` (10 minutes by
+ * default) before falling back to polling. A 120 s client timeout would abandon
+ * a run the server is still doing perfectly well, so this one tool gets a
+ * budget wider than the server's own.
+ *
+ * `client.researchPack(...)` (the action, not the tool) returns immediately
+ * with a job id and is unaffected.
+ */
+const RESEARCH_PACK_TOOL = 'linkedin_research_pack';
+const RESEARCH_PACK_TIMEOUT_MS = 660_000;
+
 export class LinkedInToolkit extends GeneratedActions {
   readonly baseUrl: string;
   readonly config: ResolvedConfig;
@@ -68,7 +81,9 @@ export class LinkedInToolkit extends GeneratedActions {
    * rather than action names, which is what every adapter in this package does.
    */
   async callTool(name: string, args: Record<string, unknown> = {}): Promise<unknown> {
-    return this.post(`/tools/${name}`, args, name);
+    const timeoutMs =
+      name === RESEARCH_PACK_TOOL ? Math.max(this.timeoutMs, RESEARCH_PACK_TIMEOUT_MS) : this.timeoutMs;
+    return this.post(`/tools/${name}`, args, name, timeoutMs);
   }
 
   /** `GET /health`. No token required, so this works before pairing. */
@@ -91,8 +106,13 @@ export class LinkedInToolkit extends GeneratedActions {
     return TOOLS_VERSION;
   }
 
-  private async post(path: string, body: unknown, action: string): Promise<unknown> {
-    const response = await this.request('POST', path, body, action);
+  private async post(
+    path: string,
+    body: unknown,
+    action: string,
+    timeoutMs = this.timeoutMs,
+  ): Promise<unknown> {
+    const response = await this.request('POST', path, body, action, timeoutMs);
 
     let envelope: Envelope;
     try {
@@ -127,6 +147,7 @@ export class LinkedInToolkit extends GeneratedActions {
     path: string,
     body?: unknown,
     action?: string,
+    timeoutMs = this.timeoutMs,
   ): Promise<Response> {
     const url = `${normaliseBaseUrl(this.baseUrl)}${path}`;
     const headers: Record<string, string> = { accept: 'application/json' };
@@ -134,7 +155,7 @@ export class LinkedInToolkit extends GeneratedActions {
     if (this.token) headers.authorization = `Bearer ${this.token}`;
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       return await this.fetchImpl(url, {
         method,
@@ -148,7 +169,7 @@ export class LinkedInToolkit extends GeneratedActions {
         {
           code: aborted ? 'INTERNAL' : 'EXTENSION_OFFLINE',
           message: aborted
-            ? `${method} ${url} timed out after ${this.timeoutMs} ms.`
+            ? `${method} ${url} timed out after ${timeoutMs} ms.`
             : `Cannot reach the LinkedIn Toolkit server at ${this.baseUrl}.`,
           howToFix: aborted
             ? 'Raise timeoutMs, or check the extension is still attached with client.health().'

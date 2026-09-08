@@ -51,6 +51,11 @@ async with AsyncLinkedInToolkit() as client:
 `call(action, params)` is the untyped escape hatch; `call_tool(name, args)` reaches the three tools
 that are not a bare action (`linkedin_query_sql`, `linkedin_sync`, `linkedin_research_pack`).
 
+Requests time out after 120 s by default (`timeout=`). `linkedin_research_pack` is the exception:
+the server waits for that job to finish, so the client gives it 11 minutes — wider than the
+server's own 10-minute budget. `research_pack(...)`, the action rather than the tool, returns a job
+id immediately and is unaffected.
+
 ## Configuration
 
 Nothing is required. In order:
