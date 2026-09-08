@@ -7,7 +7,8 @@
 Use GitHub's private reporting:
 [Report a vulnerability](https://github.com/FormatixAI/linkedin-toolkit/security/advisories/new)
 
-Or email **dom@formatix.ai** with `[linkedin-toolkit security]` in the subject.
+It is visible only to the maintainers, it keeps the report and the fix in one place, and it is the
+only channel this project asks you to use.
 
 Please include: what the issue is, how to reproduce it, what an attacker could do with it, and the
 versions affected. A proof of concept helps enormously — but **never** include real people's

@@ -59,8 +59,10 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-**dom@formatix.ai**.
+reported privately to the maintainers by opening a report at
+**https://github.com/FormatixAI/linkedin-toolkit/security/advisories/new**,
+which is visible only to the maintainers and is the project's private channel
+for anything that should not be public.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

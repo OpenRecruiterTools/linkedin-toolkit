@@ -28,7 +28,8 @@ over the same HTTP surface; the [examples](../examples/) show the shape.
 
 **Enrichment adapters.** The provider interface lands in Phase 5 with Hunter as the reference.
 Apollo, Dropcontact, Clearbit and Lusha are community contributions — user keys only, off by
-default. (Apify is out of scope permanently; it contradicts local-first.)
+default. Anything that routes profile data through a third-party scraping service is out of scope
+permanently — it contradicts local-first.
 
 **Firefox.** The extension is MV3 and mostly portable. The service worker lifecycle and the
 WebSocket keep-alive are the real work.
