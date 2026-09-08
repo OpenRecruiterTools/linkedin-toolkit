@@ -9,7 +9,7 @@
  * Every inbound message is a contract envelope: { action, params }.
  */
 
-import { ACTIONS, ERROR, err } from '../lib/actions.js';
+import { ACTIONS, ERROR, EngineError, err } from '../lib/actions.js';
 import { handle, register } from './engine.js';
 
 
@@ -150,8 +150,28 @@ async function unfollowAll() {
 /*  Action registrations                                              */
 /* ================================================================== */
 
-register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
-register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
+/**
+ * Mass unfollow is the one action here that drives the user's own visible tab,
+ * clicking through their following list a page at a time. It is destructive in
+ * a way no quota covers — there is no undo and no queue — and it is not
+ * something an agent should ever start on its own initiative. Only the popup,
+ * where the person can see the tab it is working in, may run it.
+ */
+const UNFOLLOW_IS_HUMAN =
+  'Mass unfollow runs in your own browser tab and cannot be undone. Run it from the popup.';
+
+function assertPopup(ctx = {}) {
+  if (ctx.origin !== 'popup') throw new EngineError(ERROR.UNAUTHORIZED, UNFOLLOW_IS_HUMAN);
+}
+
+register(ACTIONS.NETWORK_UNFOLLOW_COUNT, (_params, ctx) => {
+  assertPopup(ctx);
+  return unfollowCount();
+});
+register(ACTIONS.NETWORK_UNFOLLOW_ALL, (_params, ctx) => {
+  assertPopup(ctx);
+  return unfollowAll();
+});
 
 /* ================================================================== */
 /*  Router                                                            */

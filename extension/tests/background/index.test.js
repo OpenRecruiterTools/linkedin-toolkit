@@ -85,6 +85,33 @@ describe('network.unfollowCount', () => {
   });
 });
 
+describe('mass unfollow is popup-only', () => {
+  it.each([ACTIONS.NETWORK_UNFOLLOW_COUNT, ACTIONS.NETWORK_UNFOLLOW_ALL])(
+    '%s refuses every origin but the popup',
+    async (action) => {
+      for (const origin of ['mcp', 'cli', 'campaign', 'system']) {
+        const res = await route({ action, params: {}, origin });
+        expect(res.ok).toBe(false);
+        expect(res.error.code).toBe('UNAUTHORIZED');
+        expect(res.error.message).toMatch(/Run it from the popup/);
+      }
+      expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still lets the popup through', async () => {
+    await chrome.tabs.create({
+      url: 'https://www.linkedin.com/mynetwork/network-manager/people-follow/following/',
+      active: true,
+    });
+    mock().executeScriptResult = [{ result: 3 }];
+
+    const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_COUNT, params: {} });
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ count: 3 });
+  });
+});
+
 describe('export.csv', () => {
   it('builds a CSV from the profiles the caller passes back', async () => {
     const profiles = [

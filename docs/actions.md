@@ -20,8 +20,8 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `network.connections` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.followers` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.status` | `{ publicIds: string[] }` (≤ 25) | `{ statuses: Record<string, 'connected'\|'pending'\|'none'>, partial?: boolean, reason?: string }` |
-| `network.unfollowCount` | `{}` | `{ count: number }` |
-| `network.unfollowAll` | `{}` | `{ unfollowed: number }` |
+| `network.unfollowCount` | `{}` | `{ count: number }` — popup only; any other origin gets `UNAUTHORIZED` |
+| `network.unfollowAll` | `{}` | `{ unfollowed: number }` — popup only; any other origin gets `UNAUTHORIZED` |
 | `outreach.view` | `{ publicId }` | `WriteResult` |
 | `outreach.follow` | `{ publicId }` | `WriteResult` |
 | `outreach.invite` | `{ publicId, note? }` | `WriteResult` |
