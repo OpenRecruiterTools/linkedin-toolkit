@@ -64,6 +64,7 @@ export class Toolkit {
 
   async stop(): Promise<void> {
     await this.bridge.stop();
+    this.webhooks.close();
     await this.webhooks.drain();
     this.db.close();
   }

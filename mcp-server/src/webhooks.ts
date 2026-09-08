@@ -35,6 +35,7 @@ export class Webhooks {
   private readonly sleep: (ms: number) => Promise<void>;
   /** Resolves when every in-flight delivery has settled (tests await this). */
   private inflight = new Set<Promise<void>>();
+  private closed = false;
 
   constructor(options: WebhookOptions = {}) {
     this.url = options.url;
@@ -48,13 +49,21 @@ export class Webhooks {
     this.url = url;
   }
 
+  /**
+   * Abandon pending retries. Shutdown must not wait 31 s for a dead receiver,
+   * and a webhook is fire-and-forget: an undelivered event is not an error.
+   */
+  close(): void {
+    this.closed = true;
+  }
+
   get configured(): boolean {
     return Boolean(this.url);
   }
 
   /** Queue a delivery. Returns immediately; never rejects. */
   deliver(event: string, payload: unknown, at = Date.now()): void {
-    if (!this.url) return;
+    if (!this.url || this.closed) return;
     const task = this.send({ event, payload, at }).catch(() => undefined);
     this.inflight.add(task);
     void task.finally(() => this.inflight.delete(task));
@@ -73,6 +82,7 @@ export class Webhooks {
     const attempts = this.retryDelaysMs.length + 1;
 
     for (let attempt = 0; attempt < attempts; attempt++) {
+      if (this.closed) return;
       try {
         const response = await this.fetchImpl(url, {
           method: 'POST',
@@ -86,6 +96,7 @@ export class Webhooks {
         const delay = this.retryDelaysMs[attempt];
         if (delay === undefined) return;
         await this.sleep(delay);
+        if (this.closed) return;
       }
     }
   }
