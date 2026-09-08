@@ -12,23 +12,21 @@
  */
 
 import { ACTIONS, ERROR, EngineError } from '../lib/actions.js';
-import { handle, register, setRateLimitProvider } from './engine.js';
+import { handle, register } from './engine.js';
 import * as quota from './quota.js';
 import { getConfig, setConfig } from '../lib/config.js';
-import { logAction } from '../lib/storage.js';
 
-import { getProfileNormalized, resolveProfileUrn, sendInvite, sendMessage } from './voyager.js';
 
 // Feature modules register their own contract actions on import.
 import './extract.js';
 import './lists.js';
+import './queue.js';
+import './outreach.js';
 
 /* ================================================================== */
-/*  Quotas and pacing live in quota.js; the engine reports them back    */
-/*  on every outreach envelope.                                        */
+/*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
+/*  rate-limit provider.                                               */
 /* ================================================================== */
-
-setRateLimitProvider(quota.snapshot);
 
 const { humanDelay, isWithinBusinessHours } = quota;
 
@@ -447,60 +445,6 @@ register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
 
-register(ACTIONS.OUTREACH_VIEW, async ({ publicId }, ctx) => {
-  await quota.check('visit');
-  await humanDelay();
-  await getProfileNormalized(publicId);
-  await quota.record('visit');
-  const result = { status: 'sent', sentAt: Date.now() };
-  await logAction({ action: ACTIONS.OUTREACH_VIEW, publicId, origin: ctx.origin, result });
-  return result;
-});
-
-register(ACTIONS.OUTREACH_INVITE, async ({ publicId, note, profileUrn }, ctx) => {
-  await quota.check('invite');
-  await humanDelay();
-  try {
-    await sendInvite({ publicIdentifier: publicId, profileUrn, note });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await quota.record('invite');
-  const result = { status: 'sent', sentAt: Date.now() };
-  await logAction({ action: ACTIONS.OUTREACH_INVITE, publicId, origin: ctx.origin, result });
-  return result;
-});
-
-register(ACTIONS.OUTREACH_MESSAGE, async ({ publicId, body, recipientUrn }, ctx) => {
-  await quota.check('message');
-  const urn = recipientUrn || (await resolveProfileUrn(publicId));
-  await humanDelay();
-  try {
-    await sendMessage({ recipientUrn: urn, body });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await quota.record('message');
-  const result = { status: 'sent', sentAt: Date.now() };
-  await logAction({ action: ACTIONS.OUTREACH_MESSAGE, publicId, origin: ctx.origin, result });
-  return result;
-});
-
-register(ACTIONS.OUTREACH_INMAIL, async ({ publicId, subject, body, recipientUrn }, ctx) => {
-  await quota.check('message');
-  const urn = recipientUrn || (await resolveProfileUrn(publicId));
-  await humanDelay();
-  try {
-    await sendMessage({ recipientUrn: urn, body, subtype: 'INMAIL', inmailSubject: subject });
-  } catch (e) {
-    throw new EngineError(ERROR.LINKEDIN_ERROR, e.message);
-  }
-  await quota.record('message');
-  const result = { status: 'sent', sentAt: Date.now() };
-  await logAction({ action: ACTIONS.OUTREACH_INMAIL, publicId, origin: ctx.origin, result });
-  return result;
-});
-
 register(ACTIONS.CAMPAIGN_CREATE, (params) => createCampaign(params));
 register(ACTIONS.CAMPAIGN_GET_ALL, async () => ({ campaigns: await getCampaigns() }));
 register(ACTIONS.CAMPAIGN_GET, async ({ campaignId }) =>
@@ -615,6 +559,7 @@ const LEGACY_MAP = {
       note: msg.note,
       profileUrn: msg.profileUrn,
     }),
+    result: (data) => ({ ok: data.status === 'sent', ...data }),
   },
   SEND_MESSAGE: {
     action: (msg) =>
