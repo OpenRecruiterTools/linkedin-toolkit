@@ -5,6 +5,7 @@
   "description": "Free, open-source LinkedIn tools: mass unfollow, profile export, search export, campaign automation. No account required, no data sent to third parties.",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "activeTab",
     "tabs",
     "cookies",

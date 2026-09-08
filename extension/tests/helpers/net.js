@@ -22,6 +22,8 @@ export function seedSession(value = 'ajax:1234567890') {
 export function stubFetch(responses = []) {
   const queue = [...responses];
   const calls = [];
+  /** Persistent URL-matched responders, checked before the queue. */
+  const routes = [];
 
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const call = {
@@ -38,7 +40,8 @@ export function stubFetch(responses = []) {
     }
     calls.push(call);
 
-    let reply = queue.length ? queue.shift() : {};
+    const route = routes.find((r) => r.match(call.url));
+    let reply = route ? route.body : queue.length ? queue.shift() : {};
     if (typeof reply === 'function') reply = reply(call.url, init);
     const status = reply && reply.__status ? reply.__status : 200;
     const body = reply && reply.__status ? reply.body : reply;
@@ -56,6 +59,15 @@ export function stubFetch(responses = []) {
   return {
     calls,
     push: (r) => queue.push(r),
+    /**
+     * Answer any URL containing `match` (or matching a predicate) with `body`,
+     * without consuming the queue. A later route wins over an earlier one, so a
+     * test can override a default set up in `beforeEach`.
+     */
+    route(match, body) {
+      const predicate = typeof match === 'function' ? match : (url) => url.includes(match);
+      routes.unshift({ match: predicate, body });
+    },
     last: () => calls[calls.length - 1],
     /** Query params of the nth (default last) call. */
     query(n = -1) {

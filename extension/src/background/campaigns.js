@@ -10,11 +10,13 @@
  */
 
 import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
+import { getConfig } from '../lib/config.js';
 import { handle, register } from './engine.js';
 import { K, allActions, get, getStoredProfile, newId, remove, set, stamp } from '../lib/storage.js';
 import { pickVariant, renderTemplate } from '../lib/template.js';
 import { emit } from './events.js';
 import * as inbox from './inbox.js';
+import { isWithinBusinessHours } from './quota.js';
 import * as lists from './lists.js';
 
 // network.status must be registered for the 'accepted' branch to resolve.
@@ -340,8 +342,13 @@ async function stepParams(campaign, step, enrollment) {
   const profile = (await getStoredProfile(enrollment.publicId)) || {
     publicId: enrollment.publicId,
   };
+  // A step may carry `variants` with no `note`/`body` at all — the shipped
+  // sequence templates do exactly that — so the variant is the text, and a
+  // literal `note`/`body` is only the fallback.
   const variant = pickVariant(step.variants, campaign.variantCursor || 0);
-  if (step.variants && step.variants.length) campaign.variantCursor = (campaign.variantCursor || 0) + 1;
+  if (step.variants && step.variants.length) {
+    campaign.variantCursor = (campaign.variantCursor || 0) + 1;
+  }
 
   const params = {
     publicId: enrollment.publicId,
@@ -370,11 +377,25 @@ async function stepParams(campaign, step, enrollment) {
  * @returns {Promise<{executed: number, queued: number}>}
  */
 export async function tick() {
+  // Look at the inbox first, so stopOnReply and the 'replied' branch see the
+  // replies that arrived since the last tick rather than the ones before it.
+  // A failing inbox (no session, a backoff) must never stop the tick.
+  try {
+    await inbox.detectReplies();
+  } catch {
+    /* nothing to do but carry on */
+  }
+
   const campaigns = await readCampaigns();
+  const config = await getConfig();
   const now = Date.now();
   let executed = 0;
   let queued = 0;
-  let halted = false;
+
+  // Outside the working window nothing may be written, so do not walk the
+  // enrollments at all — a nightly tick over 500 people would otherwise make
+  // 500 pointless reads. Individual writes are still gated by quota.check.
+  let halted = config.businessHoursOnly && !isWithinBusinessHours(config);
 
   for (const campaign of campaigns) {
     if (halted) break;
@@ -450,6 +471,26 @@ export async function tick() {
         if (!action) {
           advance(campaign, enrollment);
           dirty = true;
+          continue;
+        }
+
+        // Inviting someone we are already connected to is an error at
+        // LinkedIn's end and a wasted invite at ours. Treat it as accepted.
+        if (step.type === 'invite' && (await isConnected(enrollment.publicId))) {
+          enrollment.accepted = true;
+          const skippedIndex = enrollment.stepIndex;
+          advance(campaign, enrollment);
+          enrollment.updatedAt = Date.now();
+          dirty = true;
+          await emit(EVENTS.CAMPAIGN_STEP_DONE, {
+            campaignId: campaign.campaignId,
+            publicId: enrollment.publicId,
+            stepIndex: skippedIndex,
+            type: step.type,
+            status: 'skipped',
+            reason: 'alreadyConnected',
+          });
+          if (isFinished(campaign, enrollment)) await finish(campaign, enrollment);
           continue;
         }
 
