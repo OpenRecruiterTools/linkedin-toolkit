@@ -1,0 +1,98 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`--help > lists every command 1`] = `
+"Usage: lit [options] [command]
+
+LinkedIn Toolkit: drive your own logged-in Chrome through the toolkit
+extension.
+Start the server with \`lit serve --http\`, then every other command talks to it.
+
+Options:
+  -V, --version                      output the version number
+  -h, --help                         display help for command
+
+Commands:
+  serve [options]                    Run the bridge and the MCP server. Add
+                                     --http for the HTTP API.
+  status [options]                   Show the extension connection, quotas,
+                                     queue and campaigns.
+  search [options] <keywords>        Search LinkedIn people.
+  profile [options] <url>            Fetch one profile.
+  engagers [options] <postUrl>       List people who liked or commented on a
+                                     post.
+  company [options] <url>            Fetch a company, and optionally its
+                                     employees.
+  invite [options] <url>             Send a connection invite (queued for
+                                     approval in Copilot mode).
+  message [options] <url>            Send a message to a first-degree
+                                     connection.
+  inbox [options]                    List inbox threads.
+  queue [options] [action] [ids...]  Show the approval queue, or approve or
+                                     reject items.
+  campaign                           Create and control campaigns.
+  sql [options] <query>              Query the local SQLite mirror (read-only,
+                                     1,000 rows).
+  export [options]                   Export a table from the local mirror to
+                                     CSV.
+  sync [options]                     Pull everything changed in the extension
+                                     into the local mirror.
+  config                             Read and change this server's local
+                                     settings
+                                     (~/.linkedin-toolkit/config.json).
+  token <action>                     Manage the pairing token.
+  research [options] <input>         Turn a CSV of rows into research packs.
+  help [command]                     display help for command"
+`;
+
+exports[`search > prints JSON with --json 1`] = `
+{
+  "profiles": [
+    {
+      "capturedAt": 1700000000000,
+      "company": "Difference Engine Ltd",
+      "connectionDegree": 2,
+      "firstName": "Ada",
+      "fullName": "Ada Lovelace",
+      "headline": "Head of Analytical Engines",
+      "lastName": "Lovelace",
+      "location": "London, United Kingdom",
+      "publicId": "ada-lovelace",
+      "source": "search",
+      "title": "Head of Analytical Engines",
+      "url": "https://www.linkedin.com/in/ada-lovelace/",
+    },
+    {
+      "capturedAt": 1700000100000,
+      "company": "Naval Systems",
+      "connectionDegree": 1,
+      "firstName": "Grace",
+      "fullName": "Grace Hopper",
+      "headline": "Compiler Architect",
+      "lastName": "Hopper",
+      "location": "Arlington, Virginia",
+      "publicId": "grace-hopper",
+      "source": "search",
+      "url": "https://www.linkedin.com/in/grace-hopper/",
+    },
+  ],
+  "total": 2,
+}
+`;
+
+exports[`status > prints connection, quotas, queue and campaigns 1`] = `
+"Server:    running (v2.0.0)
+Extension: connected (v2.0.0)
+LinkedIn:  logged in
+Mode:      Copilot (writes need approval)
+Hours:     inside business hours
+
+quota    hourly  daily
+-------  ------  -------
+invite   2/20    12/100
+message  0/20    4/150
+visit    5/50    30/500
+search   1/50    40/1000
+
+Queue:     1 pending
+Campaigns: 1 active, 0 paused"
+`;

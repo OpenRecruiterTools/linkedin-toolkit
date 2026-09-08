@@ -110,6 +110,7 @@ Event names: `invite_accepted`, `reply_received`, `positive_reply`, `campaign_st
 - Server: WebSocket on `127.0.0.1:47829`. First frame from extension must be `{ type: 'hello', token, extensionVersion }`; server replies `{ type: 'hello_ok', serverVersion }` or closes with code 4001 (`UNAUTHORIZED`).
 - Thereafter server sends requests, extension sends responses and events, per the envelope above. Server pings every 20 s; extension responds to pings natively.
 - Extension reconnects with backoff 1 s → 2 s → 4 s → … → 60 s, reset on success. Reconnect on `chrome.runtime.onStartup`, `onInstalled`, and every alarm tick.
+- A request frame may carry an optional `origin: 'mcp' | 'cli'` naming who asked, so the engine can tell an agent-originated write from a human one; a frame without it keeps the engine's existing default.
 
 ### MCP tool names → actions
 
