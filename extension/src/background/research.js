@@ -24,8 +24,23 @@ import * as voyager from './voyager.js';
 /** Rows processed per tick; the rest wait for the next one. */
 export const ROWS_PER_TICK = 10;
 
-/** Name similarity a search hit must reach to be accepted without a human. */
-export const NAME_MATCH_THRESHOLD = 0.85;
+/**
+ * Name similarity a search hit must reach before it may be accepted at all.
+ *
+ * High on purpose. The cost of resolving the wrong person is not a bad row in
+ * a spreadsheet — it is a connection request, addressed by name, sent to a
+ * stranger.
+ */
+export const NAME_MATCH_THRESHOLD = 0.92;
+
+/**
+ * And the bar at which a second candidate counts as a rival.
+ *
+ * Anything above this is close enough that a human should be the one to pick,
+ * so two of them means the row comes back unresolved with both attached
+ * rather than a coin toss dressed up as a confidence score.
+ */
+export const NAME_RIVAL_THRESHOLD = 0.85;
 
 /** Assumed cost of one row before we have measured any. */
 const DEFAULT_ROW_MS = 20000;
@@ -34,13 +49,31 @@ const DEFAULT_ROW_MS = 20000;
 /*  Name matching                                                     */
 /* ================================================================== */
 
+/** Honorifics and post-nominals that are not part of anybody's name. */
+const NAME_NOISE = new Set([
+  'jr', 'sr', 'ii', 'iii', 'iv',
+  'phd', 'mba', 'msc', 'bsc', 'ma', 'md', 'cfa', 'cpa', 'pmp',
+  'mr', 'mrs', 'ms', 'dr', 'prof',
+]);
+
+/**
+ * A name reduced to what actually identifies a person.
+ *
+ * LinkedIn display names carry a lot that a comparison must ignore: emoji and
+ * pronouns ("Ada Lovelace 🚀 (she/her)"), post-nominals ("Ada Lovelace, PhD")
+ * and middle initials ("Ada B. Lovelace"). Accents are folded rather than
+ * dropped, so "Zoë" still matches "Zoe".
+ */
 function normalizeName(name) {
   return String(name || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9 ]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((part) => part && part.length > 1 && !NAME_NOISE.has(part))
+    .join(' ')
     .trim();
 }
 
@@ -73,11 +106,25 @@ export function nameSimilarity(a, b) {
   return 1 - levenshtein(x, y) / longest;
 }
 
-function companyMatches(rowCompany, profileCompany) {
-  const a = normalizeName(rowCompany);
-  const b = normalizeName(profileCompany);
-  if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+/**
+ * Does this candidate look like they work where the row says?
+ *
+ * The headline counts as well as the parsed employer, because LinkedIn often
+ * has the company only in the free text — and it is a *bonus*, never a
+ * requirement. Reid Hoffman's headline does not say "Greylock"; a rule that
+ * demanded it would refuse to resolve him at all.
+ */
+function companyMatches(rowCompany, profile = {}) {
+  const wanted = normalizeName(rowCompany);
+  if (!wanted) return false;
+  for (const field of [profile.company, profile.headline, profile.title]) {
+    const candidate = normalizeName(field);
+    if (!candidate) continue;
+    if (candidate === wanted || candidate.includes(wanted) || wanted.includes(candidate)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** `ada@analytical-engines.com` → `analytical-engines.com`. */
@@ -115,8 +162,54 @@ async function resolveCompany(row) {
   return { row, kind: 'company', universalName, confidence: domain ? 0.9 : 0.5 };
 }
 
+async function searchPeople(keywords) {
+  const res = await handle(ACTIONS.SEARCH_PEOPLE, { keywords, count: 5 }, 'system');
+  return res.ok ? res.data.profiles : [];
+}
+
+/**
+ * Pick a person out of a page of search hits, or decline.
+ *
+ * The name has to be right; the company is what raises confidence, not what
+ * grants permission. One near-exact name resolves at 0.85, the same name plus
+ * a company or headline that agrees resolves at 1.0, and two names that are
+ * both plausible resolve at nothing at all — that is a question for a human,
+ * and the candidates are handed back so they can answer it in one click.
+ *
+ * @returns {{publicId: string, confidence: number} | null}
+ */
+export function pickCandidate(name, company, candidates = []) {
+  const scored = candidates
+    .filter((c) => c && c.publicId)
+    .map((c) => ({
+      candidate: c,
+      name: nameSimilarity(name, c.fullName),
+      company: companyMatches(company, c),
+    }));
+
+  const rivals = scored.filter((s) => s.name >= NAME_RIVAL_THRESHOLD);
+  const strong = scored.filter((s) => s.name >= NAME_MATCH_THRESHOLD);
+  const confirmed = strong.filter((s) => s.company);
+
+  if (confirmed.length === 1) {
+    return { publicId: confirmed[0].candidate.publicId, confidence: 1 };
+  }
+  if (strong.length === 1 && rivals.length === 1) {
+    return { publicId: strong[0].candidate.publicId, confidence: 0.85 };
+  }
+  return null;
+}
+
 /**
  * Match one row to a LinkedIn profile or company.
+ *
+ * A row that names a person is resolved to a person or to nothing. It is
+ * never resolved to their employer's page: "Satya Nadella, Microsoft" is a
+ * request for Satya Nadella, and answering with the Microsoft company page is
+ * not a partial success — it is a different answer to a different question,
+ * and everything downstream (the invite, the message, the dossier) would be
+ * addressed to a company. The company path is for rows that carry no name.
+ *
  * @returns {Promise<{row, kind: 'person'|'company'|'unresolved', publicId?, universalName?, confidence: number, candidates?: Profile[]}>}
  */
 export async function resolveRow(row = {}) {
@@ -125,41 +218,32 @@ export async function resolveRow(row = {}) {
   if (publicId) return { row, kind: 'person', publicId, confidence: 1 };
 
   const name = row.name || row.fullName || '';
-  if (name && row.company) {
-    const res = await handle(
-      ACTIONS.SEARCH_PEOPLE,
-      { keywords: `${name} ${row.company}`.trim(), count: 5 },
-      'system',
-    );
-    const candidates = res.ok ? res.data.profiles : [];
+  if (name) {
+    const seen = new Map();
+    const collect = (profiles) => {
+      for (const p of profiles) if (p.publicId && !seen.has(p.publicId)) seen.set(p.publicId, p);
+      return profiles;
+    };
 
-    let best = null;
-    let bestScore = 0;
-    for (const candidate of candidates) {
-      const score = nameSimilarity(name, candidate.fullName);
-      if (score > bestScore) {
-        bestScore = score;
-        best = candidate;
-      }
+    // Narrow first, because a name plus an employer is the strongest signal
+    // we have; then the name on its own, because LinkedIn's own index often
+    // does not carry the employer the row came with.
+    for (const keywords of [row.company ? `${name} ${row.company}`.trim() : '', name]) {
+      if (!keywords) continue;
+      const picked = pickCandidate(name, row.company, collect(await searchPeople(keywords)));
+      if (picked) return { row, kind: 'person', ...picked };
     }
 
-    if (best && bestScore >= NAME_MATCH_THRESHOLD && companyMatches(row.company, best.company)) {
-      return { row, kind: 'person', publicId: best.publicId, confidence: bestScore };
-    }
-    if (candidates.length) {
-      const company = await resolveCompany(row);
-      return company || { row, kind: 'unresolved', confidence: bestScore, candidates };
-    }
+    return {
+      row,
+      kind: 'unresolved',
+      confidence: 0,
+      candidates: [...seen.values()],
+    };
   }
 
-  const domain = domainOf(row);
-  if (domain) {
-    const universalName = universalNameFromDomain(domain);
-    const res = await handle(ACTIONS.COMPANY_GET, { universalName }, 'system');
-    if (res.ok) return { row, kind: 'company', universalName, confidence: 0.9 };
-  }
-
-  return { row, kind: 'unresolved', confidence: 0 };
+  const company = await resolveCompany(row);
+  return company || { row, kind: 'unresolved', confidence: 0 };
 }
 
 export async function resolve(rows) {
@@ -173,6 +257,7 @@ export async function resolve(rows) {
 /* ================================================================== */
 
 const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 /** Spec §5c signals: what about this person is worth acting on today. */
 export function packSignals({ profile, company, posts, mutualConnections, connectionStatus }) {
@@ -187,6 +272,12 @@ export function packSignals({ profile, company, posts, mutualConnections, connec
 
   const recent = (posts || []).filter((x) => x.postedAt && Date.now() - x.postedAt < NINETY_DAYS);
   if (recent.length) signals.push('postedRecently');
+
+  // Somebody posting several times a month is worth approaching through their
+  // own writing rather than cold.
+  const thisMonth = recent.filter((x) => Date.now() - x.postedAt < THIRTY_DAYS);
+  if (thisMonth.length >= 3) signals.push('high-activity');
+
   if (p.engagedWithPost) signals.push('engagedWithMe');
 
   if (company && company.followerCount) signals.push(`followers:${company.followerCount}`);
@@ -407,7 +498,9 @@ async function run(action, params) {
 }
 
 async function gather(resolved, { full }) {
-  const pack = { row: resolved.row, resolved, signals: [] };
+  //  is always present, empty included: a caller has to be able
+  // to tell 'nothing posted' from 'we never looked'.
+  const pack = { row: resolved.row, resolved, signals: [], recentPosts: [] };
 
   if (resolved.kind === 'person') {
     // profile.get reserves a visit and paces itself, so this is where a job
