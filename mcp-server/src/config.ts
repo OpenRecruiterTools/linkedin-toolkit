@@ -50,8 +50,11 @@ export type RuntimeInfo = {
 };
 
 export function writeRuntime(info: RuntimeInfo): void {
-  mkdirSync(toolkitHome(), { recursive: true });
-  writeFileSync(runtimePath(), `${JSON.stringify(info, null, 2)}\n`, 'utf8');
+  mkdirSync(toolkitHome(), { recursive: true, mode: 0o700 });
+  writeFileSync(runtimePath(), `${JSON.stringify(info, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
 }
 
 export function readRuntime(): RuntimeInfo | null {
@@ -128,8 +131,13 @@ export function loadConfig(): { config: ServerConfig; path: string; createdToken
 
 export function saveConfig(config: ServerConfig): void {
   const path = configPath();
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  // The file holds the pairing token, so keep it owner-only. On Windows the
+  // mode is advisory; NTFS inheritance governs there.
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
 }
 
 /** Apply CLI overrides on top of the stored config without persisting them. */
