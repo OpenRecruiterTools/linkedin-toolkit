@@ -1,0 +1,41 @@
+{
+  "name": "linkedin-toolkit-mcp",
+  "version": "2.0.0",
+  "description": "MCP server, localhost bridge, HTTP action API, SQLite mirror and lit CLI for LinkedIn Toolkit.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "linkedin-toolkit-mcp": "dist/server.js",
+    "lit": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "gen": "node dist/gen.js",
+    "test": "vitest run",
+    "dev": "tsx src/cli.ts serve --http"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "better-sqlite3": "^11.10.0",
+    "commander": "^12.1.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
