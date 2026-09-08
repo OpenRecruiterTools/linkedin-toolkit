@@ -74,12 +74,14 @@ against v1 internals, nothing you wrote will work.
 
 **Testing and release**
 
-- 943 automated tests, all offline: 657 for the extension against an in-memory `chrome` mock,
-  286 for the server against a fake extension that speaks the real bridge protocol. No Playwright,
-  no Puppeteer, no CDP anywhere in the repository — CI fails the build if one is added.
+- 1,192 automated tests, all offline: 657 for the extension against an in-memory `chrome` mock,
+  295 for the server against a fake extension that speaks the real bridge protocol, 62 for the
+  Node client, 51 for the n8n node and 127 for the Python client. No Playwright, no Puppeteer, no
+  CDP anywhere in the repository — CI fails the build if one is added.
 - End-to-end suites that cross the layers: one process wiring bridge, HTTP, MCP, SQLite and a
-  webhook receiver through a whole session, and one that spawns the real built `lit` binary and
-  drives it with further `lit` processes.
+  webhook receiver through a whole session; one that spawns the real built `lit` binary and drives
+  it with further `lit` processes; and one that installs the Python client into a throwaway
+  virtualenv and drives the same server through it.
 - `npm run zip:extension` produces `dist/linkedin-toolkit-extension-v2.0.0.zip` with install
   instructions inside it; `npm run release:check` runs the whole gate.
 - CI on Node 20 and 22 and Python 3.10 and 3.12, with checks that `openapi.json` and `tools.json`
