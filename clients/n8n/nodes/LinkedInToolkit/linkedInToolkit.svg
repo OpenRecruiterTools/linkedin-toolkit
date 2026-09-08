@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="LinkedIn Toolkit">
+  <rect x="6" y="20" width="52" height="34" rx="5" fill="#2f6f6a"/>
+  <path d="M22 20v-4a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v4h-6v-3a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v3z" fill="#2f6f6a"/>
+  <rect x="6" y="32" width="52" height="6" fill="#1e4b47"/>
+  <rect x="27" y="29" width="10" height="12" rx="2" fill="#f4f7f6"/>
+  <circle cx="32" cy="35" r="2" fill="#2f6f6a"/>
+</svg>
