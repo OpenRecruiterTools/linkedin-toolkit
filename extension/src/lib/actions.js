@@ -468,7 +468,7 @@ export function clampConfig(cfg = {}) {
       input.dailyMessageCap,
       d.dailyMessageCap,
       0,
-      HARD_CAPS.dailyMessageCap
+      HARD_CAPS.dailyMessageCap,
     ),
     dailyVisitCap: clampInt(input.dailyVisitCap, d.dailyVisitCap, 0, HARD_CAPS.dailyVisitCap),
     dailySearchCap: clampInt(input.dailySearchCap, d.dailySearchCap, 0, HARD_CAPS.dailySearchCap),

@@ -186,7 +186,7 @@ describe('validateParams', () => {
     expect(validateParams('outreach.message', { publicId: 'dom' }).ok).toBe(false);
     expect(validateParams('outreach.message', { publicId: 'dom', body: 'hi' }).ok).toBe(true);
     expect(validateParams('outreach.inmail', { publicId: 'd', subject: 's', body: 'b' }).ok).toBe(
-      true
+      true,
     );
     expect(validateParams('outreach.comment', { postUrl: 'u', body: 'b' }).ok).toBe(true);
   });
