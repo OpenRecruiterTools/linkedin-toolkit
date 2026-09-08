@@ -90,7 +90,7 @@ against v1 internals, nothing you wrote will work.
 ### Changed
 
 - Repository restructured as an npm workspaces monorepo; the v1 extension moves to `extension/`.
-- Repository transferred to `FormatixAI/linkedin-toolkit` (the old URL redirects).
+- Repository transferred to `OpenRecruiterTools/linkedin-toolkit` (the old URL redirects).
 - Structured errors everywhere, carrying `code`, `message`, `retryAfter` and `howToFix`. Thirteen
   error codes, documented, and the same set on both sides of the bridge.
 - Search quota now counts **results, not calls**, against the 1,000/day cap, so a single
@@ -159,6 +159,6 @@ The original Chrome extension.
 - Rate limiting: configurable jittered delays, hourly caps, daily invite and message quotas, a
   business-hours window, 429 backoff and 451 challenge detection
 
-[Unreleased]: https://github.com/FormatixAI/linkedin-toolkit/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/FormatixAI/linkedin-toolkit/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/FormatixAI/linkedin-toolkit/releases/tag/v1.0.0
+[Unreleased]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/releases/tag/v1.0.0

@@ -199,7 +199,7 @@ enforced in review.
 ## Endpoints worth adding
 
 Open issues exist for several of these — see
-[good first issues](https://github.com/FormatixAI/linkedin-toolkit/labels/good%20first%20issue).
+[good first issues](https://github.com/OpenRecruiterTools/linkedin-toolkit/labels/good%20first%20issue).
 
 | Extractor | Action | Notes |
 |---|---|---|

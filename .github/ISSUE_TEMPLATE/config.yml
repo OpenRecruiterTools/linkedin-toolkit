@@ -1,17 +1,17 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or idea
-    url: https://github.com/FormatixAI/linkedin-toolkit/discussions
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/discussions
     about: Anything that is not yet a specific bug or a specific change.
 
   - name: Setup help
-    url: https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/README.md
     about: The exact config block for your agent, and the pairing steps.
 
   - name: Is this safe? Will I get banned?
-    url: https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/safety.md
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md
     about: Caps, pacing, warm-up, the approval queue, recommended settings, and signs to stop.
 
   - name: Security vulnerability
-    url: https://github.com/FormatixAI/linkedin-toolkit/security/advisories/new
+    url: https://github.com/OpenRecruiterTools/linkedin-toolkit/security/advisories/new
     about: Report privately. Never in a public issue.

@@ -23,9 +23,9 @@ classifiers = [
 dependencies = ["httpx>=0.27", "pydantic>=2"]
 
 [project.urls]
-Homepage = "https://github.com/FormatixAI/linkedin-toolkit"
-Documentation = "https://github.com/FormatixAI/linkedin-toolkit/tree/main/docs/agents"
-Source = "https://github.com/FormatixAI/linkedin-toolkit"
+Homepage = "https://github.com/OpenRecruiterTools/linkedin-toolkit"
+Documentation = "https://github.com/OpenRecruiterTools/linkedin-toolkit/tree/main/docs/agents"
+Source = "https://github.com/OpenRecruiterTools/linkedin-toolkit"
 
 [project.optional-dependencies]
 langchain = ["langchain-core>=0.3"]

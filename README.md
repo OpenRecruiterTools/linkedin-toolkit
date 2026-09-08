@@ -6,7 +6,7 @@
 [![MCP](https://img.shields.io/badge/MCP-server-6c5ce7.svg)](docs/agents/README.md)
 [![No headless browser](https://img.shields.io/badge/no%20headless%20browser-0ea5e9.svg)](docs/why-browser-agents-fail-on-linkedin.md)
 [![Runs locally](https://img.shields.io/badge/runs-locally-16a34a.svg)](docs/architecture.md)
-[![CI](https://github.com/FormatixAI/linkedin-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/FormatixAI/linkedin-toolkit/actions/workflows/ci.yml)
+[![CI](https://github.com/OpenRecruiterTools/linkedin-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenRecruiterTools/linkedin-toolkit/actions/workflows/ci.yml)
 
 ### LinkedIn blocks AI browser agents. This is how agents get in.
 
@@ -316,8 +316,8 @@ Adding an extractor is the best first contribution and touches four files:
 merged fastest because they are additive and self-contained.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), pick up a
-[good first issue](https://github.com/FormatixAI/linkedin-toolkit/labels/good%20first%20issue), or
-open a [Discussion](https://github.com/FormatixAI/linkedin-toolkit/discussions).
+[good first issue](https://github.com/OpenRecruiterTools/linkedin-toolkit/labels/good%20first%20issue), or
+open a [Discussion](https://github.com/OpenRecruiterTools/linkedin-toolkit/discussions).
 
 ## Disclaimer
 
@@ -376,4 +376,4 @@ Built by **Dominic Gonsalves** —
 
 If it is useful, a star helps other people find it.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=FormatixAI/linkedin-toolkit&type=Date)](https://star-history.com/#FormatixAI/linkedin-toolkit&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=OpenRecruiterTools/linkedin-toolkit&type=Date)](https://star-history.com/#OpenRecruiterTools/linkedin-toolkit&Date)

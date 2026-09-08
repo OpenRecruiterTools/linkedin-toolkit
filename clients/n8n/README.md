@@ -1,6 +1,6 @@
 # n8n-nodes-linkedin-toolkit
 
-The n8n community node for [LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit).
+The n8n community node for [LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit).
 Two nodes and one credential: every action of the local HTTP API, and a trigger fed by the
 server's webhooks.
 

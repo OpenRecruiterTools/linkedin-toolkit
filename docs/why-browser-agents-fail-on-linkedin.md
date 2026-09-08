@@ -202,5 +202,5 @@ less is the only defence left.
 
 ---
 
-*Part of [LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit) — the open-source,
+*Part of [LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit) — the open-source,
 local-first LinkedIn automation layer for humans and AI agents. MIT licensed.*

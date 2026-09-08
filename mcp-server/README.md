@@ -1,7 +1,7 @@
 # linkedin-toolkit-mcp
 
 The MCP server, localhost bridge, HTTP action API, SQLite mirror and `lit` CLI for
-[LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit).
+[LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit).
 
 This package is the half that agents talk to. The other half is a Chrome extension that drives
 **your own logged-in LinkedIn session** — there is no headless browser, no hosted service, no
@@ -15,7 +15,7 @@ npx linkedin-toolkit-mcp
 ## Pairing
 
 1. Install the extension: download the `linkedin-toolkit-extension-*.zip` from
-   [Releases](https://github.com/FormatixAI/linkedin-toolkit/releases), unzip it, then
+   [Releases](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases), unzip it, then
    `chrome://extensions` → **Developer mode** → **Load unpacked** → pick the folder.
 2. Run `npx linkedin-toolkit-mcp`. The first run prints a pairing token and stores it in
    `~/.linkedin-toolkit/config.json` (owner-only).
@@ -65,16 +65,16 @@ raised by this server, the CLI, an agent or a config file.
 
 Automating your LinkedIn account may breach LinkedIn's User Agreement, and accounts are restricted
 and banned for it. That risk is yours. Read
-[docs/safety.md](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/safety.md) before
+[docs/safety.md](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md) before
 you point anything at an account you care about.
 
 ## Documentation
 
-- [Action contract](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/actions.md) —
+- [Action contract](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/actions.md) —
   every action, param, result, error code and event.
-- [Agent setup](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md) —
+- [Agent setup](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/README.md) —
   Claude Code, OpenAI Agents, LangChain, n8n and the rest.
-- [Safety](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/safety.md).
+- [Safety](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/safety.md).
 
 MIT licensed. Issues and pull requests:
-<https://github.com/FormatixAI/linkedin-toolkit>
+<https://github.com/OpenRecruiterTools/linkedin-toolkit>

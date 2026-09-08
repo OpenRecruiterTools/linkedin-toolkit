@@ -1,6 +1,6 @@
 # linkedin-toolkit (Node)
 
-The typed Node client for [LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit), plus
+The typed Node client for [LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit), plus
 ready-made tool sets for the OpenAI SDKs, the Vercel AI SDK and LangChain.js.
 
 It talks to the local HTTP API that `lit serve --http` exposes on `127.0.0.1:47830`. Nothing leaves

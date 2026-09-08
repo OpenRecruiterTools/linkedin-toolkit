@@ -28,7 +28,7 @@ npx linkedin-toolkit-mcp
 
 The first run prints a pairing token. They paste it into the extension popup → Settings →
 Connect, once. If they do not have the extension, it is a zip on the
-[releases page](https://github.com/FormatixAI/linkedin-toolkit/releases), loaded via
+[releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases), loaded via
 `chrome://extensions` → Developer mode → Load unpacked.
 
 Then add the server to your host's config. The exact block for your host is in this folder:

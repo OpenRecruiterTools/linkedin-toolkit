@@ -17,7 +17,7 @@ version of it.
 ## Wanted, unscheduled
 
 Ordered by how often people ask, not by how hard they are. All open to contribution — several are
-[good first issues](https://github.com/FormatixAI/linkedin-toolkit/labels/good%20first%20issue).
+[good first issues](https://github.com/OpenRecruiterTools/linkedin-toolkit/labels/good%20first%20issue).
 
 **Automated query-ID refresh (`lit endpoints refresh`).** LinkedIn's GraphQL query IDs carry a
 32-hex hash that changes with each web client release, so
@@ -72,8 +72,8 @@ Not because they are hard, but because they break something the project is for.
 
 ## Influencing it
 
-Open a [Discussion](https://github.com/FormatixAI/linkedin-toolkit/discussions) for an idea, an
-[Issue](https://github.com/FormatixAI/linkedin-toolkit/issues) for something concrete, and a PR if
+Open a [Discussion](https://github.com/OpenRecruiterTools/linkedin-toolkit/discussions) for an idea, an
+[Issue](https://github.com/OpenRecruiterTools/linkedin-toolkit/issues) for something concrete, and a PR if
 you have already built it. Sequences, skills, extractors and agent integrations are merged fastest
 because they are additive and self-contained.
 
