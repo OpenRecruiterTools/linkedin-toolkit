@@ -148,10 +148,14 @@ So: use your own account, understand what you are agreeing to, keep the volumes 
 a human in the loop, and do not automate anything you would be embarrassed to have sent by hand.
 The full picture is in [safety.md](safety.md).
 
-The point of building it this way was never to win an arms race with LinkedIn's detection team.
-It was to make the arms race unnecessary — by making the traffic genuinely indistinguishable from
-what it claims to be, because it genuinely *is* what it claims to be: a person using their own
-LinkedIn account, with a very well-organised assistant.
+The point of building it this way was never to win an arms race with LinkedIn's detection team. It
+was to make the arms race unnecessary — because the traffic genuinely *is* what it claims to be: a
+person using their own LinkedIn account, with a very well-organised assistant.
+
+Which removes the fingerprint and the IP from the equation, and nothing else. Volume and rhythm are
+still perfectly visible to LinkedIn, and they are still counted against you — that is precisely why
+the caps are enforced in the extension and cannot be raised. Once the easy tells are gone, doing
+less is the only defence left.
 
 ---
 

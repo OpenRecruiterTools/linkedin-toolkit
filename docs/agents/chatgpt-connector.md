@@ -51,7 +51,7 @@ often.
 
 ## Hardening, if you must run one
 
-- Rotate the bridge token after any session where the URL was shared: `lit config set bridge.token <new>`, then re-pair the popup.
+- Rotate the bridge token after any session where the URL was shared: `lit token rotate`, then re-pair the popup with the new token.
 - Keep Copilot mode on. Even with the token, a remote agent can only queue — a human still approves in the popup.
 - Watch `lit queue list` while it runs.
 - Never do this on a shared or public network.

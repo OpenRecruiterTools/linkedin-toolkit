@@ -69,13 +69,29 @@ lit sync                                              # pull everything changed 
 ## Config
 
 ```bash
-lit config get
+lit config get                                        # the whole config
+lit config get webhookUrl                             # one key
 lit config set webhookUrl https://your-n8n/webhook/linkedin-events
 lit config set dailyInviteCap 20
+lit token rotate                                      # new bridge token; re-pair the popup after
 ```
 
 Hard ceilings are clamped regardless of what you pass: 100 invites, 150 messages, 500 profile
 visits, 1,000 search results per day. Autopilot cannot be set from here — it is a toggle in the
 extension popup and only a human can flip it.
+
+`lit token rotate` invalidates the current bridge token immediately, so anything holding it — the
+extension, a running client, a tunnel you handed to a remote agent — stops working until you
+re-pair. That is the point of it.
+
+## Environment
+
+Two variables, both optional. The Node and Python clients read them; so does `lit` when it is
+talking to an already-running server.
+
+| Variable | Default | What |
+|---|---|---|
+| `LINKEDIN_TOOLKIT_URL` | `http://127.0.0.1:47830` | Where the HTTP surface is |
+| `LINKEDIN_TOOLKIT_TOKEN` | — | The bridge token, otherwise read from `~/.linkedin-toolkit/config.json` |
 
 Full action reference: [`actions.md`](actions.md). Shell examples: [`../examples/cli/`](../examples/cli/).

@@ -77,7 +77,7 @@ linkedin_list_add                { listId, publicIds: [] }
 linkedin_send_invite             { publicId, note?, dry_run? }      note ≤ 300 characters
 linkedin_send_message            { publicId, body, dry_run? }
 linkedin_queue_list              { status? }
-linkedin_query_sql               { sql }                            SELECT only, local, free
+linkedin_query_sql               { sql: string }                    SELECT only, local, free
 ```
 
 ## The pattern that works

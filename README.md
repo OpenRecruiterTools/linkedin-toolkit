@@ -16,8 +16,8 @@ Operator, Browser Use, computer-use models and Playwright bots get challenged or
 LinkedIn: headless fingerprints, datacenter IPs, machine-speed clicks. LinkedIn Toolkit gives any
 agent a safe, structured API to **your own logged-in Chrome session** — through the same internal
 endpoints the LinkedIn page itself calls, at human pace, under hard caps, with a human approval
-queue. It is also a complete, free replacement for Waalaxy and PhantomBuster if you never touch an
-agent at all. No headless browser, no proxies, no cloud session, no telemetry, no subscription.
+queue. It is also a free replacement for Waalaxy and PhantomBuster if you never touch an agent at
+all. No headless browser, no proxies, no cloud session, no telemetry, no subscription.
 
 <div align="center">
 
@@ -66,7 +66,7 @@ Not using MCP? `lit serve --http` gives you `POST /actions/{action}` and a gener
 
 | | |
 |---|---|
-| **Extract** | Profiles (full page text + photo), search, Sales Navigator, Recruiter, post likers and commenters, group members, event attendees, company employees and followers, your connections, message threads. CSV, JSON and SQLite out. |
+| **Extract** | Profiles (full page text + photo), search, Sales Navigator, Recruiter, post likers and commenters, group members, event attendees, company employees, your own connections and followers, message threads. CSV, JSON and SQLite out. |
 | **Lists and CRM** | Named lists, tags, dedupe across lists, a "contacted before" flag on every profile, and intent signals: engaged with a post, changed job in the last 90 days, at a target company. |
 | **Sequences** | Visit, follow, connect with a note, message, InMail, like, comment, wait, and branch on accepted / replied / not accepted after N days. Variables with fallbacks, A/B variants per step, replies stop the sequence. [20 templates](sequences/). |
 | **Inbox** | Unified threads, unread, reply detection, sentiment tagging, saved replies, snooze. |
@@ -99,7 +99,7 @@ read and self-install.
 | **Session** | Headless or remote-controlled browser, cloud profile | Your own Chrome, your own login |
 | **Fingerprint** | Synthetic — patched, and detectable anyway | Your real browser. Nothing to patch |
 | **IP** | Datacenter, or a residential proxy of dubious provenance | Your own connection |
-| **Detection** | Challenged, degraded, then restricted | No delta to detect |
+| **Detection** | Challenged, degraded, then restricted | No fingerprint or IP delta; volume and rhythm are still visible, which is why the caps exist |
 | **What the agent sees** | Screenshots, vision tokens, brittle selectors | Typed JSON per tool |
 | **Cost to source 100 profiles** | Hundreds of screenshots | 3 tool calls |
 | **Pace** | Machine speed | Jittered human delays, business hours, warm-up |
@@ -129,8 +129,10 @@ The long version, with the actual detection mechanisms:
 | Telemetry | ✓ | ✓ | ✓ | **✗** |
 
 <sub>Competitor prices are public list prices checked September 2026 and are approximate — they
-change, vary by currency and billing term, and each vendor's tiers differ. Check their sites.
-Feature comparisons are from public documentation.</sub>
+change, vary by currency and billing term, and each vendor's tiers differ. Feature claims are taken
+from each vendor's public product pages, also checked September 2026, and tiers move. Check their
+sites before deciding anything. Corrections welcome via PR — if we have a feature wrong, open one
+and it gets fixed.</sub>
 
 ## Research Pack
 
@@ -175,6 +177,13 @@ What it does do:
   paused until you clear it in Chrome. There is no retry loop anywhere in the codebase.
 - **Never bypasses a security measure.** No CAPTCHA solving, no challenge circumvention, no
   proxies, no fingerprint spoofing, no cookie import, no account you are not signed into.
+
+What it does **not** do is make you invisible. Running inside your own session removes the
+fingerprint and IP signals that get browser agents caught — it does nothing about *how much* you
+do or *how regularly* you do it, and LinkedIn counts both. That is exactly why the caps and the
+pacing are not configurable past a ceiling: they are the only defence left once the easy tells are
+gone. An account sending 90 invites a day at perfectly spaced intervals is still an account
+sending 90 invites a day.
 
 Recommended settings, signs to stop, and your data-protection obligations:
 [**docs/safety.md**](docs/safety.md).
@@ -239,6 +248,9 @@ ORDER BY a.created_at DESC;
 ```bash
 lit sql "select company, count(*) n from profiles group by 1 order by n desc limit 20"
 ```
+
+An agent reaches the same thing through `linkedin_query_sql` with `{ "sql": "SELECT …" }`.
+`SELECT` only — anything else is rejected.
 
 ## Webhooks
 
@@ -316,6 +328,24 @@ platform's terms of service.
 ## License
 
 [MIT](LICENSE).
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
+
+This project uses [all-contributors](https://allcontributors.org). Contributions of any kind are
+recognised here — code, docs, sequences, skills, bug reports, and design.
+
+To add someone, comment on any issue or PR:
+
+```
+@all-contributors please add @username for code, doc
+```
 
 ## Credits
 

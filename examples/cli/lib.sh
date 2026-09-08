@@ -6,8 +6,9 @@
 
 set -euo pipefail
 
+# The only two environment variables the toolkit reads.
 LINKEDIN_TOOLKIT_URL="${LINKEDIN_TOOLKIT_URL:-http://127.0.0.1:47830}"
-CONFIG="${LINKEDIN_TOOLKIT_CONFIG:-$HOME/.linkedin-toolkit/config.json}"
+CONFIG="$HOME/.linkedin-toolkit/config.json"
 
 if [ -z "${LINKEDIN_TOOLKIT_TOKEN:-}" ]; then
   if [ -f "$CONFIG" ]; then

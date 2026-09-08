@@ -24,14 +24,18 @@ args = ["-y", "linkedin-toolkit-mcp"]
 
 TOML, not JSON — the section header is `[mcp_servers.<name>]` with an underscore.
 
-Environment variables, if you need them:
+Environment variables, if you need them. There are only two, and neither is needed for the stdio
+setup above — they exist for the HTTP surface and the Node and Python clients:
 
 ```toml
 [mcp_servers.linkedin-toolkit]
 command = "npx"
 args = ["-y", "linkedin-toolkit-mcp"]
-env = { LINKEDIN_TOOLKIT_PORT = "47829" }
+env = { LINKEDIN_TOOLKIT_URL = "http://127.0.0.1:47830", LINKEDIN_TOOLKIT_TOKEN = "..." }
 ```
+
+`LINKEDIN_TOOLKIT_URL` defaults to `http://127.0.0.1:47830`. `LINKEDIN_TOOLKIT_TOKEN` is the bridge
+token from `~/.linkedin-toolkit/config.json`.
 
 Then:
 

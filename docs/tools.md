@@ -105,7 +105,7 @@ All of these honour Copilot mode and the hard caps.
 | Tool | Action | What it does |
 |---|---|---|
 | `linkedin_sync` | `sync.pull` | Pull everything changed since a timestamp into the local SQLite mirror. |
-| `linkedin_query_sql` | *server-local* | Read-only `SELECT` over `~/.linkedin-toolkit/toolkit.db`. Never touches LinkedIn, never spends quota. |
+| `linkedin_query_sql` | *server-local* | `{ sql: string }` — read-only `SELECT` over `~/.linkedin-toolkit/toolkit.db`. Never touches LinkedIn, never spends quota. |
 
 ## Examples
 
@@ -176,7 +176,14 @@ All of these honour Copilot mode and the hard caps.
 
 ### SQL over your own data
 
-`linkedin_query_sql` reads the local mirror. No network, no quota, no rate limit.
+`linkedin_query_sql` takes a single parameter, `{ sql: string }`, and reads the local mirror. No
+network, no quota, no rate limit.
+
+```jsonc
+// linkedin_query_sql
+{ "sql": "SELECT company, COUNT(*) AS n FROM profiles GROUP BY 1 ORDER BY n DESC LIMIT 20" }
+// → { "rows": [ { "company": "…", "n": 12 }, … ] }
+```
 
 ```sql
 SELECT company, COUNT(*) AS n

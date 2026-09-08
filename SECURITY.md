@@ -82,7 +82,7 @@ responsibility:
   access to all of it. It is not encrypted at rest beyond whatever your disk encryption provides.
 - **The bridge token** is in `~/.linkedin-toolkit/config.json` in plain text. Treat it as a
   credential — anyone holding it, with network access to the port, can act on your LinkedIn
-  account. Rotate it with `lit config set bridge.token <new>` and re-pair the popup.
+  account. Rotate it with `lit token rotate` and re-pair the popup with the new token.
 - **BYOK API keys** live in `chrome.storage.local`. Use a key scoped to this and nothing else.
 - **Install the extension from the GitHub Releases page only.** It is deliberately not on the
   Chrome Web Store, which unfortunately makes a fake listing an obvious attack — verify the

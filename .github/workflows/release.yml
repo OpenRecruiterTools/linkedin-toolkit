@@ -88,8 +88,10 @@ jobs:
       # produces a usable release.
       - name: Check for an npm token
         id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+          if [ -n "$NPM_TOKEN" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
