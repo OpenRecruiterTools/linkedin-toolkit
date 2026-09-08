@@ -203,7 +203,12 @@ export function err(id, code, message, extra) {
  *   anyOf    : [field, …]          (at least one must be present)
  */
 const PARAM_SPECS = {
-  [ACTIONS.STATUS_GET]: {},
+  [ACTIONS.STATUS_GET]: {
+    // `verify` runs the endpoint self-check; `postUrl` opts the reactions
+    // endpoint into it. Both are optional, and both have to be declared here
+    // or a caller asking for them gets a plain Status and no explanation.
+    optional: { verify: 'boolean', postUrl: 'string' },
+  },
 
   [ACTIONS.CONFIG_GET]: {},
   [ACTIONS.CONFIG_SET]: {},
