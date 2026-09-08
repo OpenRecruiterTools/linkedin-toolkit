@@ -11,10 +11,8 @@
  * actions. It is removed once the v2 popup ships.
  */
 
-import { ACTIONS, ERROR, EngineError } from '../lib/actions.js';
+import { ACTIONS } from '../lib/actions.js';
 import { handle, register } from './engine.js';
-import * as quota from './quota.js';
-import { getConfig, setConfig } from '../lib/config.js';
 
 
 // Feature modules register their own contract actions on import.
@@ -27,17 +25,16 @@ import './inbox.js';
 import './campaigns.js';
 import './capture.js';
 import './research.js';
+import './status.js';
+import './sync.js';
 
-import { readCampaigns, migrateSteps } from './campaigns.js';
-import { pendingCount } from './queue.js';
+import { migrateSteps } from './campaigns.js';
 import { ensureConnected, onAlarm, startKeepalive } from './bridge.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
 /*  rate-limit provider.                                               */
 /* ================================================================== */
-
-const { isWithinBusinessHours } = quota;
 
 export const CAMPAIGN_TICK_ALARM = 'campaignTick';
 
@@ -85,57 +82,6 @@ function toLegacyProfile(p) {
     snippet: p.summary || '',
     image: p.photoUrl || '',
   };
-}
-
-/* ================================================================== */
-/*  CSV                                                               */
-/* ================================================================== */
-
-const CSV_COLUMNS = [
-  ['Full Name', 'fullName'],
-  ['First Name', 'firstName'],
-  ['Last Name', 'lastName'],
-  ['Headline', 'headline'],
-  ['Title', 'title'],
-  ['Company', 'company'],
-  ['Location', 'location'],
-  ['Industry', 'industry'],
-  ['LinkedIn URL', 'url'],
-  ['Summary', 'summary'],
-  ['Skills', 'skills'],
-];
-
-function escapeCsv(value) {
-  const str = Array.isArray(value) ? value.join('; ') : String(value ?? '');
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function profilesToCsv(profiles) {
-  if (!profiles || !profiles.length) return '';
-  const header = CSV_COLUMNS.map(([label]) => label).join(',');
-  const rows = profiles.map((p) =>
-    CSV_COLUMNS.map(([, key]) => escapeCsv(key === 'url' ? p.url || p.linkedinUrl : p[key])).join(
-      ',',
-    ),
-  );
-  return [header, ...rows].join('\n');
-}
-
-/**
- * A service worker has no `URL.createObjectURL`, so the CSV is handed to the
- * downloads API as a data URL.
- */
-async function downloadCsv(csv, filename) {
-  if (!csv) throw new Error('No data to export.');
-  await chrome.downloads.download({
-    url: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`,
-    filename,
-    saveAs: true,
-  });
-  return { ok: true, filename };
 }
 
 /* ================================================================== */
@@ -243,51 +189,8 @@ async function unfollowAll() {
 /*  Action registrations                                              */
 /* ================================================================== */
 
-register(ACTIONS.STATUS_GET, async () => {
-  const config = await getConfig();
-  const campaigns = await readCampaigns();
-  const quotas = await quota.snapshotAll();
-  const paused = await quota.pauseState();
-
-  let loggedIn = false;
-  try {
-    const cookie = await chrome.cookies.get({ url: 'https://www.linkedin.com', name: 'li_at' });
-    loggedIn = !!(cookie && cookie.value);
-  } catch {
-    loggedIn = false;
-  }
-
-  return {
-    connected: true,
-    extensionVersion: chrome.runtime.getManifest().version,
-    loggedIn,
-    autopilot: config.autopilot,
-    businessHours: isWithinBusinessHours(config),
-    ...paused,
-    quotas,
-    queue: { pending: await pendingCount() },
-    campaigns: {
-      active: campaigns.filter((c) => c.status === 'active').length,
-      paused: campaigns.filter((c) => c.status === 'paused').length,
-    },
-  };
-});
-
-register(ACTIONS.CONFIG_GET, () => getConfig());
-register(ACTIONS.CONFIG_SET, (params) => setConfig(params));
-
 register(ACTIONS.NETWORK_UNFOLLOW_COUNT, () => unfollowCount());
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, () => unfollowAll());
-
-register(ACTIONS.EXPORT_CSV, async ({ kind, profiles }) => {
-  if (kind !== 'profiles' || !profiles || !profiles.length) {
-    throw new EngineError(ERROR.NOT_FOUND, `No data to export for kind '${kind}'`);
-  }
-  return {
-    csv: profilesToCsv(profiles),
-    filename: `linkedin_export_${new Date().toISOString().slice(0, 10)}.csv`,
-  };
-});
 
 /* ================================================================== */
 /*  Legacy message adapters (removed with the v1 popup)               */
@@ -372,11 +275,8 @@ const LEGACY_MAP = {
 
   DOWNLOAD_CSV: {
     action: ACTIONS.EXPORT_CSV,
-    params: (msg) => ({ kind: 'profiles', profiles: msg.profiles }),
-    result: async (data, msg) => {
-      await downloadCsv(data.csv, data.filename);
-      return { ok: true, filename: data.filename, count: (msg.profiles || []).length };
-    },
+    params: (msg) => ({ kind: 'profiles', profiles: msg.profiles, download: true }),
+    result: (data) => ({ ok: true, filename: data.filename, count: data.count }),
   },
 
   SEND_INVITE: {
