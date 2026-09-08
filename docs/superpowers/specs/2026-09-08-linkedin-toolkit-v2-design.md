@@ -131,7 +131,7 @@ Read tools:
 - `linkedin_get_connection_status` — one or many.
 - `linkedin_get_conversations` — threads and messages since a timestamp.
 - `linkedin_get_status` — quotas, business hours, backoff, queue length, campaign summaries.
-- `linkedin_query_sql` — read-only SQL over the local SQLite.
+- `linkedin_query_sql` — read-only SQL over the local SQLite (arrives with SQLite sync in Phase 4).
 - `linkedin_list_get` / `linkedin_list_members`.
 
 Write tools (all honour Copilot mode and hard caps):
@@ -172,8 +172,8 @@ lit export --table profiles --csv
 - Group members, event attendees, company employees, company followers.
 - My connections and followers export.
 - Message thread export.
-- Enrichment providers (off by default, user keys): Hunter, Apollo, Dropcontact. Interface only
-  in Phase 4; adapters as community contributions with Hunter as the reference.
+- Enrichment providers (off by default, user keys): Hunter, Apollo, Dropcontact. Interface and
+  Hunter adapter in Phase 5; Apollo and Dropcontact adapters as community contributions.
 
 ### Lists and CRM
 - Named lists, tags, dedupe across lists, "contacted before" flag on every profile.
