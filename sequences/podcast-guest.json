@@ -1,0 +1,57 @@
+{
+  "name": "Podcast guest invite",
+  "description": "Books guests for a show. Names the specific episode idea rather than asking \"would you like to come on\", because a concrete topic is far easier to say yes to than an open invitation.",
+  "audience": "Practitioners with a specific, unusual, defensible opinion — not the professional-guest circuit.",
+  "tags": ["content", "podcast", "media"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — I host a show for {{title|people in your field}} and you keep saying things nobody else in the space will say. Connecting with an episode in mind.",
+        "Hi {{firstName|there}} — I run a podcast in your area and have a specific episode I'd like to build around your work at {{company|your company}}. Happy to connect first."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. The episode I want to make: why the standard advice in your field is wrong, argued by someone who has actually done it. Forty-five minutes, remote, we do the editing. Interested?",
+              "Here's the pitch, {{firstName|there}}: one episode, one argument — the thing you believe that your peers don't. Forty-five minutes, remote, we handle everything else."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — happy to send the outline and a couple of past episodes so you can see the format before committing to anything.",
+              "No commitment needed yet, {{firstName|there}} — want the running order and two sample episodes to judge it by?"
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave the invitation open, {{firstName|there}} — no expiry. Come back whenever the diary allows.",
+              "Standing invitation, {{firstName|there}}. I'll stop asking; the seat stays free."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

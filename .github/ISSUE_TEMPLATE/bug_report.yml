@@ -1,0 +1,96 @@
+name: Bug report
+description: Something is broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this.
+
+        **Do not paste real people's data.** Profile names, message text, `publicId`s and URNs
+        are personal data about someone who did not choose to be in a public issue. Redact them.
+
+        **If it is a security issue, stop and read [SECURITY.md](../blob/main/SECURITY.md)**
+        instead — report it privately.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      placeholder: |
+        1. Run `lit serve --http`
+        2. Call `linkedin_search_people` with { "keywords": "...", "count": 50 }
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Error or output
+      description: >
+        The full error including the `code` and `message`, or the relevant log lines.
+        Redact anything personal.
+      render: shell
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Extension (popup, options, engine)
+        - MCP server
+        - lit CLI
+        - HTTP API / OpenAPI
+        - Node client
+        - Python client
+        - n8n node
+        - Skills
+        - Sequences
+        - Docs
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Extension version (popup footer), server version (`lit --version`), Node (`node -v`), OS, Chrome.
+      placeholder: extension 2.0.0 · server 2.0.0 · node 22.16 · Windows 11 · Chrome 131
+    validations:
+      required: true
+
+  - type: textarea
+    id: status
+    attributes:
+      label: "`lit status` output"
+      description: >
+        Very often the answer. Redact the token if it appears. If `lit doctor` exists by the time
+        you read this, its output is even better.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: Chrome is open and I am logged into LinkedIn
+          required: true
+        - label: The extension popup shows the bridge as connected
+          required: true
+        - label: There is no outstanding security challenge on my LinkedIn account
+          required: true
+        - label: I have searched existing issues
+          required: true
+        - label: I have redacted all personal data from this report
+          required: true

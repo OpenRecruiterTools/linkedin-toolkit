@@ -1,0 +1,55 @@
+{
+  "name": "SaaS trial nudge",
+  "description": "For people who signed up, poked around, and stopped. Asks what got in the way rather than telling them what they missed. The most useful outcome of this sequence is often the answer, not the conversion.",
+  "audience": "Trial signups that went inactive, imported as a CSV and resolved to LinkedIn profiles with a Research Pack.",
+  "tags": ["saas", "activation", "product"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — you tried our product recently and I'd genuinely like to know what stopped you. Connecting; no sales pitch attached.",
+        "Hi {{firstName|there}} — you signed up and then didn't come back. That's useful information and I'd like to understand it. Happy to connect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Honest question: what got in the way? Setup, the wrong problem, or just no time that week? Any of those is a fair answer and all of them help me.",
+              "One question, {{firstName|there}} — where did it lose you? I'd rather hear \"it was confusing\" than nothing at all."
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — if it was the setup, I'll do it with you in fifteen minutes and you can decide afterwards. No commitment either way.",
+              "Happy to set it up for you, {{firstName|there}} — fifteen minutes, screen share, and then you judge it properly."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "Last one, {{firstName|there}}. If we simply weren't the right fit, that's fine — telling me why would still be the most useful thing anyone does for me this week.",
+              "I'll stop, {{firstName|there}}. If you ever have thirty seconds to tell me what was wrong with it, I'd take that over a sale."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

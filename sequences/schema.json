@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/FormatixAI/linkedin-toolkit/sequences/schema.json",
+  "title": "LinkedIn Toolkit sequence template",
+  "description": "A campaign template. The `steps` array is passed verbatim to the `campaign.create` action (MCP tool `linkedin_campaign_create`). Step shapes mirror the `Step` type in docs/actions.md. Message and invite steps carry exactly two `variants`; the engine A/B tests them and `note`/`body` are not used when `variants` is present.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "audience", "steps", "settings"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 60,
+      "description": "Human-readable template name shown in the popup and the CLI."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 400,
+      "description": "What this sequence is for and when to reach for it."
+    },
+    "audience": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 300,
+      "description": "Who to enroll. Written for a human choosing between templates."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 2, "maxLength": 30 },
+      "uniqueItems": true
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 40,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "settings": { "$ref": "#/$defs/settings" }
+  },
+  "$defs": {
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stopOnReply", "autopilot"],
+      "properties": {
+        "stopOnReply": {
+          "type": "boolean",
+          "description": "Stop the sequence for a person as soon as they reply. Templates ship with true."
+        },
+        "autopilot": {
+          "type": "boolean",
+          "description": "Send without human approval. Templates always ship with false; only the user can turn Autopilot on, in the extension popup."
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["view", "follow", "invite", "message", "inmail", "like", "comment", "wait", "branch"]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Invite note. Ignored when `variants` is present. LinkedIn's hard limit is 300 characters."
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Message, InMail or comment body. Ignored when `variants` is present."
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "InMail subject line."
+        },
+        "variants": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "description": "A/B variants. The engine picks one per enrollee and reports per-variant stats."
+        },
+        "waitMs": {
+          "type": "integer",
+          "minimum": 3600000,
+          "description": "Delay before the next step, in milliseconds. Never below one hour in a shipped template; 24h or more between outreach steps."
+        },
+        "branch": { "$ref": "#/$defs/branch" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "wait" } }, "required": ["type"] },
+          "then": { "required": ["type", "waitMs"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "branch" } }, "required": ["type"] },
+          "then": { "required": ["type", "branch"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "invite" } }, "required": ["type"] },
+          "then": { "required": ["type", "variants"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "message" } }, "required": ["type"] },
+          "then": { "required": ["type", "variants"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "inmail" } }, "required": ["type"] },
+          "then": { "required": ["type", "subject", "variants"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "comment" } }, "required": ["type"] },
+          "then": { "required": ["type", "variants"] }
+        }
+      ]
+    },
+    "branch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on", "then", "else"],
+      "properties": {
+        "on": {
+          "enum": ["accepted", "replied", "notAcceptedAfterMs"],
+          "description": "Condition evaluated by the engine."
+        },
+        "ms": {
+          "type": "integer",
+          "minimum": 3600000,
+          "description": "How long to wait for the condition before taking the `else` path."
+        },
+        "then": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "else": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    }
+  }
+}

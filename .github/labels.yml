@@ -1,0 +1,102 @@
+# Applied by .github/workflows/labels.yml via crazy-max/ghaction-github-labeler.
+# Edit here, push to main, and the repo's labels follow.
+
+- name: good first issue
+  color: 7057ff
+  description: Scoped to one afternoon, with the files to touch named
+
+- name: help wanted
+  color: 008672
+  description: Needs someone with something we do not have
+
+- name: extractor
+  color: 0e8a16
+  description: A new Voyager endpoint as an action and a tool
+
+- name: sequences
+  color: 1d76db
+  description: Campaign templates in sequences/
+
+- name: skills
+  color: 5319e7
+  description: Agent Skills in skills/
+
+- name: integration
+  color: 006b75
+  description: A new agent framework or automation platform
+
+- name: extension
+  color: fbca04
+  description: The Chrome MV3 extension
+
+- name: mcp-server
+  color: c2e0c6
+  description: The MCP server, bridge, SQLite, CLI or webhooks
+
+- name: cli
+  color: c5def5
+  description: The lit command-line interface
+
+- name: clients
+  color: bfd4f2
+  description: The Node, Python or n8n client packages
+
+- name: bug
+  color: d73a4a
+  description: Something is broken
+
+- name: enhancement
+  color: a2eeef
+  description: A new feature or improvement
+
+- name: documentation
+  color: 0075ca
+  description: Docs, README, examples
+
+- name: safety
+  color: b60205
+  description: Caps, pacing, the approval queue, challenge handling
+
+- name: security
+  color: b60205
+  description: Report privately first — see SECURITY.md
+
+- name: accessibility
+  color: fef2c0
+  description: Keyboard, screen reader, contrast, reduced motion
+
+- name: ux
+  color: f9d0c4
+  description: The popup and options interface
+
+- name: testing
+  color: d4c5f9
+  description: Tests, fixtures, CI
+
+- name: tooling
+  color: e4e669
+  description: Build scripts, generators, repo plumbing
+
+- name: ai
+  color: 8b5cf6
+  description: BYOK providers, prompts, model behaviour
+
+- name: analytics
+  color: cfd3d7
+  description: Campaign and sequence statistics
+
+- name: question
+  color: d876e3
+  description: A question rather than a change
+
+- name: wontfix
+  color: ffffff
+  description: Declined — usually because it needs a server. See docs/roadmap.md
+
+- name: duplicate
+  color: cfd3d7
+  description: Already tracked elsewhere
+
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates

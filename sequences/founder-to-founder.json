@@ -1,0 +1,57 @@
+{
+  "name": "Founder to founder",
+  "description": "Peer-to-peer, no seller framing. Trades something useful before asking for anything, because the only currency that works founder to founder is being genuinely helpful first.",
+  "audience": "Founders and co-founders at companies roughly your stage, in an adjacent market rather than a competing one.",
+  "tags": ["founder", "peer", "network"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — building something in an adjacent space to {{company|yours}}. Always happy to swap notes with people a step ahead or a step behind. Connecting.",
+        "Hi {{firstName|there}} — fellow founder. We're solving a neighbouring problem to {{company|your company}} and I'd rather know you than not. No ask."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 864000000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Honest question rather than a pitch: what's the hardest part of the business right now? Ours is that distribution is entirely manual and it doesn't scale.",
+              "Good to connect, {{firstName|there}}. What's currently breaking at {{company|your company}}? I'll trade you — ours is hiring faster than we can onboard."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — if it's useful I'll send what we learned getting through the same wall. No strings, genuinely. Want it?",
+              "Offer stands, {{firstName|there}}: happy to write up what worked and what wasted six months for us. Say the word."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll stop filling your inbox, {{firstName|there}}. Good luck with {{company|the build}} — shout if a second opinion is ever useful.",
+              "Leaving it there, {{firstName|there}}. Rooting for {{company|you}} from a distance. Ping me any time."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 864000000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

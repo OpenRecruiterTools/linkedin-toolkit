@@ -1,0 +1,57 @@
+{
+  "name": "Investor introduction",
+  "description": "Cold outreach to investors. Leads with a number, not a narrative, because that is the only thing that separates you from the other two hundred messages this week. Never asks for money in the first touch.",
+  "audience": "Partners and principals at funds whose stage and thesis actually match where you are. Ten to forty names, researched individually.",
+  "tags": ["fundraising", "investor", "founder"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 172800000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — building in a space {{company|your fund}} has written about. Not raising this minute; connecting now so I'm not a stranger when we are.",
+        "Hi {{firstName|there}} — your thesis lines up with what we're building. Happy to connect and keep you posted rather than appear mid-round."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 1209600000,
+        "then": [
+          { "type": "wait", "waitMs": 259200000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Short version: we've gone from nothing to a real revenue line in twelve months, growing month on month, mostly inbound. Would an update every quarter be useful, or is that noise?",
+              "Context in three lines, {{firstName|there}}: twelve months old, revenue compounding monthly, distribution is our moat and our weakness. Happy to send a quarterly note if that's welcome."
+            ]
+          },
+          { "type": "wait", "waitMs": 864000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — we'll open a round in the next couple of quarters. Rather than pitch you cold then, would half an hour now be worth it to you?",
+              "No ask today, {{firstName|there}}. When we do raise I'd like you to already know the numbers. Half an hour in the diary at some point?"
+            ]
+          },
+          { "type": "wait", "waitMs": 1209600000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll stop here, {{firstName|there}}. Adding you to the quarterly update — one email, easy to unsubscribe from.",
+              "Leaving it there, {{firstName|there}}. I'll send the quarterly note and nothing else. Good luck with the current book."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 1209600000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}
