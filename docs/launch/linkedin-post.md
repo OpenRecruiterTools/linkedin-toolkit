@@ -56,8 +56,8 @@ comments; do not make it the post.
 >
 > What it does:
 >
-> ✅ Export profiles, searches, Sales Navigator and Recruiter results, post likers and commenters,
-> group members, event attendees, company employees
+> ✅ Export profiles, searches, post likers, company employees, your connections and followers
+> (Sales Navigator, Recruiter, groups and events are in but not yet verified against the current LinkedIn client)
 > ✅ Lists with tags, dedupe, and intent signals — changed job in 90 days, engaged with your post
 > ✅ Multi-step sequences with branching on accepted and replied, A/B variants, 20 templates
 > ✅ Unified inbox with reply detection and sentiment
@@ -110,7 +110,7 @@ comments; do not make it the post.
 >
 > The write-up on how LinkedIn actually detects browser automation is here, and is worth reading on
 > its own if you have fought this:
-> https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md
+> https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/why-browser-agents-fail-on-linkedin.md
 >
 > Worth saying plainly: LinkedIn's User Agreement prohibits automated access. This reduces the
 > technical risk of detection; it does not change that. Use your own account, keep the volumes

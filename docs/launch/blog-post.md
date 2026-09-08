@@ -130,7 +130,7 @@ nothing at all to the contractual position. Use your own account. Keep the volum
 Keep a human in the loop. Do not automate anything you would be embarrassed to have sent by hand.
 
 The full detection write-up — fingerprints, proxy provenance, timing signatures, challenge flows —
-is [here](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md),
+is [here](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/why-browser-agents-fail-on-linkedin.md),
 and is the piece I would read first if I were you.
 
 ---

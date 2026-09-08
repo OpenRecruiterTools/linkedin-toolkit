@@ -46,7 +46,7 @@ Show HN: An open-source MCP layer that lets agents use LinkedIn from your Chrome
 > table. That is the maintenance model, and it is the thing I would most like help with.
 >
 > Write-up on the detection side, which is the part I found most interesting to research:
-> https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md
+> https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/why-browser-agents-fail-on-linkedin.md
 >
 > MIT. Not on the Chrome Web Store — load unpacked from a release zip, deliberately.
 >
