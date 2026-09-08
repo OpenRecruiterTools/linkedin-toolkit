@@ -104,7 +104,7 @@ register(ACTIONS.SEARCH_PEOPLE, async (params) => {
  * records when we fetch a profileView.
  */
 async function fetchProfile(publicId, full) {
-  const profile = await meteredProfile(publicId);
+  const profile = await meteredProfile(publicId, 'profile', { full });
   if (full && fullCapture) {
     const extra = await fullCapture(profile);
     if (extra) Object.assign(profile, extra);

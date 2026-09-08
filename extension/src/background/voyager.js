@@ -2,20 +2,39 @@
  * LinkedIn Toolkit — Voyager endpoints.
  *
  * Every LinkedIn call the engine makes lives here, using the user's own
- * logged-in session. Paths that LinkedIn changes from time to time are all in
- * the `ENDPOINTS` catalogue below so a smoke test has exactly one place to
- * check. Response shaping lives in `voyager-normalize.js`; the transport lives
- * in `voyager-core.js`.
+ * logged-in session. Response shaping lives in `voyager-normalize.js`, reading
+ * the normalized envelope through `normalized.js`; the transport lives in
+ * `voyager-core.js`.
+ *
+ * LinkedIn's web client moved almost everything off the old REST paths and
+ * onto persisted GraphQL queries, each identified by a `queryId` that changes
+ * when LinkedIn ships a new bundle. Every one of those ids, every decoration
+ * id and every surviving REST path is in the `ENDPOINTS` table below and
+ * nowhere else, so refreshing them after a LinkedIn release is a single edit —
+ * see `docs/voyager-endpoints.md` for how to re-capture them.
  */
 
 import { ERROR, EngineError } from '../lib/actions.js';
-import { LINKEDIN_BASE, generateTrackingId, qs, voyagerFetch } from './voyager-core.js';
 import {
+  LINKEDIN_BASE,
+  generateTrackingId,
+  graphql,
+  messagingGraphql,
+  qs,
+  voyagerFetch,
+} from './voyager-core.js';
+import {
+  companyIdFromUrn,
+  conversationUrn,
+  hasCollection,
+  mergeProfiles,
   normalizeComments,
   normalizeCompany,
+  normalizeConnections,
   normalizeConversations,
   normalizeMessages,
   normalizePosts,
+  normalizeProfileSection,
   normalizeProfileView,
   normalizeProfileCollection,
   normalizeReactions,
@@ -24,6 +43,9 @@ import {
   normalizeSearchClusters,
   normalizeSentInvitations,
   normalizeTotal,
+  sectionToEducation,
+  sectionToExperience,
+  sectionToSkills,
   threadIdFromUrn,
 } from './voyager-normalize.js';
 
@@ -34,28 +56,115 @@ export * from './voyager-normalize.js';
 /*  Endpoint catalogue — the only place a LinkedIn path is written     */
 /* ================================================================== */
 
-export const ENDPOINTS = Object.freeze({
-  /** Full profile view; `{publicId}` is substituted. */
-  profileView: '/identity/profiles/{publicId}/profileView',
-  searchClusters: '/search/dash/clusters',
-  salesNavSearch: `${LINKEDIN_BASE}/sales-api/salesApiPeopleSearch`,
-  recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
-  companies: '/organization/companies',
-  reactions: '/feed/reactions',
-  comments: '/feed/comments',
-  groupMemberships: '/groups/groupMemberships',
-  eventAttendees: '/events/dash/professionalEventAttendees',
-  connections: '/relationships/dash/connections',
-  followers: '/identity/dash/profileFollowers',
-  conversations: '/messaging/conversations',
-  conversationEvents: '/messaging/conversations/{threadId}/events',
-  memberPosts: '/identity/profileUpdatesV2',
-  followingStates: '/feed/dash/followingStates',
-  normInvitations: '/growth/normInvitations',
+/** When and against which LinkedIn web client the table below was captured. */
+export const CAPTURED = Object.freeze({
+  at: '2026-09-08',
+  clientVersion: '1.13.46474',
 });
 
-const SEARCH_DECORATION =
-  'com.linkedin.voyager.dash.deco.search.SearchClusterCollection-186';
+export const ENDPOINTS = Object.freeze({
+  // ---- REST paths still served, captured 2026-09-08, client 1.13.46474 ----
+  me: '/me',
+  graphql: '/graphql',
+  messagingGraphql: '/voyagerMessagingGraphQL/graphql',
+  profiles: '/identity/dash/profiles',
+  connections: '/relationships/dash/connections',
+  sentInvitations: '/relationships/sentInvitationViewsV2',
+
+  /**
+   * Persisted GraphQL query ids. Captured 2026-09-08, client 1.13.46474.
+   * These are the first thing to break after a LinkedIn release: a stale id
+   * answers 400. `docs/voyager-endpoints.md` says how to re-capture them.
+   */
+  queryIds: Object.freeze({
+    searchClusters: 'voyagerSearchDashClusters.e438ab99259203e9c1cd3f358e217282',
+    company: 'voyagerOrganizationDashCompanies.513e1fead204f45d2d951de15bb8461d',
+    memberPosts: 'voyagerFeedDashProfileUpdates.be2623b61657a92a693eb8d9c67aeec0',
+    reactions: 'voyagerSocialDashReactions.759f60600a6108d4110bc8b8f6ecd507',
+    positions: 'voyagerIdentityDashProfilePositions.fb2d242249d743cf65109f72ed6ee9cf',
+    profileComponents: 'voyagerIdentityDashProfileComponents.8903e7f7b15f1c12a050c55d48ca2835',
+    sentInvitations: 'voyagerRelationshipsDashSentInvitationViews.6c862840bc95d23d4c97c3844cde9981',
+    conversations: 'messengerConversations.9501074288a12f3ae9e3c7ea243bccbf',
+    messages: 'messengerMessages.5846eeb71c981f11e0134cb6626cc314',
+    messagesBefore: 'messengerMessages.d8ea76885a52fd5dc5c317078ab7c977',
+  }),
+
+  /** Decoration ids for the surviving REST reads. Captured 2026-09-08. */
+  decorations: Object.freeze({
+    fullProfile: 'com.linkedin.voyager.dash.deco.identity.profile.FullProfile-76',
+    topCard: 'com.linkedin.voyager.dash.deco.identity.profile.WebTopCardCore-19',
+    connectionList: 'com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile-16',
+  }),
+
+  /**
+   * **Unverified.** Nothing below has been confirmed against the live client.
+   *
+   * The two comment paths returned 400 on 2026-09-08 and the GraphQL query id
+   * that replaced them has not been identified; the group, event, Sales
+   * Navigator and Recruiter paths could not be exercised from this account;
+   * and the writes are not probed on principle, because probing a write means
+   * sending something to a real person.
+   *
+   * Every call through here is wrapped by `unverified()`, so a shape we do not
+   * recognise surfaces as a `LINKEDIN_ERROR` naming the documentation rather
+   * than as raw LinkedIn JSON or a silently empty list.
+   */
+  unverified: Object.freeze({
+    comments: '/feed/comments',
+    groupMemberships: '/groups/groupMemberships',
+    eventAttendees: '/events/dash/professionalEventAttendees',
+    salesNavSearch: `${LINKEDIN_BASE}/sales-api/salesApiPeopleSearch`,
+    recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
+    followingStates: '/feed/dash/followingStates',
+    createInvitation: '/voyagerRelationshipsDashMemberRelationships',
+    createMessage: '/voyagerMessagingDashMessengerMessages',
+    createComment: '/feed/comments',
+    createReaction: '/feed/reactions',
+  }),
+});
+
+const UNVERIFIED_FIX =
+  'This endpoint has not been verified against the current LinkedIn client; see docs/voyager-endpoints.md';
+
+/** Errors the user has to act on. They pass through `unverified()` untouched. */
+const ACT_ON_THESE = new Set([
+  ERROR.NOT_LOGGED_IN,
+  ERROR.RATE_LIMITED,
+  ERROR.CHALLENGE_DETECTED,
+  ERROR.QUOTA_EXCEEDED,
+  ERROR.INVALID_PARAMS,
+]);
+
+/**
+ * Run an unverified endpoint, turning "LinkedIn answered something we do not
+ * recognise" into one honest error.
+ *
+ * @param {string} name the `ENDPOINTS.unverified` key, for the message
+ * @param {() => Promise<T>} run
+ * @returns {Promise<T>}
+ */
+async function unverified(name, run) {
+  try {
+    return await run();
+  } catch (e) {
+    if (e instanceof EngineError && ACT_ON_THESE.has(e.code)) throw e;
+    throw new EngineError(
+      ERROR.LINKEDIN_ERROR,
+      `LinkedIn did not answer the unverified '${name}' endpoint in a shape this build understands.`,
+      { howToFix: UNVERIFIED_FIX },
+    );
+  }
+}
+
+/** Throw the unverified error when a body carries no collection at all. */
+function requireCollection(name, raw) {
+  if (!hasCollection(raw)) {
+    throw new EngineError(ERROR.LINKEDIN_ERROR, `Unrecognised response from '${name}'.`, {
+      howToFix: UNVERIFIED_FIX,
+    });
+  }
+  return raw;
+}
 
 /* ================================================================== */
 /*  URL parsing                                                       */
@@ -94,35 +203,247 @@ export function urnId(urn) {
   return match ? match[1] : str;
 }
 
+export function toFsdProfileUrn(urn) {
+  const str = String(urn || '');
+  if (!str) return '';
+  if (str.includes('fsd_profile')) return str;
+  return str.replace('fs_miniProfile', 'fsd_profile').replace('fs_profile', 'fsd_profile');
+}
+
+/* ================================================================== */
+/*  Who we are                                                        */
+/* ================================================================== */
+
+/** Cached for the life of the service worker; it never changes for a session. */
+let selfUrnCache = '';
+
+/** Raw `/me`. */
+export async function me() {
+  return voyagerFetch(ENDPOINTS.me);
+}
+
+/**
+ * Our own `urn:li:fsd_profile:…`.
+ *
+ * The messaging API addresses every call to a mailbox, and the mailbox is us,
+ * so this is fetched once and remembered.
+ */
+export async function selfProfileUrn({ refresh = false } = {}) {
+  if (selfUrnCache && !refresh) return selfUrnCache;
+  const raw = await me();
+  const included = (raw && raw.included) || [];
+  const mini =
+    included.find((e) => String(e.entityUrn || '').includes('miniProfile')) || included[0] || {};
+  const urn = toFsdProfileUrn(
+    mini.dashEntityUrn || mini.entityUrn || (raw && raw.data && raw.data['*miniProfile']) || '',
+  );
+  if (!urn) {
+    throw new EngineError(ERROR.NOT_LOGGED_IN, 'Could not read your own profile urn from LinkedIn.', {
+      howToFix: 'Open linkedin.com in this browser and sign in.',
+    });
+  }
+  selfUrnCache = urn;
+  return urn;
+}
+
+/** Forget the cached self urn (used by the tests and after a sign-out). */
+export function forgetSelf() {
+  selfUrnCache = '';
+}
+
+/**
+ * Is this session usable, and who is it?
+ *
+ * One cheap unmetered call — `/me` is not a profile view — that a smoke test
+ * or `lit endpoints check` can run before anything else.
+ *
+ * @returns {Promise<{loggedIn: boolean, selfUrn: string, clientVersion?: string}>}
+ */
+export async function selfTest() {
+  try {
+    const raw = await me();
+    const included = (raw && raw.included) || [];
+    const mini =
+      included.find((e) => String(e.entityUrn || '').includes('miniProfile')) || included[0] || {};
+    const selfUrn = toFsdProfileUrn(mini.dashEntityUrn || mini.entityUrn || '');
+    if (selfUrn) selfUrnCache = selfUrn;
+    const out = {
+      loggedIn: !!selfUrn,
+      selfUrn,
+      publicId: mini.publicIdentifier || '',
+    };
+    // LinkedIn does not return its own client version on this endpoint; it is
+    // reported only when a future response starts carrying one.
+    const clientVersion = raw && raw.data && raw.data.clientVersion;
+    if (clientVersion) out.clientVersion = clientVersion;
+    return out;
+  } catch (e) {
+    if (e instanceof EngineError && e.code === ERROR.NOT_LOGGED_IN) {
+      return { loggedIn: false, selfUrn: '' };
+    }
+    throw e;
+  }
+}
+
+/* ================================================================== */
+/*  Profile                                                           */
+/* ================================================================== */
+
+/** Raw `identity/dash/profiles` read for a public identifier. */
+export async function getProfile(publicId, decoration = ENDPOINTS.decorations.topCard) {
+  return voyagerFetch(
+    `${ENDPOINTS.profiles}?${qs({
+      q: 'memberIdentity',
+      memberIdentity: publicId,
+      decorationId: decoration,
+    })}`,
+  );
+}
+
+/** One section of the profile page (`experience`, `education`, `skills`). */
+export async function getProfileSection(profileUrn, sectionType) {
+  return graphql(ENDPOINTS.queryIds.profileComponents, {
+    profileUrn,
+    sectionType,
+    locale: 'en_US',
+  });
+}
+
+/**
+ * Fetch and normalize a profile.
+ *
+ * The top-card decoration is the base read because it is the only endpoint
+ * that still states the connection degree (through the included
+ * `MemberRelationship`), and three features — `network.status`, the campaign
+ * `accepted` branch and the already-connected pre-check — are wrong without
+ * it.
+ *
+ * The experience section is read straight after. LinkedIn serves no positions
+ * on any profile decoration any more, so without that second call `title` and
+ * `company` would be permanently empty. It is a page-component read, not a
+ * profile view, so it is not metered as one.
+ *
+ * `full` adds the full-profile decoration (summary, industry) and the
+ * education and skills sections. Every one of those extras is best-effort: a
+ * section that fails leaves its field empty rather than failing the read.
+ */
+export async function getProfileNormalized(publicId, source = 'profile', { full = false } = {}) {
+  const base = normalizeProfileView(await getProfile(publicId), source);
+
+  if (full) {
+    try {
+      const extra = normalizeProfileView(
+        await getProfile(publicId, ENDPOINTS.decorations.fullProfile),
+        source,
+      );
+      Object.assign(base, mergeProfiles(base, extra));
+    } catch {
+      // The top card already answered; the richer decoration is a bonus.
+    }
+  }
+
+  const urn = toFsdProfileUrn(base.urn);
+  if (!urn) return base;
+
+  const section = async (name, map) => {
+    try {
+      return map(normalizeProfileSection(await getProfileSection(urn, name)));
+    } catch {
+      return [];
+    }
+  };
+
+  base.experience = await section('experience', sectionToExperience);
+  const current = base.experience.find((p) => !p.end) || base.experience[0];
+  if (current) {
+    base.title = base.title || current.title || '';
+    base.company = base.company || current.company || '';
+    if (current.companyUrn) base.companyUrn = current.companyUrn;
+  }
+
+  if (full) {
+    base.education = await section('education', sectionToEducation);
+    base.skills = await section('skills', sectionToSkills);
+  }
+
+  return base;
+}
+
+/**
+ * Register a profile view.
+ *
+ * The authenticated profile fetch is itself what LinkedIn records as a visit,
+ * so there is nothing else to do.
+ */
+export async function viewProfile(publicId) {
+  return getProfileNormalized(publicId, 'visit');
+}
+
+/** Resolve a profile urn from a public identifier when the caller has none. */
+export async function resolveProfileUrn(publicId) {
+  const profile = await getProfileNormalized(publicId);
+  const urn = toFsdProfileUrn(profile.urn);
+  if (!urn) throw new EngineError(ERROR.NOT_FOUND, `Could not resolve a profile urn for ${publicId}.`);
+  return urn;
+}
+
 /* ================================================================== */
 /*  Search                                                            */
 /* ================================================================== */
 
-function searchQuery({ keywords, title, company, location, currentCompany, connectionOf, network }) {
-  const params = ['resultType:List(PEOPLE)'];
-  if (title) params.push(`title:List(${title})`);
-  if (company) params.push(`company:List(${company})`);
-  if (currentCompany) params.push(`currentCompany:List(${currentCompany})`);
-  if (location) params.push(`geoUrn:List(${location})`);
-  if (connectionOf) params.push(`connectionOf:List(${connectionOf})`);
-  if (network) params.push(`network:List(${network})`);
+const PEOPLE = { key: 'resultType', value: ['PEOPLE'] };
 
-  const bits = ['flagshipSearchIntent:SEARCH_SRP'];
-  if (keywords) bits.unshift(`keywords:${keywords}`);
-  bits.push(`queryParameters:(${params.join(',')})`);
-  return `(${bits.join(',')})`;
+/** A slug LinkedIn could plausibly know as a company's universal name. */
+function looksLikeUniversalName(value) {
+  return /^[a-z0-9][a-z0-9._-]*$/i.test(String(value || '')) && !/\s/.test(String(value || ''));
 }
 
-async function runSearch(query, { start = 0, count = 25 } = {}) {
-  const search = qs({
-    decorationId: SEARCH_DECORATION,
-    origin: 'GLOBAL_SEARCH_HEADER',
-    q: 'all',
-    query,
+/**
+ * People search.
+ *
+ * LinkedIn's search takes the free text in `keywords` and structured filters
+ * in `queryParameters`, but only for facets it recognises. `title` is **not**
+ * one of them — `(key:title,…)` is rejected — so the title is appended to the
+ * keywords, which is exactly what the web app's own search box does.
+ * `location` is appended the same way: the real facet is `geoUrn`, and
+ * resolving a place name to a geo urn needs a typeahead call this build does
+ * not make. `company` is resolved to a numeric id through the company lookup
+ * when it looks like a universal name, because `currentCompany` *is* a real
+ * facet and gives far better results than free text; anything else falls back
+ * to the keywords.
+ */
+async function peopleSearchVariables({ keywords, title, company, location, start, count }) {
+  const words = [keywords, title, location].map((w) => String(w || '').trim()).filter(Boolean);
+  const queryParameters = [PEOPLE];
+
+  if (company) {
+    let companyId = '';
+    if (looksLikeUniversalName(company)) {
+      try {
+        companyId = await getCompanyId(company);
+      } catch {
+        companyId = '';
+      }
+    }
+    if (companyId) queryParameters.unshift({ key: 'currentCompany', value: [companyId] });
+    else words.push(String(company).trim());
+  }
+
+  return {
     start,
     count,
-  });
-  return voyagerFetch(`${ENDPOINTS.searchClusters}?${search}`);
+    origin: 'GLOBAL_SEARCH_HEADER',
+    query: {
+      keywords: words.join(' '),
+      flagshipSearchIntent: 'SEARCH_SRP',
+      queryParameters,
+      includeFiltersInResponse: false,
+    },
+  };
+}
+
+async function searchClusters(variables) {
+  return graphql(ENDPOINTS.queryIds.searchClusters, variables);
 }
 
 /**
@@ -141,49 +462,32 @@ export async function searchProfiles({
   if (source === 'salesnav') return salesNavSearch({ keywords, title, company, location, start, count });
   if (source === 'recruiter') return recruiterSearch({ keywords, title, company, location, start, count });
 
-  const raw = await runSearch(searchQuery({ keywords, title, company, location }), { start, count });
+  const variables = await peopleSearchVariables({ keywords, title, company, location, start, count });
+  const raw = await searchClusters(variables);
   const { profiles, total } = normalizeSearchClusters(raw, 'search');
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }
 
-/** Sales Navigator people search. */
+/** Sales Navigator people search. Unverified: no seat on the capture account. */
 export async function salesNavSearch({ keywords, title, company, location, start = 0, count = 25 } = {}) {
-  const search = qs({ q: 'peopleSearchQuery', keywords, title, company, location, start, count });
-  const raw = await voyagerFetch(`${ENDPOINTS.salesNavSearch}?${search}`);
-  const { profiles, total } = normalizeSalesNavSearch(raw);
-  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  return unverified('salesNavSearch', async () => {
+    const search = qs({ q: 'peopleSearchQuery', keywords, title, company, location, start, count });
+    const raw = await voyagerFetch(`${ENDPOINTS.unverified.salesNavSearch}?${search}`);
+    const { profiles, total } = normalizeSalesNavSearch(raw);
+    if (!profiles.length && !raw.elements) requireCollection('salesNavSearch', raw);
+    return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  });
 }
 
-/** LinkedIn Recruiter search. */
+/** LinkedIn Recruiter search. Unverified: no seat on the capture account. */
 export async function recruiterSearch({ keywords, title, company, location, start = 0, count = 25 } = {}) {
-  const search = qs({ q: 'recruiterSearch', keywords, title, company, location, start, count });
-  const raw = await voyagerFetch(`${ENDPOINTS.recruiterSearch}?${search}`);
-  const { profiles, total } = normalizeRecruiterSearch(raw);
-  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
-}
-
-/* ================================================================== */
-/*  Profile                                                           */
-/* ================================================================== */
-
-/** Raw `profileView` response for a public identifier. */
-export async function getProfile(publicId) {
-  return voyagerFetch(ENDPOINTS.profileView.replace('{publicId}', encodeURIComponent(publicId)));
-}
-
-/** Fetch and normalize a profile. */
-export async function getProfileNormalized(publicId, source = 'profile') {
-  return normalizeProfileView(await getProfile(publicId), source);
-}
-
-/**
- * Register a profile view.
- *
- * The authenticated `profileView` fetch is itself what LinkedIn records as a
- * visit, so there is nothing else to do.
- */
-export async function viewProfile(publicId) {
-  return normalizeProfileView(await getProfile(publicId), 'visit');
+  return unverified('recruiterSearch', async () => {
+    const search = qs({ q: 'recruiterSearch', keywords, title, company, location, start, count });
+    const raw = await voyagerFetch(`${ENDPOINTS.unverified.recruiterSearch}?${search}`);
+    const { profiles, total } = normalizeRecruiterSearch(raw);
+    if (!profiles.length && !raw.elements) requireCollection('recruiterSearch', raw);
+    return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  });
 }
 
 /* ================================================================== */
@@ -191,16 +495,41 @@ export async function viewProfile(publicId) {
 /* ================================================================== */
 
 export async function getCompany(universalName) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.companies}?${qs({ q: 'universalName', universalName, decorate: true })}`,
-  );
-  const company = normalizeCompany(raw);
-  if (!company.name) throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
+  const raw = await graphql(ENDPOINTS.queryIds.company, { universalName });
+  const company = normalizeCompany(raw, universalName);
+  if (!company || !company.urn) {
+    throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
+  }
   return company;
 }
 
-export async function getCompanyEmployees({ universalName, start = 0, count = 25 }) {
-  const raw = await runSearch(searchQuery({ currentCompany: universalName }), { start, count });
+/** The numeric id an employee search needs, from a universal name. */
+export async function getCompanyId(universalName) {
+  const raw = await graphql(ENDPOINTS.queryIds.company, { universalName });
+  const company = normalizeCompany(raw, universalName);
+  const id = companyIdFromUrn(company && company.urn);
+  if (!id) throw new EngineError(ERROR.NOT_FOUND, `Company ${universalName} not found.`);
+  return id;
+}
+
+/**
+ * People who work at a company.
+ *
+ * The `currentCompany` facet wants the numeric id, not the universal name, so
+ * the name is resolved first. A caller that already has the id may pass it.
+ */
+export async function getCompanyEmployees({ universalName, companyId, start = 0, count = 25 }) {
+  const id = companyId || (await getCompanyId(universalName));
+  const raw = await searchClusters({
+    start,
+    count,
+    origin: 'COMPANY_PAGE_CANNED_SEARCH',
+    query: {
+      flagshipSearchIntent: 'SEARCH_SRP',
+      queryParameters: [{ key: 'currentCompany', value: [id] }, PEOPLE],
+      includeFiltersInResponse: false,
+    },
+  });
   const { profiles, total } = normalizeSearchClusters(raw, 'company-employees');
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }
@@ -210,29 +539,53 @@ export async function getCompanyEmployees({ universalName, start = 0, count = 25
 /* ================================================================== */
 
 async function fetchReactions(threadUrn, start, count) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.reactions}?${qs({ q: 'reactionType', threadUrn, start, count })}`,
-  );
-  return normalizeReactions(raw);
+  const raw = await graphql(ENDPOINTS.queryIds.reactions, { threadUrn, count, start });
+  return normalizeReactions(requireCollection('reactions', raw));
 }
 
 async function fetchComments(threadUrn, start, count) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.comments}?${qs({ q: 'comments', sortOrder: 'RELEVANCE', threadUrn, start, count })}`,
-  );
-  return normalizeComments(raw);
+  return unverified('comments', async () => {
+    const raw = await voyagerFetch(
+      `${ENDPOINTS.unverified.comments}?${qs({
+        q: 'comments',
+        sortOrder: 'RELEVANCE',
+        threadUrn,
+        start,
+        count,
+      })}`,
+    );
+    return normalizeComments(requireCollection('comments', raw));
+  });
 }
 
 /**
  * Who liked and/or commented on a post.
- * @returns {Promise<{engagers: Engager[], nextStart?: number}>}
+ *
+ * Reactions are verified against the live client; comments are not, and their
+ * replacement query id has not been identified. Asking for comments alone
+ * therefore fails honestly, while `kind: 'both'` returns the reactions it did
+ * get and names what it could not read in `unavailable`, rather than throwing
+ * away a page of real engagers.
+ *
+ * @returns {Promise<{engagers: Engager[], nextStart?: number, unavailable?: string[]}>}
  */
 export async function getPostEngagers({ postUrl, kind = 'both', start = 0, count = 25 }) {
   const threadUrn = activityUrnFromUrl(postUrl);
   const engagers = [];
+  const unavailable = [];
 
-  if (kind === 'likes' || kind === 'both') engagers.push(...(await fetchReactions(threadUrn, start, count)));
-  if (kind === 'comments' || kind === 'both') engagers.push(...(await fetchComments(threadUrn, start, count)));
+  if (kind === 'likes' || kind === 'both') {
+    engagers.push(...(await fetchReactions(threadUrn, start, count)));
+  }
+
+  if (kind === 'comments' || kind === 'both') {
+    try {
+      engagers.push(...(await fetchComments(threadUrn, start, count)));
+    } catch (e) {
+      if (kind === 'comments') throw e;
+      unavailable.push('comments');
+    }
+  }
 
   const seen = new Map();
   for (const e of engagers) {
@@ -240,44 +593,75 @@ export async function getPostEngagers({ postUrl, kind = 'both', start = 0, count
     seen.set(e.publicId, existing ? { ...existing, ...e } : e);
   }
   const merged = [...seen.values()];
-  return { engagers: merged, nextStart: merged.length ? start + count : undefined };
+
+  const out = { engagers: merged, nextStart: merged.length ? start + count : undefined };
+  if (unavailable.length) out.unavailable = unavailable;
+  return out;
 }
 
 /* ================================================================== */
 /*  Audiences                                                         */
 /* ================================================================== */
 
+/** Group members. Unverified: no group membership on the capture account. */
 export async function getGroupMembers({ groupUrl, start = 0, count = 25 }) {
   const groupUrn = groupUrnFromUrl(groupUrl);
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.groupMemberships}?${qs({ q: 'group', groupUrn, start, count })}`,
-  );
-  const { profiles, total } = normalizeProfileCollection(raw, 'group');
-  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  return unverified('groupMemberships', async () => {
+    const raw = await voyagerFetch(
+      `${ENDPOINTS.unverified.groupMemberships}?${qs({ q: 'group', groupUrn, start, count })}`,
+    );
+    const { profiles, total } = normalizeProfileCollection(requireCollection('groupMemberships', raw), 'group');
+    return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  });
 }
 
+/** Event attendees. Unverified. */
 export async function getEventAttendees({ eventUrl, start = 0, count = 25 }) {
   const eventUrn = eventUrnFromUrl(eventUrl);
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.eventAttendees}?${qs({ q: 'eventAttendees', eventUrn, start, count })}`,
-  );
-  const { profiles, total } = normalizeProfileCollection(raw, 'event');
-  return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  return unverified('eventAttendees', async () => {
+    const raw = await voyagerFetch(
+      `${ENDPOINTS.unverified.eventAttendees}?${qs({ q: 'eventAttendees', eventUrn, start, count })}`,
+    );
+    const { profiles, total } = normalizeProfileCollection(requireCollection('eventAttendees', raw), 'event');
+    return { profiles, total, nextStart: profiles.length ? start + count : undefined };
+  });
 }
 
 export async function getConnections({ start = 0, count = 25 } = {}) {
   const raw = await voyagerFetch(
-    `${ENDPOINTS.connections}?${qs({ q: 'search', sortType: 'RECENTLY_ADDED', start, count })}`,
+    `${ENDPOINTS.connections}?${qs({
+      decorationId: ENDPOINTS.decorations.connectionList,
+      q: 'search',
+      sortType: 'RECENTLY_ADDED',
+      start,
+      count,
+    })}`,
   );
-  const { profiles, total } = normalizeProfileCollection(raw, 'connections');
+  const { profiles, total } = normalizeConnections(raw);
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }
 
+/**
+ * Our own followers.
+ *
+ * These come back through the search clusters surface, not a followers
+ * collection: the curation hub asks for `resultType: FOLLOWERS`. The
+ * navigation urls it returns carry the obfuscated member id rather than a
+ * vanity name, so `publicId` is that id — still a working profile URL, and
+ * still a stable key.
+ */
 export async function getFollowers({ start = 0, count = 25 } = {}) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.followers}?${qs({ q: 'followersOfViewer', start, count })}`,
-  );
-  const { profiles, total } = normalizeProfileCollection(raw, 'followers');
+  const raw = await searchClusters({
+    start,
+    count,
+    origin: 'CurationHub',
+    query: {
+      flagshipSearchIntent: 'MYNETWORK_CURATION_HUB',
+      includeFiltersInResponse: true,
+      queryParameters: [{ key: 'resultType', value: ['FOLLOWERS'] }],
+    },
+  });
+  const { profiles, total } = normalizeSearchClusters(raw, 'followers');
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }
 
@@ -286,16 +670,32 @@ export async function getFollowers({ start = 0, count = 25 } = {}) {
 /* ================================================================== */
 
 export async function getConversations({ count = 20, createdBefore } = {}) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.conversations}?${qs({ keyVersion: 'LEGACY_INBOX', count, createdBefore })}`,
-  );
-  return { threads: normalizeConversations(raw) };
+  const mailboxUrn = await selfProfileUrn();
+  const raw = await messagingGraphql(ENDPOINTS.queryIds.conversations, {
+    query: {
+      predicateUnions: [{ conversationCategoryPredicate: { category: 'INBOX' } }],
+    },
+    count,
+    mailboxUrn,
+    lastUpdatedBefore: createdBefore,
+  });
+  return { threads: normalizeConversations(raw, mailboxUrn) };
 }
 
 export async function getConversationMessages({ threadId, count = 20, createdBefore }) {
+  const mailboxUrn = await selfProfileUrn();
   const id = threadIdFromUrn(threadId);
-  const path = ENDPOINTS.conversationEvents.replace('{threadId}', encodeURIComponent(id));
-  const raw = await voyagerFetch(`${path}?${qs({ count, createdBefore })}`);
+  const urn = conversationUrn(mailboxUrn, id);
+
+  const raw = createdBefore
+    ? await messagingGraphql(ENDPOINTS.queryIds.messagesBefore, {
+        deliveredAt: createdBefore,
+        conversationUrn: urn,
+        countBefore: count,
+        countAfter: 0,
+      })
+    : await messagingGraphql(ENDPOINTS.queryIds.messages, { conversationUrn: urn });
+
   return { messages: normalizeMessages(raw, id) };
 }
 
@@ -303,40 +703,40 @@ export async function getConversationMessages({ threadId, count = 20, createdBef
 /*  Activity and graph                                                */
 /* ================================================================== */
 
-export async function getMemberPosts({ publicId, profileUrn, count = 10 } = {}) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.memberPosts}?${qs({
-      q: 'memberShareFeed',
-      moduleKey: 'member-shares:phone',
-      includeLongTermHistory: true,
-      numComments: 0,
-      numLikes: 0,
-      count,
-      profileUrn,
-      publicIdentifier: profileUrn ? undefined : publicId,
-    })}`,
-  );
+export async function getMemberPosts({ publicId, profileUrn, count = 10, paginationToken } = {}) {
+  const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(publicId));
+  const raw = await graphql(ENDPOINTS.queryIds.memberPosts, {
+    count,
+    start: 0,
+    profileUrn: urn,
+    paginationToken,
+  });
   return normalizePosts(raw);
 }
 
-/** How many connections we share with a profile. */
+/**
+ * How many connections we share with a profile.
+ *
+ * This is the same search the "N mutual connections" link on a profile runs:
+ * first-degree connections of that member. Only the total is wanted, so one
+ * result is asked for.
+ */
 export async function getMutualConnectionsCount({ profileUrn }) {
-  const raw = await runSearch(
-    searchQuery({ connectionOf: urnId(profileUrn), network: 'F' }),
-    { start: 0, count: 0 },
-  );
+  const raw = await searchClusters({
+    start: 0,
+    count: 1,
+    origin: 'SHARED_CONNECTIONS_CANNED_SEARCH',
+    query: {
+      flagshipSearchIntent: 'SEARCH_SRP',
+      queryParameters: [
+        { key: 'connectionOf', value: [urnId(profileUrn)] },
+        { key: 'network', value: ['F'] },
+        PEOPLE,
+      ],
+      includeFiltersInResponse: false,
+    },
+  });
   return normalizeTotal(raw);
-}
-
-/* ================================================================== */
-/*  Writes                                                            */
-/* ================================================================== */
-
-export function toFsdProfileUrn(urn) {
-  const str = String(urn || '');
-  if (!str) return '';
-  if (str.includes('fsd_profile')) return str;
-  return str.replace('fs_miniProfile', 'fsd_profile').replace('fs_profile', 'fsd_profile');
 }
 
 /**
@@ -344,35 +744,66 @@ export function toFsdProfileUrn(urn) {
  *
  * One cheap call that answers "did they accept?" for everybody at once, with
  * no profile views spent. This is the endpoint `network.status` and the
- * campaign 'accepted' branch lean on.
+ * campaign 'accepted' branch lean on, so it has a fallback: the REST view is
+ * the one that was captured working, and the GraphQL equivalent is tried if
+ * that ever stops answering.
  *
  * @returns {Promise<{publicId: string, invitationUrn: string, sentAt?: number}[]>}
  */
 export async function getSentInvitations({ start = 0, count = 100 } = {}) {
-  const raw = await voyagerFetch(
-    `${ENDPOINTS.normInvitations}?${qs({ q: 'sentInvitationsV2', start, count })}`,
-  );
-  return normalizeSentInvitations(raw);
+  try {
+    const raw = await voyagerFetch(
+      `${ENDPOINTS.sentInvitations}?${qs({
+        q: 'invitationType',
+        invitationType: 'CONNECTION',
+        start,
+        count,
+      })}`,
+    );
+    return normalizeSentInvitations(requireCollection('sentInvitations', raw));
+  } catch (e) {
+    if (e instanceof EngineError && ACT_ON_THESE.has(e.code)) throw e;
+    const raw = await graphql(ENDPOINTS.queryIds.sentInvitations, {
+      start,
+      count,
+      invitationType: 'CONNECTION',
+    });
+    return normalizeSentInvitations(raw);
+  }
 }
 
-/** Resolve a profile urn from a public identifier when the caller has none. */
-export async function resolveProfileUrn(publicId) {
-  const profile = await getProfileNormalized(publicId);
-  const urn = toFsdProfileUrn(profile.urn);
-  if (!urn) throw new EngineError(ERROR.NOT_FOUND, `Could not resolve a profile urn for ${publicId}.`);
-  return urn;
-}
+/* ================================================================== */
+/*  Writes — every one of these is unverified                          */
+/* ================================================================== */
 
-/** Send a connection invitation (note ≤ 300 characters). */
+/**
+ * Send a connection invitation (note ≤ 300 characters).
+ *
+ * Unverified: a write cannot be probed without sending it to a real person.
+ * The path and body are the ones the current web client uses.
+ */
 export async function sendInvite({ publicId, publicIdentifier, profileUrn, note }) {
   const id = publicId || publicIdentifier;
   const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(id));
-  const body = { inviteeProfileUrn: urn, trackingId: generateTrackingId() };
-  if (note) body.message = String(note).slice(0, 300);
-  return voyagerFetch(ENDPOINTS.normInvitations, { method: 'POST', body });
+  const body = {
+    invitee: { inviteeUnion: { memberProfile: urn } },
+    trackingId: generateTrackingId(),
+  };
+  if (note) body.customMessage = String(note).slice(0, 300);
+
+  return unverified('createInvitation', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.createInvitation}?action=verifyQuotaAndCreateV2`, {
+      method: 'POST',
+      body,
+    }),
+  );
 }
 
-/** Send a message (`subtype: 'INMAIL'` for an InMail). */
+/**
+ * Send a message (`subtype: 'INMAIL'` for an InMail).
+ *
+ * Unverified, for the same reason as the invitation.
+ */
 export async function sendMessage({
   recipientUrn,
   body,
@@ -382,24 +813,29 @@ export async function sendMessage({
   if (!recipientUrn) throw new EngineError(ERROR.INVALID_PARAMS, 'recipientUrn is required.');
   if (!body) throw new EngineError(ERROR.INVALID_PARAMS, 'Message body cannot be empty.');
 
+  const mailboxUrn = await selfProfileUrn();
   const message = {
-    attributedBody: { text: body, attributes: [] },
-    attachments: [],
+    body: { text: body, attributes: [] },
+    renderContentUnions: [],
+    conversationTitle: undefined,
   };
   if (subtype === 'INMAIL' && inmailSubject) message.subject = inmailSubject;
 
   const payload = {
-    keyVersion: 'LEGACY_INBOX',
-    conversationCreate: {
-      eventCreate: {
-        value: { 'com.linkedin.voyager.messaging.create.MessageCreate': message },
-      },
-      recipients: [toFsdProfileUrn(recipientUrn)],
-      subtype: subtype === 'INMAIL' ? 'INMAIL' : 'MEMBER_TO_MEMBER',
-    },
+    message,
+    mailboxUrn,
+    trackingId: generateTrackingId(),
+    dedupeByClientGeneratedToken: false,
+    hostRecipientUrns: [toFsdProfileUrn(recipientUrn)],
   };
+  if (subtype === 'INMAIL') payload.messageSubtype = 'INMAIL';
 
-  return voyagerFetch(`${ENDPOINTS.conversations}?action=create`, { method: 'POST', body: payload });
+  return unverified('createMessage', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.createMessage}?action=createMessage`, {
+      method: 'POST',
+      body: payload,
+    }),
+  );
 }
 
 /** Send an InMail. */
@@ -407,36 +843,196 @@ export async function sendInMail({ recipientUrn, subject, body }) {
   return sendMessage({ recipientUrn, body, subtype: 'INMAIL', inmailSubject: subject });
 }
 
-/** Follow (or unfollow) a member without connecting. */
+/** Follow (or unfollow) a member without connecting. Unverified. */
 export async function follow({ publicId, profileUrn, following = true }) {
   const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(publicId));
   const stateUrn = encodeURIComponent(`urn:li:fsd_followingState:${urn}`);
-  return voyagerFetch(`${ENDPOINTS.followingStates}/${stateUrn}?action=toggleFollow`, {
-    method: 'POST',
-    body: { patch: { $set: { following: !!following } } },
-  });
+  return unverified('followingStates', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.followingStates}/${stateUrn}?action=toggleFollow`, {
+      method: 'POST',
+      body: { patch: { $set: { following: !!following } } },
+    }),
+  );
 }
 
-/** Like a post. */
+/** Like a post. Unverified. */
 export async function likePost({ postUrl, reactionType = 'LIKE' }) {
   const threadUrn = activityUrnFromUrl(postUrl);
-  return voyagerFetch(`${ENDPOINTS.reactions}?${qs({ threadUrn })}`, {
-    method: 'POST',
-    body: { reactionType, threadUrn },
-  });
+  return unverified('createReaction', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.createReaction}?${qs({ threadUrn })}`, {
+      method: 'POST',
+      body: { reactionType, threadUrn },
+    }),
+  );
 }
 
-/** Comment on a post. */
+/** Comment on a post. Unverified. */
 export async function commentPost({ postUrl, body }) {
   const threadUrn = activityUrnFromUrl(postUrl);
   if (!body) throw new EngineError(ERROR.INVALID_PARAMS, 'Comment body cannot be empty.');
-  return voyagerFetch(`${ENDPOINTS.comments}?${qs({ threadUrn })}`, {
-    method: 'POST',
-    body: {
-      threadUrn,
-      commentary: { text: body, attributes: [] },
-      trackingId: generateTrackingId(),
-    },
-  });
+  return unverified('createComment', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.createComment}?${qs({ threadUrn })}`, {
+      method: 'POST',
+      body: {
+        threadUrn,
+        commentary: { text: body, attributes: [] },
+        trackingId: generateTrackingId(),
+      },
+    }),
+  );
 }
 
+/* ================================================================== */
+/*  Endpoint self-check                                                */
+/* ================================================================== */
+
+/**
+ * Every endpoint the check below can exercise without writing anything.
+ *
+ * `unverified` entries are reported as such and never called: there is no
+ * point spending a request on a path we already know we cannot read.
+ */
+export const VERIFIABLE = Object.freeze([
+  'me',
+  'profile',
+  'profileExperience',
+  'search',
+  'company',
+  'companyEmployees',
+  'connections',
+  'sentInvitations',
+  'conversations',
+  'followers',
+  'memberPosts',
+  'reactions',
+]);
+
+export const UNVERIFIABLE = Object.freeze([
+  'comments',
+  'groupMembers',
+  'eventAttendees',
+  'salesNavSearch',
+  'recruiterSearch',
+  'follow',
+  'invite',
+  'message',
+]);
+
+/**
+ * A read-only pass over the verified endpoints, one minimal call each.
+ *
+ * This is what `status.get { verify: true }` and `lit endpoints check` run
+ * after a LinkedIn release, to find out which query id went stale without
+ * having to reproduce a whole workflow. Every call asks for one record.
+ *
+ * @param {{probes?: {postUrl?: string}, meter?: (kind: string, n: number) => Promise<void>}} [options]
+ * @returns {Promise<{endpoints: Record<string, 'ok'|'failed'|'unverified'|'skipped'>,
+ *   clientVersionCaptured: string, capturedAt: string, errors: Record<string, string>}>}
+ */
+export async function verifyEndpoints({ probes = {}, meter } = {}) {
+  const endpoints = {};
+  const errors = {};
+  const charge = async (kind, n) => {
+    if (meter) await meter(kind, n);
+  };
+
+  const step = async (name, run) => {
+    try {
+      const ok = await run();
+      endpoints[name] = ok === false ? 'failed' : 'ok';
+    } catch (e) {
+      endpoints[name] = 'failed';
+      errors[name] = e && e.message ? e.message : String(e);
+    }
+  };
+
+  const self = await selfTest().catch(() => ({ loggedIn: false, selfUrn: '' }));
+  endpoints.me = self.loggedIn ? 'ok' : 'failed';
+  if (!self.loggedIn) {
+    for (const name of VERIFIABLE) if (!endpoints[name]) endpoints[name] = 'skipped';
+    for (const name of UNVERIFIABLE) endpoints[name] = 'unverified';
+    return {
+      endpoints,
+      clientVersionCaptured: CAPTURED.clientVersion,
+      capturedAt: CAPTURED.at,
+      errors,
+    };
+  }
+
+  if (self.publicId) {
+    await step('profile', async () => {
+      await charge('visit', 1);
+      const profile = normalizeProfileView(
+        await getProfile(self.publicId, ENDPOINTS.decorations.fullProfile),
+      );
+      return !!profile.publicId;
+    });
+    await step('profileExperience', async () => {
+      const raw = await getProfileSection(self.selfUrn, 'experience');
+      return hasCollection(raw);
+    });
+  } else {
+    endpoints.profile = 'skipped';
+    endpoints.profileExperience = 'skipped';
+  }
+
+  await step('search', async () => {
+    await charge('search', 1);
+    const out = await searchProfiles({ keywords: 'linkedin', count: 1 });
+    return out.profiles.length > 0;
+  });
+
+  await step('company', async () => !!(await getCompany('linkedin')).urn);
+  await step('companyEmployees', async () => {
+    const out = await getCompanyEmployees({ universalName: 'linkedin', count: 1 });
+    return out.profiles.length > 0;
+  });
+  await step('connections', async () => hasCollection(await rawConnections(1)));
+  await step('sentInvitations', async () => {
+    await getSentInvitations({ count: 1 });
+    return true;
+  });
+  await step('conversations', async () => {
+    await getConversations({ count: 1 });
+    return true;
+  });
+  await step('followers', async () => {
+    await getFollowers({ count: 1 });
+    return true;
+  });
+  await step('memberPosts', async () => {
+    await getMemberPosts({ profileUrn: self.selfUrn, count: 1 });
+    return true;
+  });
+
+  if (probes.postUrl) {
+    await step('reactions', async () => {
+      await getPostEngagers({ postUrl: probes.postUrl, kind: 'likes', count: 1 });
+      return true;
+    });
+  } else {
+    endpoints.reactions = 'skipped';
+  }
+
+  for (const name of UNVERIFIABLE) endpoints[name] = 'unverified';
+
+  return {
+    endpoints,
+    clientVersionCaptured: CAPTURED.clientVersion,
+    capturedAt: CAPTURED.at,
+    errors,
+  };
+}
+
+/** The raw connections read, so the self-check can look at the body itself. */
+async function rawConnections(count) {
+  return voyagerFetch(
+    `${ENDPOINTS.connections}?${qs({
+      decorationId: ENDPOINTS.decorations.connectionList,
+      q: 'search',
+      sortType: 'RECENTLY_ADDED',
+      start: 0,
+      count,
+    })}`,
+  );
+}

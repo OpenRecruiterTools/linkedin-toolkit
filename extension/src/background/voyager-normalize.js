@@ -2,10 +2,37 @@
  * LinkedIn Toolkit — Voyager response normalizers.
  *
  * Every function here is pure: raw Voyager JSON in, a contract type out
- * (`Profile`, `Company`, `Engager`, `Thread`, `Message`). Voyager's shapes
- * drift, so each normalizer reads several plausible field paths and returns
- * the contract shape or nothing.
+ * (`Profile`, `Company`, `Engager`, `Thread`, `Message`).
+ *
+ * All of them read the "normalized" envelope — `{ data, included }` with `*`
+ * references between the two — through the four helpers in `normalized.js`,
+ * so a response whose collection moved from `data.elements` to
+ * `data.data.<queryName>.*elements` needs no change here.
+ *
+ * Two rules run through the file:
+ *
+ * 1. **Never invent.** A field LinkedIn did not send is left empty rather than
+ *    guessed at. The live example is structured experience: no profile
+ *    decoration carries positions any more, and the positions query returns
+ *    company references with no titles or dates, so the engine reads the
+ *    rendered profile *sections* instead — and when a section does not come
+ *    back, `experience`, `education` and `skills` stay empty rather than
+ *    being filled from something that only looks like them.
+ * 2. **Never claim a degree we do not have.** `connectionDegree` is absent
+ *    from shapes that carry no distance, so a merge keeps whatever is already
+ *    known; only a profile read is entitled to say `null` ("we looked and
+ *    could not tell").
  */
+
+import {
+  elements,
+  entitiesOfType,
+  field,
+  index,
+  resolve,
+  textOf,
+  total,
+} from './normalized.js';
 
 /* ------------------------------------------------------------------ */
 /*  Small helpers                                                     */
@@ -20,10 +47,23 @@ export function profileUrl(publicId) {
   return publicId ? `https://www.linkedin.com/in/${publicId}/` : '';
 }
 
+/**
+ * `DISTANCE_2` → 2.
+ *
+ * `SELF` is deliberately not a degree: it is us, and answering `1` there would
+ * make our own profile look like a first-degree connection. Anything
+ * unrecognised returns `undefined`, which callers read as "not stated".
+ */
 export function degreeOf(distance) {
   const value = typeof distance === 'string' ? distance : distance && distance.value;
-  const map = { DISTANCE_1: 1, DISTANCE_2: 2, DISTANCE_3: 3, SELF: 1 };
+  const map = { DISTANCE_1: 1, DISTANCE_2: 2, DISTANCE_3: 3, OUT_OF_NETWORK: 3 };
   return map[value] || undefined;
+}
+
+/** Pull the `urn:li:fsd_profile:…` out of any urn that embeds one. */
+export function fsdProfileUrnIn(urn) {
+  const match = String(urn || '').match(/urn:li:fsd_profile:[^,)\s]+/);
+  return match ? match[0] : '';
 }
 
 function vectorImageUrl(image) {
@@ -39,12 +79,7 @@ function vectorImageUrl(image) {
   return segment ? `${root}${segment}` : '';
 }
 
-function dateToMs(d) {
-  if (!d || !d.year) return undefined;
-  return Date.UTC(d.year, (d.month || 1) - 1, d.day || 1);
-}
-
-const text = (v) => (v && typeof v === 'object' ? v.text || '' : v || '');
+const text = textOf;
 
 /* ------------------------------------------------------------------ */
 /*  Profile                                                           */
@@ -76,10 +111,10 @@ export function toProfile(fields = {}, source = 'profile') {
   };
   if (fields.companyUrn) profile.companyUrn = fields.companyUrn;
 
-  // `undefined` means this shape does not carry a distance at all — a search
-  // hit, a group member, a reaction — and must leave whatever we already know
-  // alone. Only a full profile read is entitled to say `null`, meaning "we
-  // looked and could not tell"; that one is passed in explicitly below.
+  // `undefined` means this shape does not carry a distance at all — a
+  // follower, a group member, a reaction — and must leave whatever we already
+  // know alone. Only a full profile read is entitled to say `null`, meaning
+  // "we looked and could not tell"; that one is passed in explicitly below.
   if (fields.connectionDegree !== undefined) {
     profile.connectionDegree = fields.connectionDegree;
   }
@@ -89,16 +124,16 @@ export function toProfile(fields = {}, source = 'profile') {
   return profile;
 }
 
-/** A `miniProfile` (messaging, comments, event attendees) → `Profile`. */
+/** A `miniProfile` (messaging, invitations, legacy collections) → `Profile`. */
 export function miniProfileToProfile(mini, source = 'profile') {
   if (!mini) return null;
   return toProfile(
     {
-      publicId: mini.publicIdentifier,
-      urn: mini.entityUrn || mini.objectUrn,
-      firstName: mini.firstName,
-      lastName: mini.lastName,
-      headline: mini.occupation || mini.headline,
+      publicId: mini.publicIdentifier || publicIdFromUrl(mini.publicProfileUrl || mini.profileUrl),
+      urn: mini.dashEntityUrn || mini.entityUrn || mini.objectUrn,
+      firstName: text(mini.firstName),
+      lastName: text(mini.lastName),
+      headline: text(mini.occupation || mini.headline),
       photoUrl: vectorImageUrl(mini.picture || mini.profilePicture),
       location:
         mini.location ||
@@ -110,164 +145,329 @@ export function miniProfileToProfile(mini, source = 'profile') {
   );
 }
 
-/** A full `profileView` response → contract `Profile`. */
+/**
+ * A dash `Profile` entity (`identity/dash/profiles`, the connections list) →
+ * the contract fields, with `*geo` and `*industry` followed through `included`.
+ */
+function dashProfileFields(profile, idx) {
+  const geo = profile.geoLocation ? field(profile.geoLocation, 'geo', idx) : null;
+  const industry = field(profile, 'industry', idx);
+  return {
+    publicId: profile.publicIdentifier,
+    urn: profile.entityUrn,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    headline: profile.headline,
+    summary: profile.summary || '',
+    location: (geo && geo.defaultLocalizedName) || profile.locationName || '',
+    industry: (industry && industry.name) || profile.industryName || '',
+    photoUrl: vectorImageUrl(profile.profilePicture),
+  };
+}
+
+/**
+ * The degree, read off the `MemberRelationship` the top-card decoration
+ * includes. This is the only place in the current API that states it for one
+ * person, which is why a profile read asks for that decoration.
+ */
+function relationshipDegree(raw) {
+  const [relationship] = entitiesOfType(raw, 'relationships.MemberRelationship');
+  if (!relationship) return undefined;
+  const union =
+    relationship.memberRelationshipUnion || relationship.memberRelationshipData || relationship;
+  if (union.connection) return 1;
+  if (union.noConnection) return degreeOf(union.noConnection.memberDistance);
+  if (union.selfProfile) return undefined;
+  return degreeOf(union.memberDistance);
+}
+
+/**
+ * An `identity/dash/profiles?q=memberIdentity` response → contract `Profile`.
+ *
+ * Works for both decorations the engine asks for: the top card (identity plus
+ * the member relationship, so the degree) and the full profile (summary and
+ * industry). The response includes more than one `Profile` — the top card also
+ * carries *us*, as the potential inviter — so the subject is taken from the
+ * collection's `*elements` reference rather than by picking the first match.
+ */
 export function normalizeProfileView(raw, source = 'profile') {
-  const included = (raw && raw.included) || [];
+  const idx = index(raw);
   const profile =
-    included.find((e) => (e.$type || '').endsWith('identity.profile.Profile')) ||
-    included.find((e) => (e.$type || '').includes('Profile')) ||
+    elements(raw, idx).find((e) => e && e.publicIdentifier) ||
+    elements(raw, idx)[0] ||
+    entitiesOfType(raw, 'identity.profile.Profile')[0] ||
     {};
 
-  const positions = included
-    .filter((e) => (e.$type || '').includes('Position') && !(e.$type || '').includes('Group'))
-    .map((p) => ({
-      title: p.title || '',
-      company: p.companyName || '',
-      start: dateToMs(p.timePeriod && p.timePeriod.startDate),
-      end: dateToMs(p.timePeriod && p.timePeriod.endDate),
-      description: p.description || '',
-      companyUrn: p.companyUrn || '',
-    }));
-
-  const current = positions.find((p) => !p.end) || positions[0] || {};
-
-  const skills = included
-    .filter((e) => (e.$type || '').includes('Skill'))
-    .map((s) => s.name)
-    .filter(Boolean);
-
-  const education = included
-    .filter((e) => (e.$type || '').includes('Education'))
-    .map((ed) => ({
-      school: ed.schoolName || (ed.school && ed.school.name) || '',
-      degree: ed.degreeName || ed.degree || '',
-      field: ed.fieldOfStudy || '',
-      start: dateToMs(ed.timePeriod && ed.timePeriod.startDate),
-      end: dateToMs(ed.timePeriod && ed.timePeriod.endDate),
-    }));
+  const degree = relationshipDegree(raw);
 
   return toProfile(
     {
-      publicId: profile.publicIdentifier,
-      urn: profile.entityUrn || profile.objectUrn,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      headline: profile.headline,
-      title: current.title || profile.headline || '',
-      company: current.company || '',
-      companyUrn: current.companyUrn || '',
-      location: profile.locationName || profile.geoLocationName || '',
-      industry: profile.industryName || profile.industry || '',
-      summary: profile.summary || '',
-      photoUrl: vectorImageUrl(profile.picture || profile.profilePicture),
+      ...dashProfileFields(profile, idx),
       // A profile read is the one shape that always knows: an unparsable
       // distance here is a real "could not tell", not an absent field, and it
       // must overwrite whatever degree we were holding.
-      connectionDegree: degreeOf(profile.distance) ?? null,
-      skills,
-      experience: positions,
-      education,
+      connectionDegree: degree ?? null,
+      // LinkedIn no longer serves positions, schools or skills on any endpoint
+      // we have identified. Empty is the honest answer; `profile.get
+      // { full: true }` fills the gap from the page itself.
+      skills: [],
+      experience: [],
+      education: [],
     },
     source,
   );
 }
 
 /**
- * The v1 flat profile shape, kept so the untouched v1 popup and content script
- * keep working. New code should use `normalizeProfileView`.
+ * Merge a second decoration's read into the first.
+ *
+ * The top card knows the degree; the full profile knows the summary and the
+ * industry. Neither is a superset, so `profile.get { full: true }` reads both
+ * and this puts them together — taking a value from `extra` only where the
+ * base does not have one, so the base decoration stays authoritative.
  */
-export function normalizeProfile(raw) {
-  const p = normalizeProfileView(raw);
+export function mergeProfiles(base, extra) {
+  if (!extra) return base;
+  if (!base) return extra;
+  const out = { ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined || value === null || value === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    const current = out[key];
+    const empty =
+      current === undefined ||
+      current === null ||
+      current === '' ||
+      (Array.isArray(current) && current.length === 0);
+    if (empty) out[key] = value;
+  }
+  // The degree is the top card's to state, including when it states `null`.
+  if ('connectionDegree' in base) out.connectionDegree = base.connectionDegree;
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Profile sections (experience, education, skills)                  */
+/* ------------------------------------------------------------------ */
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** `Jan 2015`, `2015` and `Present` — the three things a caption ever says. */
+function parseMonthYear(value) {
+  const str = String(value || '').trim();
+  if (!str || /^present$/i.test(str)) return undefined;
+  const monthYear = str.match(/^([A-Za-z]{3,})\s+(\d{4})$/);
+  if (monthYear) {
+    const month = MONTHS.indexOf(monthYear[1].slice(0, 3).toLowerCase());
+    if (month >= 0) return Date.UTC(Number(monthYear[2]), month, 1);
+  }
+  const year = str.match(/^(\d{4})$/);
+  return year ? Date.UTC(Number(year[1]), 0, 1) : undefined;
+}
+
+/**
+ * `"2000 - Present · 26 yrs 9 mos"` → `{ start, end }`.
+ *
+ * The duration after the middle dot is LinkedIn's own arithmetic and is
+ * dropped; an open-ended range leaves `end` undefined, which is what the rest
+ * of the engine reads as "current role".
+ */
+export function parseDateRange(caption) {
+  const range = String(caption || '').split('·')[0].trim();
+  const [from, to] = range.split(/\s+[-–]\s+/);
+  return { start: parseMonthYear(from), end: parseMonthYear(to) };
+}
+
+function companyUrnOf(entity) {
+  const attributes = (entity.image && entity.image.attributes) || [];
+  for (const attribute of attributes) {
+    const detail = attribute.detailData || {};
+    const urn = detail['*companyLogo'] || detail.companyLogo;
+    if (typeof urn === 'string') return urn;
+  }
+  const target = String(entity.textActionTarget || '').match(/\/company\/(\d+)/);
+  return target ? `urn:li:fsd_company:${target[1]}` : '';
+}
+
+function entityComponentToEntry(entity) {
   return {
-    firstName: p.firstName,
-    lastName: p.lastName,
-    fullName: p.fullName,
-    headline: p.headline,
-    title: p.title,
-    company: p.company,
-    location: p.location,
-    summary: p.summary || '',
-    industry: p.industry,
-    skills: p.skills,
-    education: p.education,
-    publicIdentifier: p.publicId,
-    linkedinUrl: p.url,
-    profileUrn: p.urn,
-    connectionDistance: p.connectionDegree ? `DISTANCE_${p.connectionDegree}` : '',
+    title: text(entity.titleV2) || text(entity.title),
+    subtitle: text(entity.subtitle) || text(entity.subtitleV2),
+    caption: text(entity.caption),
+    metadata: text(entity.metadata),
+    companyUrn: companyUrnOf(entity),
   };
+}
+
+/**
+ * `voyagerIdentityDashProfileComponents` → flat `{ title, subtitle, caption }`
+ * rows, whatever section was asked for.
+ *
+ * LinkedIn renders every profile section through the same component tree: the
+ * response holds one component per section which references a
+ * `PagedListComponent` in `included`, and each of *its* elements holds an
+ * `entityComponent` carrying the three lines the page shows. Reading those
+ * three lines is deliberately all this does — the tree is a rendering format
+ * and anything deeper would be guessing at how it will be laid out next month.
+ */
+export function normalizeProfileSection(raw) {
+  const idx = index(raw);
+  const out = [];
+  const seen = new Set();
+
+  const visit = (node, depth) => {
+    if (!node || typeof node !== 'object' || depth > 4) return;
+
+    const paged = field(node, 'pagedListComponent', idx);
+    if (paged && !seen.has(paged)) {
+      seen.add(paged);
+      const inner = paged.components || {};
+      const list = Array.isArray(inner.elements) ? inner.elements : [];
+      for (const element of list) visit(element.components || element, depth + 1);
+      return;
+    }
+
+    if (node.entityComponent) {
+      out.push(entityComponentToEntry(node.entityComponent));
+      return;
+    }
+
+    if (node.components) visit(node.components, depth + 1);
+  };
+
+  for (const element of elements(raw, idx)) visit(element.components || element, 0);
+  return out;
+}
+
+/** Section rows → contract `Profile.experience`. */
+export function sectionToExperience(entries) {
+  return (entries || [])
+    .map((e) => {
+      const { start, end } = parseDateRange(e.caption);
+      const position = {
+        title: e.title || '',
+        company: e.subtitle || '',
+        start,
+        end,
+        description: '',
+      };
+      if (e.companyUrn) position.companyUrn = e.companyUrn;
+      return position;
+    })
+    .filter((p) => p.title || p.company);
+}
+
+/**
+ * Section rows → contract `Profile.education`.
+ *
+ * LinkedIn writes the second line as `"<degree>, <field of study>"`, so the
+ * first comma splits them; a line without one is taken as the degree whole.
+ */
+export function sectionToEducation(entries) {
+  return (entries || [])
+    .map((e) => {
+      const { start, end } = parseDateRange(e.caption);
+      const subtitle = e.subtitle || '';
+      const comma = subtitle.indexOf(', ');
+      return {
+        school: e.title || '',
+        degree: comma > 0 ? subtitle.slice(0, comma) : subtitle,
+        field: comma > 0 ? subtitle.slice(comma + 2) : '',
+        start,
+        end,
+      };
+    })
+    .filter((e) => e.school);
+}
+
+/** Section rows → contract `Profile.skills`. */
+export function sectionToSkills(entries) {
+  return (entries || []).map((e) => e.title).filter(Boolean);
 }
 
 /* ------------------------------------------------------------------ */
 /*  Search                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * One `EntityResultViewModel` → `Profile`.
+ *
+ * This one shape backs people search, company employees and followers: the
+ * name is `title.text`, the headline `primarySubtitle.text`, the location
+ * `secondarySubtitle.text`, and the profile urn is embedded in `entityUrn`
+ * (`trackingUrn` is a `urn:li:member:` id, which is not what the rest of the
+ * engine speaks).
+ */
 function entityResultToProfile(entity, source) {
-  const navigationUrl = entity.navigationUrl || '';
+  const navigationUrl =
+    entity.navigationUrl || (entity.navigationContext && entity.navigationContext.url) || '';
   const publicId = publicIdFromUrl(navigationUrl);
-  const subtitle = text(entity.primarySubtitle);
-  const atIndex = subtitle.lastIndexOf(' at ');
+  const headline = text(entity.primarySubtitle);
+  const atIndex = headline.lastIndexOf(' at ');
+  const tracking = entity.entityCustomTrackingInfo || {};
+
   return toProfile(
     {
       publicId,
       url: publicId ? profileUrl(publicId) : navigationUrl,
       fullName: text(entity.title),
-      headline: subtitle,
-      title: atIndex > 0 ? subtitle.slice(0, atIndex) : subtitle,
-      company: atIndex > 0 ? subtitle.slice(atIndex + 4) : '',
+      headline,
+      title: atIndex > 0 ? headline.slice(0, atIndex) : headline,
+      company: atIndex > 0 ? headline.slice(atIndex + 4) : '',
       location: text(entity.secondarySubtitle),
-      urn: entity.trackingUrn || entity.entityUrn || '',
-      photoUrl: vectorImageUrl(
-        entity.image &&
-          entity.image.attributes &&
-          entity.image.attributes[0] &&
-          entity.image.attributes[0].detailData &&
-          entity.image.attributes[0].detailData.nonEntityProfilePicture,
-      ),
+      urn: fsdProfileUrnIn(entity.entityUrn) || entity.trackingUrn || '',
+      // A list read may *confirm* a connection but must never demote one. The
+      // engine's acceptance check reads the stored degree, and a search page
+      // that still says "2nd" for somebody who accepted an hour ago would
+      // undo a confirmed acceptance and make a campaign branch flap. So only
+      // the one claim that can be acted on is carried through.
+      connectionDegree: degreeOf(tracking.memberDistance) === 1 ? 1 : undefined,
     },
     source,
   );
 }
 
-/** A `search/dash/clusters` response → `{ profiles, total }`. */
+/**
+ * A `voyagerSearchDashClusters` response → `{ profiles, total }`.
+ *
+ * The clusters carry only `*entityResult` references; the view models
+ * themselves live in `included`, so they are read from there directly. That
+ * also makes the normalizer indifferent to how many clusters LinkedIn splits
+ * the page into.
+ */
 export function normalizeSearchClusters(raw, source = 'search') {
-  const data = (raw && raw.data) || raw || {};
-  const clusters = data.elements || raw.elements || [];
   const profiles = [];
+  for (const entity of entitiesOfType(raw, 'search.EntityResultViewModel')) {
+    const profile = entityResultToProfile(entity, source);
+    if (profile.publicId || profile.fullName) profiles.push(profile);
+  }
 
-  for (const cluster of clusters) {
-    for (const item of cluster.items || cluster.results || []) {
-      const entity =
-        (item.item && item.item.entityResult) || item.entityResult || item.entity || item;
-      if (!entity || !entity.navigationUrl) continue;
-      const p = entityResultToProfile(entity, source);
-      if (p.publicId || p.fullName) profiles.push(p);
+  // Older captures (and the hand-written fixtures for endpoints we have not
+  // been able to verify) inline the entity results inside the clusters.
+  if (!profiles.length) {
+    const idx = index(raw);
+    for (const cluster of elements(raw, idx)) {
+      for (const item of cluster.items || cluster.results || []) {
+        const entity =
+          resolve(item.item && item.item['*entityResult'], idx) ||
+          (item.item && item.item.entityResult) ||
+          item.entityResult ||
+          item.entity ||
+          item;
+        if (!entity || !entity.navigationUrl) continue;
+        const profile = entityResultToProfile(entity, source);
+        if (profile.publicId || profile.fullName) profiles.push(profile);
+      }
     }
   }
 
-  const total =
-    (data.metadata && data.metadata.totalResultCount) ||
-    (data.paging && data.paging.total) ||
-    undefined;
-  return { profiles, total };
+  return { profiles, total: total(raw) };
 }
 
-/** The v1 flat search shape, kept for the untouched v1 popup. */
-export function normalizeSearchCluster(raw) {
-  return normalizeSearchClusters(raw).profiles.map((p) => ({
-    fullName: p.fullName,
-    headline: p.headline,
-    snippet: '',
-    publicIdentifier: p.publicId,
-    linkedinUrl: p.url,
-    entityUrn: p.urn,
-    image: p.photoUrl,
-  }));
-}
-
-/** Sales Navigator people search → `{ profiles, total }`. */
+/** Sales Navigator people search → `{ profiles, total }`. Unverified shape. */
 export function normalizeSalesNavSearch(raw) {
-  const elements = (raw && raw.elements) || [];
-  const profiles = elements.map((e) => {
+  const list = (raw && raw.elements) || [];
+  const profiles = list.map((e) => {
     const position = (e.currentPositions && e.currentPositions[0]) || {};
     return toProfile(
       {
@@ -293,10 +493,10 @@ export function normalizeSalesNavSearch(raw) {
   return { profiles, total: raw && raw.paging ? raw.paging.total : undefined };
 }
 
-/** Recruiter search → `{ profiles, total }`. */
+/** Recruiter search → `{ profiles, total }`. Unverified shape. */
 export function normalizeRecruiterSearch(raw) {
-  const elements = (raw && raw.elements) || [];
-  const profiles = elements.map((e) => {
+  const list = (raw && raw.elements) || [];
+  const profiles = list.map((e) => {
     const p = e.profile || e;
     const position = (p.currentPositions && p.currentPositions[0]) || {};
     return toProfile(
@@ -321,6 +521,36 @@ export function normalizeRecruiterSearch(raw) {
 /*  Collections of people                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * `relationships/dash/connections` → `{ profiles, total }`.
+ *
+ * Each element is a `Connection` holding the date and a reference to the
+ * member's `Profile`; being in this collection *is* the answer to "what
+ * degree", so the degree is stated rather than inferred.
+ */
+export function normalizeConnections(raw) {
+  const idx = index(raw);
+  const profiles = [];
+
+  for (const connection of elements(raw, idx)) {
+    const person =
+      field(connection, 'connectedMemberResolutionResult', idx) ||
+      resolve(connection.connectedMember, idx) ||
+      (connection.publicIdentifier ? connection : null);
+    if (!person) continue;
+
+    const profile = toProfile(
+      { ...dashProfileFields(person, idx), connectionDegree: 1 },
+      'connections',
+    );
+    if (!profile.publicId) continue;
+    if (connection.createdAt) profile.connectedAt = connection.createdAt;
+    profiles.push(profile);
+  }
+
+  return { profiles, total: total(raw) };
+}
+
 const PROFILE_WRAPPERS = [
   'connectedMemberResolutionResult',
   'followerProfile',
@@ -331,70 +561,99 @@ const PROFILE_WRAPPERS = [
 ];
 
 /**
- * Connections, followers, group members and event attendees all come back as
- * `elements` wrapping a profile under one of a handful of field names.
+ * Group members and event attendees: an `elements` list wrapping a profile
+ * under one of a handful of field names.
+ *
+ * Both endpoints are **unverified** against the current client — see
+ * `docs/voyager-endpoints.md` — so this stays deliberately forgiving and the
+ * caller turns an unrecognised body into a `LINKEDIN_ERROR` rather than a
+ * silently empty list.
  */
 export function normalizeProfileCollection(raw, source = 'network') {
-  const elements = (raw && raw.elements) || (raw && raw.data && raw.data.elements) || [];
+  const idx = index(raw);
   const profiles = [];
 
-  for (const element of elements) {
+  for (const element of elements(raw, idx)) {
     let person = null;
     for (const key of PROFILE_WRAPPERS) {
-      if (element[key]) {
-        person = element[key];
+      const wrapped = field(element, key, idx);
+      if (wrapped) {
+        person = wrapped;
         break;
       }
     }
     if (!person && element.publicIdentifier) person = element;
     if (!person) continue;
 
-    const p = miniProfileToProfile(person, source);
-    if (!p || !p.publicId) continue;
-    if (source === 'connections') p.connectionDegree = 1;
-    profiles.push(p);
+    const profile = person.$type && person.$type.endsWith('identity.profile.Profile')
+      ? toProfile(dashProfileFields(person, idx), source)
+      : miniProfileToProfile(person, source);
+    if (!profile || !profile.publicId) continue;
+    profiles.push(profile);
   }
 
-  const total = raw && raw.paging ? raw.paging.total : undefined;
-  return { profiles, total };
+  return { profiles, total: total(raw) };
 }
 
 /* ------------------------------------------------------------------ */
 /*  Engagers                                                          */
 /* ------------------------------------------------------------------ */
 
-/** `feed/reactions` → `Engager[]`. */
+/** `"2nd"`, `"3rd+"` → the degree. Reactions state it as a rendered label. */
+function degreeFromLabel(label) {
+  const match = String(label || '').match(/^([123])(?:st|nd|rd)/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+/**
+ * `voyagerSocialDashReactions` → `Engager[]`.
+ *
+ * Each `Reaction` carries a rendered `reactorLockup` — name, headline, degree
+ * label and profile link — plus the reactor's profile urn. The `Profile`
+ * entities the response also includes are stubs, so the lockup is the source.
+ * Its navigation url uses the obfuscated member id rather than a vanity name,
+ * so that is what `publicId` holds; it is still a working profile URL and a
+ * stable key.
+ */
 export function normalizeReactions(raw) {
-  const elements = (raw && raw.elements) || [];
+  const idx = index(raw);
   const out = [];
-  for (const e of elements) {
-    const lockup = e.reactorLockup || {};
-    const mini =
-      (e.reactor && e.reactor['com.linkedin.voyager.feed.MemberActor']) || e.actor || null;
-    const base = mini
-      ? miniProfileToProfile(mini.miniProfile || mini, 'post-engagers')
-      : toProfile(
-          {
-            publicId: publicIdFromUrl(lockup.navigationUrl),
-            fullName: text(lockup.title),
-            headline: text(lockup.subtitle),
-            urn: e.actorUrn || '',
-          },
-          'post-engagers',
-        );
+  for (const e of elements(raw, idx)) {
+    const lockup = e.reactorLockup;
+    let base;
+
+    if (lockup) {
+      const publicId = publicIdFromUrl(lockup.navigationUrl);
+      base = toProfile(
+        {
+          publicId,
+          url: publicId ? profileUrl(publicId) : lockup.navigationUrl || '',
+          fullName: text(lockup.title),
+          headline: text(lockup.subtitle),
+          urn: e.actorUrn || (e.actor && e.actor['*profileUrn']) || '',
+          connectionDegree: degreeFromLabel(text(lockup.label)),
+        },
+        'post-engagers',
+      );
+    } else {
+      const mini =
+        (e.reactor && e.reactor['com.linkedin.voyager.feed.MemberActor']) || e.actor || null;
+      base = mini ? miniProfileToProfile(mini.miniProfile || mini, 'post-engagers') : null;
+    }
+
     if (!base || !base.publicId) continue;
     base.reaction = e.reactionType || 'LIKE';
-    base.engagedAt = e.createdAt || undefined;
+    if (e.createdAt) base.engagedAt = e.createdAt;
     out.push(base);
   }
   return out;
 }
 
-/** `feed/comments` → `Engager[]`. */
+/** Post comments → `Engager[]`. Unverified shape. */
 export function normalizeComments(raw) {
-  const elements = (raw && raw.elements) || [];
+  const idx = index(raw);
   const out = [];
-  for (const e of elements) {
+  for (const e of elements(raw, idx)) {
     const actor =
       (e.commenter && e.commenter['com.linkedin.voyager.feed.MemberActor']) || e.commenter || {};
     const base = miniProfileToProfile(actor.miniProfile || actor, 'post-engagers');
@@ -410,59 +669,125 @@ export function normalizeComments(raw) {
 /*  Messaging                                                         */
 /* ------------------------------------------------------------------ */
 
-function messagingMember(node) {
-  if (!node) return null;
-  const inner = node['com.linkedin.voyager.messaging.MessagingMember'] || node;
-  return inner.miniProfile || inner;
-}
-
-function eventText(event) {
-  const content = (event && event.eventContent) || {};
-  const message = content['com.linkedin.voyager.messaging.event.MessageEvent'] || content;
-  return (message.attributedBody && message.attributedBody.text) || message.body || '';
-}
-
+/**
+ * `urn:li:msg_conversation:(urn:li:fsd_profile:…,2-abc==)` → `2-abc==`.
+ * A bare thread id, and the older `urn:li:fs_conversation:` form, pass
+ * through unchanged.
+ */
 export function threadIdFromUrn(urn) {
   const str = String(urn || '');
-  const match = str.match(/urn:li:fs_conversation:(.+)$/);
-  return match ? match[1] : str;
+  const tuple = str.match(/,([^,()]+)\)\s*$/);
+  if (tuple) return tuple[1];
+  const legacy = str.match(/urn:li:(?:fs_conversation|msg_conversation):(.+)$/);
+  return legacy ? legacy[1] : str;
 }
 
-/** `messaging/conversations` → `Thread[]`. */
-export function normalizeConversations(raw) {
-  const elements = (raw && raw.elements) || [];
-  return elements.map((c) => {
-    const events = c.events || [];
-    const latest = events[0] || {};
+/** Rebuild the urn the messaging API wants from a stored thread id. */
+export function conversationUrn(mailboxUrn, threadId) {
+  const id = String(threadId || '');
+  if (id.startsWith('urn:li:msg_conversation:')) return id;
+  return `urn:li:msg_conversation:(${mailboxUrn},${id})`;
+}
+
+/** The member behind a messaging participant, in either shape. */
+function participantPerson(participant, idx) {
+  if (!participant) return null;
+  const node = resolve(participant, idx) || participant;
+  const member = (node.participantType && node.participantType.member) || null;
+
+  if (member) {
+    const publicId =
+      member.publicIdentifier || publicIdFromUrl(member.profileUrl || member.publicProfileUrl);
     return {
-      threadId: threadIdFromUrn(c.entityUrn),
-      participants: (c.participants || [])
-        .map(messagingMember)
-        .filter(Boolean)
-        .map((m) => ({
-          publicId: m.publicIdentifier || '',
-          fullName: `${m.firstName || ''} ${m.lastName || ''}`.trim(),
-        })),
-      lastMessageAt: c.lastActivityAt || latest.createdAt || 0,
-      unread: c.unreadCount ? c.unreadCount > 0 : c.read === false,
-      snippet: eventText(latest),
+      publicId,
+      urn: node.hostIdentityUrn || node.entityUrn || '',
+      fullName: `${text(member.firstName)} ${text(member.lastName)}`.trim(),
+    };
+  }
+
+  const legacy = node['com.linkedin.voyager.messaging.MessagingMember'] || node;
+  const mini = legacy.miniProfile || legacy;
+  if (!mini || (!mini.publicIdentifier && !mini.firstName)) return null;
+  return {
+    publicId: mini.publicIdentifier || '',
+    urn: mini.dashEntityUrn || mini.entityUrn || node.hostIdentityUrn || '',
+    fullName: `${text(mini.firstName)} ${text(mini.lastName)}`.trim(),
+  };
+}
+
+/** A message body, current (`body.text`) or legacy (`eventContent`). */
+function messageBody(message) {
+  if (!message) return '';
+  if (message.body) return text(message.body);
+  const content = message.eventContent || {};
+  const legacy = content['com.linkedin.voyager.messaging.event.MessageEvent'] || content;
+  return (legacy.attributedBody && legacy.attributedBody.text) || legacy.body || '';
+}
+
+function messageTime(message) {
+  return (message && (message.deliveredAt || message.createdAt)) || 0;
+}
+
+/** The most recent message carried inline on a conversation, if any. */
+function lastMessageOf(conversation, idx) {
+  const container = conversation.messages || conversation.events;
+  if (!container) return null;
+  const list = Array.isArray(container)
+    ? container
+    : (container.elements || container['*elements'] || []).map((m) => resolve(m, idx) || m);
+  if (!list.length) return null;
+  return list.reduce((latest, m) => (messageTime(m) >= messageTime(latest) ? m : latest), list[0]);
+}
+
+/**
+ * `messengerConversations…` → `Thread[]`.
+ *
+ * @param {object} raw
+ * @param {string} [selfUrn] our own `fsd_profile` urn, so we are left out of
+ *   the participant list
+ */
+export function normalizeConversations(raw, selfUrn = '') {
+  const idx = index(raw);
+  return elements(raw, idx).map((c) => {
+    const last = lastMessageOf(c, idx);
+    const people = (c.conversationParticipants || c.participants || [])
+      .map((p) => participantPerson(p, idx))
+      .filter(Boolean)
+      .filter((p) => !selfUrn || p.urn !== selfUrn);
+
+    return {
+      threadId: threadIdFromUrn(c.entityUrn || c.conversationUrn),
+      participants: people.map((p) => ({ publicId: p.publicId, fullName: p.fullName })),
+      lastMessageAt: c.lastActivityAt || messageTime(last),
+      unread: c.read === false || (c.unreadCount || 0) > 0,
+      snippet: messageBody(last),
     };
   });
 }
 
-/** A conversation's events → `Message[]`, oldest first. */
+/**
+ * `messengerMessages…` → `Message[]`, oldest first.
+ *
+ * `fromUrn` is carried alongside `fromPublicId` because the messaging API
+ * identifies a sender by urn and only sometimes resolves the member behind it;
+ * reply detection can then still tell our own messages from theirs.
+ */
 export function normalizeMessages(raw, threadId) {
-  const elements = (raw && raw.elements) || [];
-  return elements
-    .map((e) => {
-      const from = messagingMember(e.from) || {};
-      return {
-        messageId: e.entityUrn || `${threadId}:${e.createdAt}`,
+  const idx = index(raw);
+  return elements(raw, idx)
+    .map((m) => {
+      const from = participantPerson(m.sender || m.from, idx) || {};
+      const sentAt = messageTime(m);
+      const message = {
+        messageId: m.entityUrn || `${threadId}:${sentAt}`,
         threadId,
-        fromPublicId: from.publicIdentifier || '',
-        body: eventText(e),
-        sentAt: e.createdAt || 0,
+        fromPublicId: from.publicId || '',
+        body: messageBody(m),
+        sentAt,
       };
+      const urn = from.urn || (m.sender && m.sender.hostIdentityUrn) || '';
+      if (urn) message.fromUrn = urn;
+      return message;
     })
     .sort((a, b) => a.sentAt - b.sentAt);
 }
@@ -476,30 +801,54 @@ function sizeLabel(range, staffCount) {
   return staffCount ? String(staffCount) : '';
 }
 
-/** `organization/companies` → contract `Company`. */
-export function normalizeCompany(raw) {
-  const c = (raw && raw.elements && raw.elements[0]) || (raw && raw.data) || raw || {};
-  const universalName = c.universalName || '';
+/**
+ * `organizationDashCompaniesByUniversalName` → contract `Company`, or `null`
+ * when the response carries no company at all.
+ *
+ * The universal name is echoed from the request: the GraphQL query the web app
+ * uses returns a thin `Company` for some organisations — sometimes little more
+ * than the `entityUrn` — and the urn alone is still worth having, because it
+ * is what a `currentCompany` employee search needs.
+ */
+export function normalizeCompany(raw, universalName = '') {
+  const idx = index(raw);
+  const c =
+    elements(raw, idx)[0] ||
+    entitiesOfType(raw, 'organization.Company')[0] ||
+    (raw && raw.elements && raw.elements[0]) ||
+    null;
+  if (!c) return null;
+
+  const name = c.universalName || universalName || '';
+  const industry = field(c, 'industry', idx);
   return {
-    universalName,
+    universalName: name,
     urn: c.entityUrn || c.objectUrn || '',
     name: c.name || '',
-    url: universalName ? `https://www.linkedin.com/company/${universalName}/` : '',
+    url: name ? `https://www.linkedin.com/company/${name}/` : '',
     industry:
       (c.companyIndustries && c.companyIndustries[0] && c.companyIndustries[0].localizedName) ||
-      c.industry ||
+      (industry && industry.name) ||
+      (typeof c.industry === 'string' ? c.industry : '') ||
       '',
-    size: sizeLabel(c.staffCountRange, c.staffCount),
+    size: sizeLabel(c.staffCountRange || c.employeeCountRange, c.staffCount || c.employeeCount),
     hq: c.headquarter
       ? [c.headquarter.city, c.headquarter.geographicArea, c.headquarter.country]
           .filter(Boolean)
           .join(', ')
       : '',
-    website: c.companyPageUrl || c.website || '',
-    description: c.description || '',
-    followerCount: (c.followingInfo && c.followingInfo.followerCount) || undefined,
+    website: c.websiteUrl || c.companyPageUrl || c.website || '',
+    description: c.description || c.tagline || '',
+    followerCount:
+      (c.followingState && c.followingState.followerCount) || c.followerCount || undefined,
     capturedAt: Date.now(),
   };
+}
+
+/** The numeric company id off a company urn: `urn:li:fsd_company:1035` → 1035. */
+export function companyIdFromUrn(urn) {
+  const match = String(urn || '').match(/urn:li:fsd?_company:(\d+)/);
+  return match ? match[1] : '';
 }
 
 /* ------------------------------------------------------------------ */
@@ -508,36 +857,35 @@ export function normalizeCompany(raw) {
 
 /** A member's recent shares → `{ url, text, likes, comments, postedAt }[]`. */
 export function normalizePosts(raw) {
-  const elements = (raw && raw.elements) || [];
-  return elements
+  const idx = index(raw);
+  return elements(raw, idx)
     .map((e) => {
-      const counts =
-        (e.socialDetail && e.socialDetail.totalSocialActivityCounts) || e.socialCounts || {};
-      const activityMatch = String(e.entityUrn || '').match(/urn:li:activity:(\d+)/);
+      const social = field(e, 'socialDetail', idx) || e.socialDetail || {};
+      const counts = social.totalSocialActivityCounts || e.socialCounts || {};
+      const urn =
+        String(e.entityUrn || '') ||
+        String((e.updateMetadata && e.updateMetadata.urn) || '') ||
+        String(e.preDashEntityUrn || '');
+      const activity = `${urn} ${e.preDashEntityUrn || ''} ${
+        (e.updateMetadata && e.updateMetadata.urn) || ''
+      }`.match(/urn:li:activity:(\d+)/);
+
       return {
         url:
           e.permalink ||
-          (activityMatch
-            ? `https://www.linkedin.com/feed/update/urn:li:activity:${activityMatch[1]}/`
-            : ''),
-        text: (e.commentary && text(e.commentary.text)) || text(e.commentary) || '',
-        likes: counts.numLikes || 0,
-        comments: counts.numComments || 0,
+          (activity ? `https://www.linkedin.com/feed/update/urn:li:activity:${activity[1]}/` : ''),
+        text: text(e.commentary && e.commentary.text) || text(e.commentary) || '',
+        likes: counts.numLikes || counts.likes || 0,
+        comments: counts.numComments || counts.comments || 0,
         postedAt: e.createdAt || undefined,
       };
     })
     .filter((p) => p.url || p.text);
 }
 
-/** The `total` off a zero-count search used to count mutual connections. */
+/** The `total` off a search used to count mutual connections. */
 export function normalizeTotal(raw) {
-  const data = (raw && raw.data) || {};
-  return (
-    (data.paging && data.paging.total) ||
-    (data.metadata && data.metadata.totalResultCount) ||
-    (raw && raw.paging && raw.paging.total) ||
-    0
-  );
+  return total(raw) || 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -545,31 +893,52 @@ export function normalizeTotal(raw) {
 /* ------------------------------------------------------------------ */
 
 /**
- * `growth/normInvitations?q=sentInvitationsV2` → the people whose invitation
- * is still outstanding. Voyager has moved this shape around, so the invitee is
- * read from any of the three wrappers it has used.
+ * `relationships/sentInvitationViewsV2` → the people whose invitation is still
+ * outstanding.
+ *
+ * Each element is a thin view pointing at an `Invitation`, which points in
+ * turn at the invitee's `MiniProfile`. The older inline shapes are still read
+ * so a stored response from an earlier build does not break.
  */
 export function normalizeSentInvitations(raw) {
-  const elements = (raw && raw.elements) || (raw && raw.data && raw.data.elements) || [];
+  const idx = index(raw);
   const out = [];
 
-  for (const element of elements) {
+  for (const element of elements(raw, idx)) {
+    const invitation = field(element, 'invitation', idx) || element.invitation || element;
     const invitee =
-      (element.invitee && element.invitee['com.linkedin.voyager.growth.invitation.InviteeProfile']) ||
-      element.invitee ||
-      element.inviteeProfile ||
-      element.toMember ||
+      field(invitation.invitee || {}, 'miniProfile', idx) ||
+      field(invitation, 'inviteeMemberResolutionResult', idx) ||
+      field(invitation, 'toMember', idx) ||
+      (invitation.invitee &&
+        invitation.invitee['com.linkedin.voyager.growth.invitation.InviteeProfile']) ||
+      invitation.invitee ||
+      invitation.inviteeProfile ||
+      invitation.toMember ||
       {};
     const mini = invitee.miniProfile || invitee;
-    const publicId = mini.publicIdentifier || publicIdFromUrl(mini.publicProfileUrl);
+    // The GraphQL view carries no vanity name on the profile it includes; the
+    // card's own link is where it is written.
+    const publicId =
+      mini.publicIdentifier ||
+      publicIdFromUrl(mini.publicProfileUrl) ||
+      publicIdFromUrl(element.cardActionTarget);
     if (!publicId) continue;
 
     out.push({
       publicId,
-      invitationUrn: element.entityUrn || element.invitationUrn || '',
-      sentAt: element.sentTime || element.createdAt || undefined,
+      invitationUrn:
+        invitation.entityUrn ||
+        invitation.mailboxItemId ||
+        element['*invitation'] ||
+        element.entityUrn ||
+        '',
+      sentAt: invitation.sentTime || invitation.createdAt || undefined,
     });
   }
 
   return out;
 }
+
+/* Re-exported so callers can ask "did we understand this body at all?". */
+export { collection, elements, hasCollection, index, resolve, textOf } from './normalized.js';

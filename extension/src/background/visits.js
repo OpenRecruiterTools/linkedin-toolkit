@@ -32,15 +32,21 @@ export const PROFILE_CACHE_MS = 24 * 60 * 60 * 1000;
  * which a search hit or a CSV import never has — so the cache can tell the
  * difference between "we looked at this person" and "we know their name".
  *
+ * `full` asks for the richer read — the second profile decoration and the
+ * education and skills sections on top of the experience one. Those extras are
+ * page-component reads rather than profile views, so they cost nothing against
+ * the `visit` bucket: one call here is still one visit.
+ *
  * @param {string} publicId
  * @param {string} [source] the Profile.source to stamp
+ * @param {{full?: boolean}} [options]
  * @returns {Promise<object>} contract Profile
  */
-export async function meteredProfile(publicId, source = 'profile') {
+export async function meteredProfile(publicId, source = 'profile', { full = false } = {}) {
   await quota.reserve('visit');
   await quota.humanDelay();
 
-  const profile = await voyager.getProfileNormalized(publicId, source);
+  const profile = await voyager.getProfileNormalized(publicId, source, { full });
   profile.profileViewedAt = Date.now();
   await putProfile(profile);
   return profile;
