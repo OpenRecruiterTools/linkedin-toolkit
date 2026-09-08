@@ -22,6 +22,7 @@ import './extract.js';
 import './lists.js';
 import './queue.js';
 import './outreach.js';
+import './ai.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
