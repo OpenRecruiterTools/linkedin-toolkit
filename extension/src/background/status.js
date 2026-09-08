@@ -14,14 +14,55 @@ import { readCampaigns } from './campaigns.js';
 import { pendingCount } from './queue.js';
 import * as quota from './quota.js';
 import { isLoggedIn } from './voyager-core.js';
+import { verifyEndpoints } from './voyager.js';
 
-/** The contract `Status`. */
-export async function status() {
+/**
+ * Charge the two self-check calls that cost something.
+ *
+ * The self-check reads one search result and looks at the signed-in user's own
+ * profile; both are metered exactly as the real actions are, so running the
+ * check cannot be a way around the caps. Everything else it touches — `/me`,
+ * a company, a page of one conversation — is free.
+ */
+async function meterSelfCheck(kind, n) {
+  if (kind === 'visit') {
+    await quota.reserve('visit');
+    return;
+  }
+  await quota.check(kind, n);
+  await quota.record(kind, n);
+}
+
+/**
+ * The contract `Status`.
+ *
+ * `verify: true` additionally runs a read-only pass over every endpoint the
+ * engine depends on and reports one word per endpoint. It exists because a
+ * LinkedIn release breaks endpoints one at a time and silently: the query ids
+ * in `ENDPOINTS` go stale, and until something is actually called nobody
+ * knows which. `postUrl` gives the reaction check a post to count likes on;
+ * without one that single endpoint is reported `skipped`.
+ */
+export async function status({ verify = false, postUrl } = {}) {
   const config = await getConfig();
   const campaigns = await readCampaigns();
   const bridge = bridgeState();
 
+  const verification = verify
+    ? await verifyEndpoints({ probes: { postUrl }, meter: meterSelfCheck })
+    : null;
+
   return {
+    ...(verification
+      ? {
+          endpoints: verification.endpoints,
+          clientVersionCaptured: verification.clientVersionCaptured,
+          endpointsCapturedAt: verification.capturedAt,
+          ...(Object.keys(verification.errors).length
+            ? { endpointErrors: verification.errors }
+            : {}),
+        }
+      : {}),
     connected: true,
     extensionVersion: chrome.runtime.getManifest().version,
     loggedIn: await isLoggedIn(),
@@ -142,6 +183,6 @@ export async function writeConfig(params = {}, ctx = {}) {
   return ignoredKeys.length ? { ...result, ignoredKeys } : result;
 }
 
-register(ACTIONS.STATUS_GET, () => status());
+register(ACTIONS.STATUS_GET, (params) => status(params));
 register(ACTIONS.CONFIG_GET, (_params, ctx) => readConfig(ctx));
 register(ACTIONS.CONFIG_SET, (params, ctx) => writeConfig(params, ctx));
