@@ -39,6 +39,24 @@ jobs:
       - name: Test
         run: npm test
 
+      # better-sqlite3 is the only native module in the project and the one
+      # thing that can fail at `npm install` on a user's machine. A green test
+      # run does not prove it loaded — the suite can pass on a prebuilt binary
+      # that was never actually opened. Open one.
+      - name: better-sqlite3 loads and answers
+        working-directory: mcp-server
+        run: node -e "console.log(require('better-sqlite3')(':memory:').prepare('select 1 as one').get())"
+
+      # openapi.json and tools.json are generated from src/contract.ts and are
+      # committed, so a contract change that nobody regenerated ships a lying
+      # API document. Regenerate and insist nothing moved.
+      - name: OpenAPI and tools.json are current
+        run: |
+          npm run build -w mcp-server
+          npm run gen -w mcp-server
+          git diff --exit-code -- mcp-server/openapi.json mcp-server/tools.json \
+            || { echo "::error::mcp-server/openapi.json or tools.json is stale. Run 'npm run gen -w mcp-server' and commit the result."; exit 1; }
+
   sequences:
     name: sequence templates
     runs-on: ubuntu-latest
