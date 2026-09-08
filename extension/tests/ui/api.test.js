@@ -78,7 +78,7 @@ describe('call', () => {
       await call(ACTIONS.SEARCH_PEOPLE, { keywords: 'cto' });
     } catch (e) {
       expect(e.code).toBe('NOT_LOGGED_IN');
-      expect(e.display).toBe('NOT_LOGGED_IN: sign in — open linkedin.com');
+      expect(e.display).toBe('sign in open linkedin.com (NOT_LOGGED_IN)');
     }
   });
 });

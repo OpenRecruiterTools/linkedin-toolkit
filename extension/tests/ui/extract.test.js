@@ -268,6 +268,6 @@ describe('Extract tab', () => {
 
     const err = cardOf(host, 'connections').querySelector('.err');
     expect(err.hidden).toBe(false);
-    expect(err.textContent).toBe('NOT_LOGGED_IN: sign in first — open linkedin.com');
+    expect(err.textContent).toBe('sign in first open linkedin.com (NOT_LOGGED_IN)');
   });
 });

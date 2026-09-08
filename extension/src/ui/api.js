@@ -20,8 +20,9 @@ export class ApiError extends Error {
 
   /** Single line suitable for an inline error row. */
   get display() {
-    const base = `${this.code}: ${this.message}`;
-    return this.howToFix ? `${base} — ${this.howToFix}` : base;
+    // Human first: the message, then how to fix it; the machine code trails in brackets.
+    const base = this.howToFix ? `${this.message} ${this.howToFix}` : this.message;
+    return `${base} (${this.code})`;
   }
 }
 
