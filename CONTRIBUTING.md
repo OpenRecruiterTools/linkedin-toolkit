@@ -13,13 +13,13 @@ engine.
 | **An agent integration** | A day | [examples/](examples/) for the shape |
 | **Docs** | Anything from a typo up | — |
 
-Start with a [good first issue](https://github.com/FormatixAI/linkedin-toolkit/labels/good%20first%20issue).
+Start with a [good first issue](https://github.com/OpenRecruiterTools/linkedin-toolkit/labels/good%20first%20issue).
 They name the files to touch and say what "done" means.
 
 ## Setup
 
 ```bash
-git clone https://github.com/FormatixAI/linkedin-toolkit
+git clone https://github.com/OpenRecruiterTools/linkedin-toolkit
 cd linkedin-toolkit
 npm ci
 npm test

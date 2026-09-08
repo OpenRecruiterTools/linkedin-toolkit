@@ -44,7 +44,7 @@ Version numbers are already `2.0.0` in `extension/manifest.json`, `extension/pac
 
 ## 1. ⏳ Transfer the repository — ⚠️ **IRREVERSIBLE**
 
-`OpenRecruiterTools/linkedin-toolkit` → `FormatixAI/linkedin-toolkit`.
+`OpenRecruiterTools/linkedin-toolkit` → `OpenRecruiterTools/linkedin-toolkit`.
 
 This is first because every URL in the README, the docs, the changelog, the client packages and
 the launch copy already points at `FormatixAI`. Until it happens, the published packages link to a
@@ -63,7 +63,7 @@ redirect, and transferring back is a second transfer with the same consequences.
 CI secrets and webhooks all need checking afterwards.
 
 - [ ] ⚠️ Transfer done.
-- [ ] ↩️ `git remote set-url origin https://github.com/FormatixAI/linkedin-toolkit.git` in every
+- [ ] ↩️ `git remote set-url origin https://github.com/OpenRecruiterTools/linkedin-toolkit.git` in every
       local clone and worktree.
 - [ ] ↩️ Re-check repository **Settings → Secrets and variables → Actions**: the transfer keeps
       secrets, but confirm `NPM_TOKEN` is present before the tag is pushed, or the release

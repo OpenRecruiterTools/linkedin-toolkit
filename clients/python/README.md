@@ -1,6 +1,6 @@
 # linkedin-toolkit (Python)
 
-The Python client for [LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit), with
+The Python client for [LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit), with
 ready-made tool wrappers for LangChain, LlamaIndex, CrewAI, AutoGen, Google ADK, Pydantic AI and
 smolagents.
 

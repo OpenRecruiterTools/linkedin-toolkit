@@ -5,7 +5,7 @@
 **Do not open a public issue.**
 
 Use GitHub's private reporting:
-[Report a vulnerability](https://github.com/FormatixAI/linkedin-toolkit/security/advisories/new)
+[Report a vulnerability](https://github.com/OpenRecruiterTools/linkedin-toolkit/security/advisories/new)
 
 It is visible only to the maintainers, it keeps the report and the fix in one place, and it is the
 only channel this project asks you to use.

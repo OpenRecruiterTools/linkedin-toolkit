@@ -60,7 +60,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported privately to the maintainers by opening a report at
-**https://github.com/FormatixAI/linkedin-toolkit/security/advisories/new**,
+**https://github.com/OpenRecruiterTools/linkedin-toolkit/security/advisories/new**,
 which is visible only to the maintainers and is the project's private channel
 for anything that should not be public.
 All complaints will be reviewed and investigated promptly and fairly.

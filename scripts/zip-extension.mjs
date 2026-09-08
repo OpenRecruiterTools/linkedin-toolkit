@@ -83,7 +83,7 @@ Settings → Local bridge → paste the token → enable. The badge turns to
 "connected".
 
 Full setup for Claude Code, the OpenAI Agents SDK, LangChain, n8n and the rest:
-https://github.com/FormatixAI/linkedin-toolkit/tree/main/docs/agents
+https://github.com/OpenRecruiterTools/linkedin-toolkit/tree/main/docs/agents
 
 Before you use it
 -----------------
@@ -104,7 +104,7 @@ Read this part.
   still learning what it does.
 
 MIT licensed. Issues and pull requests:
-https://github.com/FormatixAI/linkedin-toolkit
+https://github.com/OpenRecruiterTools/linkedin-toolkit
 `;
 
 rmSync(outDir, { recursive: true, force: true });

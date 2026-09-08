@@ -7,7 +7,7 @@ Copy for every listing:
 
 - **Name:** LinkedIn Toolkit
 - **Package:** `linkedin-toolkit-mcp` (npm) · `linkedin-toolkit` (npm, PyPI)
-- **Repo:** `https://github.com/FormatixAI/linkedin-toolkit`
+- **Repo:** `https://github.com/OpenRecruiterTools/linkedin-toolkit`
 - **License:** MIT
 - **One line:** The open-source, local-first LinkedIn automation layer for humans and AI agents.
 - **Longer:** LinkedIn blocks AI browser agents. This gives any agent a structured API to the
@@ -37,7 +37,7 @@ Branch `add-linkedin-toolkit`, one line added under the most fitting category (B
 or Social Media), alphabetical:
 
 ```markdown
-- [FormatixAI/linkedin-toolkit](https://github.com/FormatixAI/linkedin-toolkit) 🏠 - LinkedIn from the user's own logged-in Chrome session: search, profiles, post engagers, lists, sequences, inbox and a Research Pack, with hard caps and a human approval queue. No headless browser.
+- [OpenRecruiterTools/linkedin-toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit) 🏠 - LinkedIn from the user's own logged-in Chrome session: search, profiles, post engagers, lists, sequences, inbox and a Research Pack, with hard caps and a human approval queue. No headless browser.
 ```
 
 Check that repo's legend for the correct emoji — 🏠 usually means "local service". PR title:
@@ -84,7 +84,7 @@ Read `CONTRIBUTING.md` there first — the format is strict and PRs are rejected
 Under *Automation* or *Communication - Social Networks*, alphabetical:
 
 ```markdown
-- [LinkedIn Toolkit](https://github.com/FormatixAI/linkedin-toolkit) - LinkedIn automation and data extraction that runs entirely in your own browser session, with hard rate caps and a human approval queue. Includes an MCP server for AI agents. `MIT` `Nodejs/Javascript`
+- [LinkedIn Toolkit](https://github.com/OpenRecruiterTools/linkedin-toolkit) - LinkedIn automation and data extraction that runs entirely in your own browser session, with hard rate caps and a human approval queue. Includes an MCP server for AI agents. `MIT` `Nodejs/Javascript`
 ```
 
 Requirements to check before opening it: the project must be self-hostable (yes), have a clear

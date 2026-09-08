@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/FormatixAI/linkedin-toolkit/sequences/schema.json",
+  "$id": "https://github.com/OpenRecruiterTools/linkedin-toolkit/sequences/schema.json",
   "title": "LinkedIn Toolkit sequence template",
   "description": "A campaign template. The `steps` array is passed verbatim to the `campaign.create` action (MCP tool `linkedin_campaign_create`). Step shapes mirror the `Step` type in docs/actions.md. Message and invite steps carry exactly two `variants`; the engine A/B tests them and `note`/`body` are not used when `variants` is present.",
   "type": "object",

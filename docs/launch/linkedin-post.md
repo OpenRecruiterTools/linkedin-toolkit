@@ -106,11 +106,11 @@ comments; do not make it the post.
 
 ## First comment (all variants)
 
-> Repo: https://github.com/FormatixAI/linkedin-toolkit
+> Repo: https://github.com/OpenRecruiterTools/linkedin-toolkit
 >
 > The write-up on how LinkedIn actually detects browser automation is here, and is worth reading on
 > its own if you have fought this:
-> https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md
+> https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md
 >
 > Worth saying plainly: LinkedIn's User Agreement prohibits automated access. This reduces the
 > technical risk of detection; it does not change that. Use your own account, keep the volumes

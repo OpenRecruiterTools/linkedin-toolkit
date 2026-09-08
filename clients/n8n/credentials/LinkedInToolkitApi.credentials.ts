@@ -17,7 +17,7 @@ export class LinkedInToolkitApi implements ICredentialType {
 
 	displayName = 'LinkedIn Toolkit API';
 
-	documentationUrl = 'https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/n8n.md';
+	documentationUrl = 'https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/agents/n8n.md';
 
 	properties: INodeProperties[] = [
 		{

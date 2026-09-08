@@ -43,9 +43,9 @@ complete free replacement for Waalaxy and PhantomBuster. MIT, local, no cloud.
 
 ## Links
 
-- **Website:** `https://github.com/FormatixAI/linkedin-toolkit`
+- **Website:** `https://github.com/OpenRecruiterTools/linkedin-toolkit`
 - **GitHub:** same
-- **Also try:** `https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md`
+- **Also try:** `https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/main/docs/why-browser-agents-fail-on-linkedin.md`
 
 ## Gallery
 
