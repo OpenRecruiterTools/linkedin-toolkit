@@ -1678,7 +1678,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "queue",
     "operation": "approve",
     "displayName": "Approve",
-    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. Only do this when the human has explicitly said yes. Returns {approved}.",
+    "description": "Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved}.",
     "write": true,
     "required": [
       {
@@ -1718,7 +1718,7 @@ export const ACTIONS: ActionSpec[] = [
     "resource": "queue",
     "operation": "reject",
     "displayName": "Reject",
-    "description": "Reject queued writes by id so they are never sent. Returns {rejected}.",
+    "description": "Reject queued writes by id so they are never sent. Like approving, this works only when the user has turned Autopilot on; in the default Copilot mode the extension answers UNAUTHORIZED and the user rejects in the popup. Returns {rejected}.",
     "write": true,
     "required": [
       {

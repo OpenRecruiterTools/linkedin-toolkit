@@ -47,8 +47,8 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `campaign.pause` / `campaign.resume` / `campaign.delete` | `{ campaignId }` | `Campaign` |
 | `campaign.tick` | `{}` | `{ executed: number, queued: number }` |
 | `queue.list` | `{ status?: 'pending'\|'approved'\|'rejected'\|'sent' }` | `{ items: QueueItem[] }` |
-| `queue.approve` | `{ ids: string[], edits?: Record<id, {note?, body?}> }` | `{ approved: number }` |
-| `queue.reject` | `{ ids: string[] }` | `{ rejected: number }` |
+| `queue.approve` | `{ ids: string[], edits?: Record<id, {note?, body?}> }` | `{ approved: number }` — origin `mcp` is refused with `UNAUTHORIZED` unless `autopilot` is on; `popup` and `cli` are a human deciding and always pass |
+| `queue.reject` | `{ ids: string[] }` | `{ rejected: number }` — same origin rule as `queue.approve` |
 | `ai.complete` | `{ task: 'opener'\|'summary'\|'sentiment'\|'comment'\|'score', input: object }` | `{ output: string \| object, provider, model }` |
 | `export.csv` | `{ kind: 'profiles'\|'list'\|'campaign'\|'inbox', id? }` | `{ csv: string, filename }` |
 | `research.resolve` | `{ rows: ResearchRow[] }` | `{ resolved: ResolvedRow[] }` |

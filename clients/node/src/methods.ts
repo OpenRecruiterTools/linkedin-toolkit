@@ -230,12 +230,12 @@ export abstract class GeneratedActions {
     return this.call('queue.list', params);
   }
 
-  /** `queue.approve` — Approve queued writes by id so the extension sends them, optionally editing the note or body first. Only do this when the human has explicitly said yes. Returns {approved}. */
+  /** `queue.approve` — Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved}. */
   queueApprove(params: ParamsOf<'queue.approve'> & { dry_run?: boolean }): Promise<ResultOf<'queue.approve'>> {
     return this.call('queue.approve', params);
   }
 
-  /** `queue.reject` — Reject queued writes by id so they are never sent. Returns {rejected}. */
+  /** `queue.reject` — Reject queued writes by id so they are never sent. Like approving, this works only when the user has turned Autopilot on; in the default Copilot mode the extension answers UNAUTHORIZED and the user rejects in the popup. Returns {rejected}. */
   queueReject(params: ParamsOf<'queue.reject'> & { dry_run?: boolean }): Promise<ResultOf<'queue.reject'>> {
     return this.call('queue.reject', params);
   }

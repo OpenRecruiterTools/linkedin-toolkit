@@ -9,7 +9,8 @@
  * imported, so the two modules do not form an import cycle.
  */
 
-import { ACTIONS, EVENTS } from '../lib/actions.js';
+import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
+import { getConfig } from '../lib/config.js';
 import { K, get, newId, set, stamp, update, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
 import { register } from './engine.js';
@@ -169,6 +170,30 @@ export async function byId(id) {
 /*  Action registrations                                              */
 /* ================================================================== */
 
+/** What the caller is told when an agent tries to clear its own queue. */
+export const APPROVAL_IS_HUMAN =
+  'Approval is a human action. Approve in the popup, or turn on Autopilot in Settings.';
+
+/**
+ * The queue only means anything if the thing that filled it cannot also empty
+ * it. `mcp` is an agent, so it is refused; `popup` is the human at the
+ * extension and `cli` is the human at a terminal, so both pass. With Autopilot
+ * on the human has already said "send without asking me", and the agent's own
+ * writes never reach the queue in the first place, so the gate lifts.
+ */
+async function assertMayDecide(origin) {
+  if (origin !== 'mcp') return;
+  const config = await getConfig();
+  if (config.autopilot) return;
+  throw new EngineError(ERROR.UNAUTHORIZED, APPROVAL_IS_HUMAN);
+}
+
 register(ACTIONS.QUEUE_LIST, async ({ status }) => ({ items: await list(status) }));
-register(ACTIONS.QUEUE_APPROVE, ({ ids, edits }) => approve(ids, edits));
-register(ACTIONS.QUEUE_REJECT, ({ ids }) => reject(ids));
+register(ACTIONS.QUEUE_APPROVE, async ({ ids, edits }, ctx = {}) => {
+  await assertMayDecide(ctx.origin);
+  return approve(ids, edits);
+});
+register(ACTIONS.QUEUE_REJECT, async ({ ids }, ctx = {}) => {
+  await assertMayDecide(ctx.origin);
+  return reject(ids);
+});

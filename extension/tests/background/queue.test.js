@@ -382,3 +382,53 @@ describe('queue.list / approve / reject', () => {
     expect(await queue.pendingCount()).toBe(2);
   });
 });
+
+describe('an agent cannot approve its own queue', () => {
+  it('refuses queue.approve from mcp while autopilot is off', async () => {
+    const queued = await invite('mcp');
+    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }, 'mcp');
+
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe(ERROR.UNAUTHORIZED);
+    expect(res.error.message).toMatch(/Approval is a human action/);
+    expect((await queue.list('pending'))).toHaveLength(1);
+    expect(net.calls).toHaveLength(0);
+  });
+
+  it('refuses queue.reject from mcp while autopilot is off', async () => {
+    const queued = await invite('mcp');
+    const res = await handle(ACTIONS.QUEUE_REJECT, { ids: [queued.data.queueId] }, 'mcp');
+
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe(ERROR.UNAUTHORIZED);
+    expect((await queue.list('pending'))).toHaveLength(1);
+  });
+
+  it('allows queue.approve from mcp once autopilot is on', async () => {
+    const queued = await invite('mcp');
+    await setConfig({ autopilot: true });
+    net.push(profileView);
+    net.push({});
+
+    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }, 'mcp');
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ approved: 1 });
+  });
+
+  it.each(['popup', 'cli'])('lets %s approve — both are a human deciding', async (origin) => {
+    const queued = await invite('mcp');
+    net.push(profileView);
+    net.push({});
+
+    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }, origin);
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ approved: 1 });
+  });
+
+  it.each(['popup', 'cli'])('lets %s reject', async (origin) => {
+    const queued = await invite('mcp');
+    const res = await handle(ACTIONS.QUEUE_REJECT, { ids: [queued.data.queueId] }, origin);
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ rejected: 1 });
+  });
+});
