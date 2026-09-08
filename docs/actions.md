@@ -6,7 +6,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 
 | Action | Params | Result `data` |
 |---|---|---|
-| `status.get` | `{}` | `Status` |
+| `status.get` | `{ verify?: boolean, postUrl?: string }` | `Status`. With `verify: true` it also runs a read-only pass over every LinkedIn endpoint the engine depends on and adds `endpoints: Record<string, 'ok'\|'failed'\|'unverified'\|'skipped'>`, `clientVersionCaptured`, `endpointsCapturedAt` and, when anything failed, `endpointErrors`. `postUrl` gives the reactions check a post to count likes on; without one that row is `skipped`. The pass costs one search result and one profile visit, metered as usual; see [`voyager-endpoints.md`](voyager-endpoints.md) |
 | `config.get` | `{}` | `Config` — for every origin but `popup`, `ai.apiKey`, `enrichment.apiKey` and `bridge.token` come back as `****` plus their last four characters, or are omitted when unset |
 | `config.set` | `Partial<Config>` | `Config` — non-popup origins may only set `webhookUrl`; other keys are ignored and listed in `ignoredKeys` |
 | `search.people` | `{ keywords, title?, company?, location?, source?: 'search'\|'salesnav'\|'recruiter', start?, count? }` (count ≤ 100) | `{ profiles: Profile[], total?: number, nextStart?: number }` |
@@ -14,7 +14,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `profile.export` | `{ urls: string[], full?: boolean }` | `{ profiles: Profile[], failed: {url, error}[] }` |
 | `company.get` | `{ url?: string, universalName?: string }` | `Company` |
 | `company.employees` | `{ universalName, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
-| `post.engagers` | `{ postUrl, kind: 'likes'\|'comments'\|'both', start?, count? }` | `{ engagers: Engager[], nextStart? }` |
+| `post.engagers` | `{ postUrl, kind: 'likes'\|'comments'\|'both', start?, count? }` | `{ engagers: Engager[], nextStart?, unavailable?: string[] }` — reactions are read from a verified endpoint; comments are not, so `kind: 'comments'` fails with `LINKEDIN_ERROR` and `kind: 'both'` returns the reactions it did read and lists `'comments'` in `unavailable` |
 | `group.members` | `{ groupUrl, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `event.attendees` | `{ eventUrl, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.connections` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
@@ -98,7 +98,9 @@ Hard ceilings are clamped in `config.set` regardless of the value requested. `co
 
 Safety settings belong to the human. From any origin but `popup`, `config.set` silently drops `autopilot`, `clearChallenge`, `bridge`, `ai`, `enrichment`, `accountPreset`, `warmup`, `businessHoursOnly`, `businessStart`, `businessEnd`, `weekdaysOnly`, `minDelayMs`, `maxDelayMs`, `hourlyCap`, `dailyInviteCap`, `dailyMessageCap`, `dailyVisitCap` and `dailySearchCap`, and names them in `ignoredKeys` on the result — leaving `webhookUrl` as the one key an agent may write.
 
-Every `profileView` fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
+Every profile fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. One visit is one read of the profile itself; the profile-section reads that follow it (experience always, education and skills on `full: true`) are page-component queries rather than profile views and are not metered.
+
+`Profile.experience` comes from that section read. LinkedIn serves no positions on any profile decoration any more, so a profile whose section read fails comes back with `experience`, `education` and `skills` empty rather than guessed at — see [`voyager-endpoints.md`](voyager-endpoints.md). `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
 
 `hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
 

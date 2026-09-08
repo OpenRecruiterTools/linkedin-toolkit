@@ -225,6 +225,22 @@ body, and the normaliser quietly produces an empty collection. So the check is n
 "did it 200", it is **"did the shape below actually come back, with real people in
 it"**. Record the raw HTTP status and the number of records in Notes.
 
+> **Superseded on 2026-09-08 by a live capture against LinkedIn web client
+> `1.13.46474`.** The paths this table was written against are gone: `profileView`
+> answers 410, the REST `search/dash/clusters` 500, `messaging/conversations` 500,
+> and `normInvitations`, `profileUpdatesV2`, `feed/reactions` and `followingStates`
+> all answer 400. The engine now uses persisted GraphQL queries; the whole set,
+> verified and unverified, is documented in
+> [`voyager-endpoints.md`](voyager-endpoints.md). Rows **E1, E2, E3, E5, E10 and the
+> comments half of E12** remain unverified and now fail with a `LINKEDIN_ERROR`
+> naming that file rather than returning an empty list. Rows **E4 (followers, now
+> the curation-hub search), E6 (member posts, now `voyagerFeedDashProfileUpdates`),
+> E7 (company employees, which does need the numeric id — the suspicion was
+> right), E8 (mutual connections) and E9 (sent invitations, now
+> `sentInvitationViewsV2`)** are verified against the live client, as is the
+> reactions half of E12. `status.get { verify: true }` re-runs all of this from
+> the engine.
+
 | # | Endpoint key | Path and query | Action that exercises it | How to run it | Expected shape | Result | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | E1 | `salesNavSearch` | `https://www.linkedin.com/sales-api/salesApiPeopleSearch?q=peopleSearchQuery&…` | `search.people { source: 'salesnav' }` | `lit search "head of platform" --source salesnav --count 10 --json` | `{ profiles: Profile[], total: number }`, ≥1 profile with a real `publicId` and `fullName` | | |
