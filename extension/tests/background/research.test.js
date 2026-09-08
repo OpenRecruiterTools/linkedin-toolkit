@@ -88,14 +88,135 @@ describe('research.resolve', () => {
     expect(res.data.resolved[0].confidence).toBeGreaterThanOrEqual(0.85);
   });
 
-  it('returns candidates when the company does not match', async () => {
+  it('resolves on the name alone when the company does not appear', async () => {
+    // The company is a bonus, not a requirement: plenty of headlines simply
+    // do not name the employer the row came with.
     net.push(searchClusters);
     const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
       rows: [{ name: 'Ada Lovelace', company: 'A Completely Different Firm' }],
     });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'person',
+      publicId: 'adalovelace',
+      confidence: 0.85,
+    });
+  });
+
+  /** The real search-clusters shape, carrying exactly these people. */
+  function searchWith(people) {
+    const raw = structuredClone(searchClusters);
+    const template = raw.included.find((e) => e.$type.endsWith('EntityResultViewModel'));
+    raw.included = raw.included.filter((e) => !e.$type.endsWith('EntityResultViewModel'));
+
+    for (const person of people) {
+      const entity = structuredClone(template);
+      const urn = `urn:li:fsd_profile:${person.publicId}`;
+      entity.entityUrn = `urn:li:fsd_entityResultViewModel:(${urn},SEARCH_SRP,DEFAULT)`;
+      entity.navigationUrl = `https://www.linkedin.com/in/${person.publicId}`;
+      if (entity.navigationContext) entity.navigationContext.url = entity.navigationUrl;
+      entity.title.text = person.fullName;
+      entity.primarySubtitle.text = person.headline;
+      entity.secondarySubtitle.text = person.location || 'San Francisco Bay Area';
+      raw.included.push(entity);
+    }
+
+    raw.data.data.searchDashClustersByAll.metadata.totalResultCount = people.length;
+    raw.data.data.searchDashClustersByAll.elements = [];
+    return raw;
+  }
+
+  it('resolves a person whose headline names the company', async () => {
+    net.push(
+      searchWith([
+        {
+          publicId: 'satyanadella',
+          fullName: 'Satya Nadella',
+          headline: 'Chairman and CEO at Microsoft',
+        },
+      ]),
+    );
+
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Satya Nadella', company: 'Microsoft' }],
+    });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'person',
+      publicId: 'satyanadella',
+      confidence: 1,
+    });
+  });
+
+  it('finds the company in a headline that is mostly something else', async () => {
+    net.push(
+      searchWith([
+        {
+          publicId: 'callum-dryden',
+          fullName: 'Callum Dryden',
+          headline:
+            'CTO, global fintech AZA Finance | 15+ years scaling FX & payments infrastructure',
+        },
+      ]),
+    );
+
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Callum Dryden', company: 'AZA Finance' }],
+    });
+    expect(res.data.resolved[0]).toMatchObject({
+      kind: 'person',
+      publicId: 'callum-dryden',
+      confidence: 1,
+    });
+  });
+
+  it('resolves a person whose headline never mentions the company', async () => {
+    // Reid Hoffman's headline does not say "Greylock". Requiring it there
+    // meant refusing to resolve him at all.
+    net.push(searchWith([{ publicId: 'someoneelse', fullName: 'Rita Hoffmeyer', headline: 'CFO' }]));
+    net.push(
+      searchWith([
+        { publicId: 'someoneelse', fullName: 'Rita Hoffmeyer', headline: 'CFO' },
+        {
+          publicId: 'reidhoffman',
+          fullName: 'Reid Hoffman',
+          headline: 'Co-Founder, LinkedIn, Manas AI & Inflection AI. Investor at Greylock.',
+        },
+      ]),
+    );
+
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Reid Hoffman', company: 'Greylock' }],
+    });
+
+    // Two searches: the narrow one first, then the name on its own.
+    expect(net.calls.filter((c) => c.url.includes('voyagerSearchDashClusters'))).toHaveLength(2);
+    expect(res.data.resolved[0]).toMatchObject({ kind: 'person', publicId: 'reidhoffman' });
+  });
+
+  it('hands two plausible namesakes back to the human rather than guessing', async () => {
+    const twins = searchWith([
+      { publicId: 'reidhoffman', fullName: 'Reid Hoffman', headline: 'Partner' },
+      { publicId: 'reid-hoffman-2', fullName: 'Reid Hoffman', headline: 'Analyst' },
+    ]);
+    net.push(twins);
+    net.push(twins);
+
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, { rows: [{ name: 'Reid Hoffman' }] });
     const row = res.data.resolved[0];
     expect(row.kind).toBe('unresolved');
-    expect(row.candidates).toHaveLength(2);
+    expect(row.candidates.map((c) => c.publicId)).toEqual(['reidhoffman', 'reid-hoffman-2']);
+  });
+
+  it('never answers a person row with a company page', async () => {
+    // "Satya Nadella, Microsoft" is a request for Satya Nadella. Answering
+    // with the Microsoft page is a different answer to a different question.
+    net.push(searchWith([]));
+    net.push(searchWith([]));
+
+    const res = await handle(ACTIONS.RESEARCH_RESOLVE, {
+      rows: [{ name: 'Satya Nadella', company: 'Microsoft' }],
+    });
+    expect(res.data.resolved[0]).toMatchObject({ kind: 'unresolved', candidates: [] });
+    expect(net.calls.some((c) => c.url.includes('/organization/companies'))).toBe(false);
   });
 
   it('returns candidates when the name is too far off', async () => {
@@ -162,6 +283,26 @@ describe('signals', () => {
   it('says nothing when there is nothing to say', () => {
     expect(research.packSignals({ profile: {}, posts: [] })).toEqual([]);
   });
+
+  it('flags somebody who is posting several times a month', () => {
+    const day = 24 * 60 * 60 * 1000;
+    const posts = [1, 5, 9].map((d) => ({ postedAt: Date.now() - d * day }));
+    expect(research.packSignals({ profile: {}, posts })).toContain('high-activity');
+  });
+
+  it('does not call two posts a month high activity', () => {
+    const day = 24 * 60 * 60 * 1000;
+    const posts = [1, 5].map((d) => ({ postedAt: Date.now() - d * day }));
+    const signals = research.packSignals({ profile: {}, posts });
+    expect(signals).toContain('postedRecently');
+    expect(signals).not.toContain('high-activity');
+  });
+
+  it('does not count last quarter towards this month', () => {
+    const day = 24 * 60 * 60 * 1000;
+    const posts = [40, 50, 60].map((d) => ({ postedAt: Date.now() - d * day }));
+    expect(research.packSignals({ profile: {}, posts })).not.toContain('high-activity');
+  });
 });
 
 describe('research.pack end to end', () => {
@@ -193,6 +334,7 @@ describe('research.pack end to end', () => {
     expect(pack.profile.fullName).toBe('Ada Lovelace');
     expect(pack.company.name).toBe('Analytical Engines');
     expect(pack.recentPosts[0].likes).toBe(42);
+    expect(Array.isArray(pack.recentPosts)).toBe(true);
     expect(pack.mutualConnections).toBe(37);
     expect(pack.connectionStatus).toBe('none');
     expect(pack.signals).toContain('changedJobRecently');
@@ -200,6 +342,19 @@ describe('research.pack end to end', () => {
 
     expect(names()).toContain('research_progress');
     expect(names()).toContain('research_completed');
+  });
+
+  it('records recentPosts even for a company row, so empty means empty', async () => {
+    const started = await handle(ACTIONS.RESEARCH_PACK, {
+      rows: [{ domain: 'analytical-engines.com' }],
+    });
+    net.push(company); // the resolution
+    net.push(company); // company.get
+    await research.progress();
+
+    const job = (await handle(ACTIONS.RESEARCH_GET, { jobId: started.data.jobId })).data;
+    expect(job.packs[0].resolved.kind).toBe('company');
+    expect(job.packs[0].recentPosts).toEqual([]);
   });
 
   it('writes a dossier with every section', async () => {

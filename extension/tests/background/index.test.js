@@ -22,6 +22,30 @@ describe('service worker wiring', () => {
 });
 
 describe('route', () => {
+  it('carries params through to the handler, whatever the origin', async () => {
+    // `status.get { verify: true }` is the case that caught this: the bridge,
+    // the router and the param validator all have to leave a param they were
+    // not told about alone, or `lit endpoints check` prints nothing.
+    for (const origin of ['popup', 'mcp', 'cli']) {
+      const res = await route({ action: ACTIONS.STATUS_GET, params: { verify: true }, origin });
+      expect(res.ok).toBe(true);
+      expect(res.data.endpoints).toBeTypeOf('object');
+      expect(res.data.endpoints.me).toBe('failed'); // signed out in this suite
+      expect(res.data.clientVersionCaptured).toBe('1.13.46474');
+    }
+  });
+
+  it('leaves the endpoint report off when nobody asked for it', async () => {
+    const res = await route({ action: ACTIONS.STATUS_GET, params: {}, origin: 'mcp' });
+    expect(res.data.endpoints).toBeUndefined();
+  });
+
+  it('refuses a verify flag that is not a boolean', async () => {
+    const res = await route({ action: ACTIONS.STATUS_GET, params: { verify: 'yes' } });
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('INVALID_PARAMS');
+  });
+
   it('answers a contract action with an envelope', async () => {
     const res = await route({ action: ACTIONS.STATUS_GET, params: {} });
     expect(res.ok).toBe(true);

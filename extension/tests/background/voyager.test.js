@@ -10,7 +10,7 @@ import profileSkills from '../fixtures/voyager/profileSkills.json';
 import profilePositions from '../fixtures/voyager/profilePositions.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
 import companyEmployees from '../fixtures/voyager/companyEmployees.json';
-import company from '../fixtures/voyager/company.json';
+import companyRest from '../fixtures/voyager/companyRest.json';
 import companyThin from '../fixtures/voyager/companyThin.json';
 import reactions from '../fixtures/voyager/reactions.json';
 import comments from '../fixtures/voyager/comments.json';
@@ -84,10 +84,18 @@ describe('graphql variable encoding', () => {
     expect(v.encodeVariables({ start: 0, count: 10 })).toBe('(start:0,count:10)');
   });
 
-  it('keeps colons literal so a urn survives', () => {
+  it('percent-encodes the colons inside a urn', () => {
+    // Leaving them literal is accepted by search and answered with a 400 by
+    // the reactions query and the whole messaging surface.
     expect(v.encodeVariables({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' })).toBe(
-      '(profileUrn:urn:li:fsd_profile:ACoAAAada)',
+      '(profileUrn:urn%3Ali%3Afsd_profile%3AACoAAAada)',
     );
+  });
+
+  it('percent-encodes parentheses and commas inside a value', () => {
+    expect(
+      v.encodeVariables({ conversationUrn: 'urn:li:msg_conversation:(urn:li:fsd_profile:A,2-abc)' }),
+    ).toBe('(conversationUrn:urn%3Ali%3Amsg_conversation%3A%28urn%3Ali%3Afsd_profile%3AA%2C2-abc%29)');
   });
 
   it('encodes spaces as %20 rather than +', () => {
@@ -115,12 +123,19 @@ describe('graphql variable encoding', () => {
     expect(v.encodeVariables({ keywords: 'a&b=c' })).toBe('(keywords:a%26b%3Dc)');
   });
 
-  it('builds a graphql URL with the query id last', async () => {
-    net.push({ data: {} });
-    await v.getCompany('analytical-engines').catch(() => {});
-    expect(net.calls[0].url).toContain('/voyager/api/graphql?includeWebMetadata=true');
-    expect(net.calls[0].url).toContain('variables=(universalName:analytical-engines)');
-    expect(net.calls[0].url).toContain(`queryId=${v.ENDPOINTS.queryIds.company}`);
+  it('builds a graphql URL with the variables first and the query id last', async () => {
+    net.push(reactions);
+    await v.getPostEngagers({ postUrl: POST_URL, kind: 'likes', count: 10 });
+    expect(net.calls[0].url).toBe(
+      'https://www.linkedin.com/voyager/api/graphql?variables=(threadUrn:urn%3Ali%3Aactivity%3A7000000000000000001,count:10,start:0)' +
+        `&queryId=${v.ENDPOINTS.queryIds.reactions}`,
+    );
+  });
+
+  it('omits includeWebMetadata, which some queries reject', async () => {
+    net.push(searchClusters);
+    await v.searchProfiles({ keywords: 'analyst' });
+    expect(net.calls[0].url).not.toContain('includeWebMetadata');
   });
 });
 
@@ -230,6 +245,19 @@ describe('profile', () => {
     expect(p.title).toBe('');
   });
 
+  it('reads a school with no degree line without inventing one', () => {
+    // Live shape: `title` = "Harvard University", no subtitle, caption
+    // "1973 - 1975".
+    const raw = structuredClone(profileEducation);
+    const paged = raw.included.find((e) => e.$type.endsWith('PagedListComponent'));
+    delete paged.components.elements[0].components.entityComponent.subtitle;
+
+    const [school] = v.sectionToEducation(v.normalizeProfileSection(raw));
+    expect(school).toMatchObject({ school: 'University of London', degree: '', field: '' });
+    expect(school.start).toBe(Date.UTC(2011, 0, 1));
+    expect(school.end).toBe(Date.UTC(2014, 0, 1));
+  });
+
   it('does not invent an experience from the positions query, which carries none', () => {
     // Captured 2026-09-08: every Position is a urn and a company reference,
     // with no title and no dates. Read as a section it yields nothing.
@@ -261,12 +289,34 @@ describe('search', () => {
     expect(out.nextStart).toBe(10);
   });
 
-  it('carries a first-degree claim but never demotes anyone', () => {
-    // A list read may confirm a connection; it may not undo one. LinkedIn's
-    // search index lags, and a stale "2nd" would unpick a real acceptance.
+  it('reads the degree off the plain memberDistance string', () => {
     const [second, first] = v.normalizeSearchClusters(searchClusters).profiles;
-    expect('connectionDegree' in second).toBe(false);
+    expect(second.connectionDegree).toBe(2);
     expect(first.connectionDegree).toBe(1);
+  });
+
+  it('splits the rendered name into firstName and lastName', () => {
+    // A search hit gives one rendered string and no name parts, but
+    // `{{firstName}}` is in every campaign template.
+    const [ada] = v.normalizeSearchClusters(searchClusters).profiles;
+    expect(ada).toMatchObject({ firstName: 'Ada', lastName: 'Lovelace' });
+  });
+
+  it.each([
+    ['Ada Lovelace', 'Ada', 'Lovelace'],
+    ['Mary Anne Smith', 'Mary', 'Anne Smith'],
+    // LinkedIn abbreviates a surname it will not show us. `"J."` is not a
+    // name, and putting it in a greeting would be worse than leaving it out.
+    ['Govind J.', 'Govind', ''],
+    ['Cher', 'Cher', ''],
+    ['', '', ''],
+  ])('splits %j into %j / %j', (fullName, firstName, lastName) => {
+    expect(v.splitFullName(fullName)).toEqual({ firstName, lastName });
+  });
+
+  it('never overwrites name parts LinkedIn did give us', () => {
+    const p = v.toProfile({ fullName: 'Ada Lovelace', firstName: 'Augusta', lastName: 'Byron' });
+    expect(p).toMatchObject({ firstName: 'Augusta', lastName: 'Byron' });
   });
 
   it('appends the title to the keywords, because title is not a facet', async () => {
@@ -283,11 +333,11 @@ describe('search', () => {
   });
 
   it('resolves a company slug to the currentCompany facet', async () => {
-    net.push(company);
+    net.push(companyRest);
     net.push(searchClusters);
     await v.searchProfiles({ keywords: 'engineer', company: 'analytical-engines' });
 
-    expect(net.calls[0].url).toContain(v.ENDPOINTS.queryIds.company);
+    expect(net.calls[0].url).toContain('/organization/companies');
     expect(urlOf(1)).toContain('(key:currentCompany,value:List(9001))');
     expect(urlOf(1)).not.toContain('analytical-engines');
   });
@@ -300,10 +350,11 @@ describe('search', () => {
   });
 
   it('falls back to keywords when the company lookup finds nothing', async () => {
-    net.push({ data: { data: {} }, included: [] });
+    net.push({ data: {}, included: [] }); // the REST read
+    net.push({ data: { data: {} }, included: [] }); // and the graphql fallback
     net.push(searchClusters);
     await v.searchProfiles({ keywords: 'engineer', company: 'nope-not-a-company' });
-    expect(net.calls[1].url).toContain('keywords:engineer%20nope-not-a-company');
+    expect(net.calls[2].url).toContain('keywords:engineer%20nope-not-a-company');
   });
 });
 
@@ -339,13 +390,15 @@ describe('search sources that could not be verified', () => {
 /* ================================================================== */
 
 describe('company', () => {
-  it('reads a company by universal name', async () => {
-    net.push(company);
+  it('reads a company by universal name off the REST decoration', async () => {
+    net.push(companyRest);
     const c = await v.getCompany('analytical-engines');
-    expect(net.calls[0].url).toContain(v.ENDPOINTS.queryIds.company);
+    expect(net.calls[0].url).toContain('/organization/companies');
+    expect(net.query().get('decorationId')).toBe(v.ENDPOINTS.decorations.company);
+    expect(net.query().get('q')).toBe('universalName');
     expect(c).toMatchObject({
       universalName: 'analytical-engines',
-      urn: 'urn:li:fsd_company:9001',
+      urn: 'urn:li:fs_normalized_company:9001',
       name: 'Analytical Engines',
       industry: 'Software Development',
       website: 'https://analytical-engines.example',
@@ -356,8 +409,10 @@ describe('company', () => {
     expect(c.hq).toContain('London');
   });
 
-  it('still returns the urn when LinkedIn serves the thin decoration', async () => {
-    // This is what the live query answered for `microsoft` on 2026-09-08.
+  it('falls back to graphql, and still returns the urn from a thin decoration', async () => {
+    // The REST read is refused, and the graphql query answers with what it
+    // answered for `microsoft` on 2026-09-08: an entityUrn and nothing else.
+    net.push(status(404));
     net.push(companyThin);
     const c = await v.getCompany('microsoft');
     expect(c.urn).toBe('urn:li:fsd_company:1035');
@@ -366,12 +421,13 @@ describe('company', () => {
   });
 
   it('reports a company that is genuinely not there', async () => {
+    net.push({ data: {}, included: [] });
     net.push({ data: { data: {} }, included: [] });
     await expect(v.getCompany('nope')).rejects.toMatchObject({ code: ERROR.NOT_FOUND });
   });
 
   it('resolves the numeric id before searching employees', async () => {
-    net.push(company);
+    net.push(companyRest);
     net.push(companyEmployees);
     const out = await v.getCompanyEmployees({ universalName: 'analytical-engines', count: 10 });
 
@@ -495,8 +551,13 @@ describe('messaging', () => {
 
     const call = net.calls.find((c) => c.url.includes('messengerConversations'));
     expect(call.url).toContain('/voyagerMessagingGraphQL/graphql');
-    expect(decodeURIComponent(call.url)).toContain(`mailboxUrn:${SELF_URN}`);
-    expect(decodeURIComponent(call.url)).toContain('conversationCategoryPredicate:(category:INBOX)');
+    // The messaging surface rejects includeWebMetadata, and wants these
+    // variables by exactly these names in exactly this order.
+    expect(call.url).not.toContain('includeWebMetadata');
+    expect(call.url).toContain(
+      `variables=(categories:List(INBOX,SPAM,ARCHIVE),count:20,firstDegreeConnections:false,mailboxUrn:${encodeURIComponent(SELF_URN)},read:false)`,
+    );
+    expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.conversations}`);
 
     expect(out.threads).toHaveLength(2);
     expect(out.threads[0]).toMatchObject({
@@ -531,12 +592,22 @@ describe('messaging', () => {
     expect(out.messages[0].fromUrn).toBe(SELF_URN);
   });
 
-  it('uses the paging query when asked for older messages', async () => {
+  it('pages the inbox by category with a lastUpdatedBefore cursor', async () => {
+    net.push(conversations);
+    await v.getConversations({ count: 20, createdBefore: 1757000000000 });
+    const call = net.calls.find((c) => c.url.includes('messengerConversations'));
+    expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.conversationsByCategory}`);
+    expect(decodeURIComponent(call.url)).toContain('conversationCategoryPredicate:(category:INBOX)');
+    expect(decodeURIComponent(call.url)).toContain('lastUpdatedBefore:1757000000000');
+  });
+
+  it('anchors the message read on a timestamp', async () => {
     net.push(conversationEvents);
     await v.getConversationMessages({ threadId: '2-abc123', createdBefore: 1757000000000 });
     const call = net.calls.find((c) => c.url.includes('messengerMessages'));
-    expect(call.url).toContain(v.ENDPOINTS.queryIds.messagesBefore);
-    expect(decodeURIComponent(call.url)).toContain('deliveredAt:1757000000000');
+    expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.messages}`);
+    expect(call.url).toContain('variables=(deliveredAt:1757000000000,conversationUrn:');
+    expect(call.url).toContain(',countBefore:20,countAfter:0)');
   });
 });
 
@@ -686,7 +757,7 @@ describe('endpoint self-check', () => {
   it('reports one word per endpoint and names the captured client', async () => {
     net.route('identity/dash/profiles', profileView);
     net.route('voyagerSearchDashClusters', searchClusters);
-    net.route('voyagerOrganizationDashCompanies', company);
+    net.route('/organization/companies', companyRest);
     net.route('/relationships/dash/connections', connections);
     net.route('sentInvitationViewsV2', sentInvitations);
     net.route('messengerConversations', conversations);
@@ -711,6 +782,7 @@ describe('endpoint self-check', () => {
   it('marks a stale query id failed and records why', async () => {
     net.route('identity/dash/profiles', profileView);
     net.route('voyagerSearchDashClusters', searchClusters);
+    net.route('/organization/companies', status(400));
     net.route('voyagerOrganizationDashCompanies', status(400));
     net.route('/relationships/dash/connections', connections);
     net.route('sentInvitationViewsV2', sentInvitations);
@@ -733,7 +805,7 @@ describe('endpoint self-check', () => {
   it('meters the search and the profile read like the real actions', async () => {
     net.route('identity/dash/profiles', profileView);
     net.route('voyagerSearchDashClusters', searchClusters);
-    net.route('voyagerOrganizationDashCompanies', company);
+    net.route('/organization/companies', companyRest);
     net.route('/relationships/dash/connections', connections);
     net.route('sentInvitationViewsV2', sentInvitations);
     net.route('messengerConversations', conversations);

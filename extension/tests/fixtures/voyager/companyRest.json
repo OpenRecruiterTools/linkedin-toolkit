@@ -1,0 +1,56 @@
+{
+  "data": {
+    "entityUrn": "urn:li:collectionResponse:fixtureCompanyRest",
+    "paging": { "count": 10, "start": 0, "links": [] },
+    "*elements": ["urn:li:fs_normalized_company:9001"],
+    "$type": "com.linkedin.restli.common.CollectionResponse"
+  },
+  "included": [
+    {
+      "entityUrn": "urn:li:fs_normalized_company:9001",
+      "name": "Analytical Engines",
+      "universalName": "analytical-engines",
+      "tagline": null,
+      "description": "We build analytical engines for the modern enterprise.",
+      "url": "https://www.linkedin.com/company/analytical-engines",
+      "companyPageUrl": "https://analytical-engines.example",
+      "staffCount": 340,
+      "staffCountRange": {
+        "start": 201,
+        "end": 500,
+        "$type": "com.linkedin.voyager.organization.shared.StaffCountRange"
+      },
+      "headquarter": {
+        "country": "GB",
+        "geographicArea": "England",
+        "city": "London",
+        "postalCode": "EC1A 1AA",
+        "line1": "1 Engine Yard",
+        "$type": "com.linkedin.common.Address"
+      },
+      "companyType": {
+        "localizedName": "Privately Held",
+        "code": "PRIVATELY_HELD",
+        "$type": "com.linkedin.voyager.organization.CompanyType"
+      },
+      "specialities": ["Analysis", "Punchcards"],
+      "*companyIndustries": ["urn:li:fs_industry:4"],
+      "*followingInfo": "urn:li:fs_followingInfo:urn:li:company:9001",
+      "$recipeTypes": ["com.linkedin.voyager.deco.organization.web.WebFullCompanyMain"],
+      "$type": "com.linkedin.voyager.organization.Company"
+    },
+    {
+      "entityUrn": "urn:li:fs_industry:4",
+      "localizedName": "Software Development",
+      "$type": "com.linkedin.voyager.common.Industry"
+    },
+    {
+      "entityUrn": "urn:li:fs_followingInfo:urn:li:company:9001",
+      "followingType": "DEFAULT",
+      "following": false,
+      "followerCount": 18400,
+      "dashFollowingStateUrn": "urn:li:fsd_followingState:urn:li:fsd_company:9001",
+      "$type": "com.linkedin.voyager.common.FollowingInfo"
+    }
+  ]
+}

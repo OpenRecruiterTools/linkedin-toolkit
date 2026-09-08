@@ -15,7 +15,7 @@ import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 import conversations from '../fixtures/voyager/conversations.json';
 import profileView from '../fixtures/voyager/profileView.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
-import company from '../fixtures/voyager/company.json';
+import companyRest from '../fixtures/voyager/companyRest.json';
 import connections from '../fixtures/voyager/connections.json';
 
 const NOW = new Date(2026, 8, 9, 11, 0, 0);
@@ -117,7 +117,7 @@ describe('status.get', () => {
       seedSession();
       net.route('identity/dash/profiles', profileView);
       net.route('voyagerSearchDashClusters', searchClusters);
-      net.route('voyagerOrganizationDashCompanies', company);
+      net.route('/organization/companies', companyRest);
       net.route('/relationships/dash/connections', connections);
       net.route('sentInvitationViewsV2', { elements: [] });
       net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });
@@ -138,7 +138,7 @@ describe('status.get', () => {
       seedSession();
       net.route('identity/dash/profiles', profileView);
       net.route('voyagerSearchDashClusters', searchClusters);
-      net.route('voyagerOrganizationDashCompanies', company);
+      net.route('/organization/companies', companyRest);
       net.route('/relationships/dash/connections', connections);
       net.route('sentInvitationViewsV2', { elements: [] });
       net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });

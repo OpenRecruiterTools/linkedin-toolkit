@@ -88,6 +88,27 @@ describe('search.people', () => {
   });
 });
 
+describe('a list read may raise a degree but never lower one', () => {
+  it('states the degree a search result carries', async () => {
+    net.push(searchClusters);
+    const res = await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'analyst' });
+    expect(res.data.profiles.map((p) => p.connectionDegree)).toEqual([2, 1]);
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(2);
+  });
+
+  it('leaves a confirmed connection alone when the search index lags', async () => {
+    // Confirmed first degree by a profile read we paid a visit for.
+    net.push(inviteAccepted);
+    await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' });
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(1);
+
+    // The search page still says "2nd". It must not unpick the acceptance.
+    net.push(searchClusters);
+    await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'analyst' });
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(1);
+  });
+});
+
 describe('profile.get / profile.export', () => {
   it('fetches by publicId and by url', async () => {
     net.push(profileView);
@@ -107,6 +128,25 @@ describe('profile.get / profile.export', () => {
     const stored = await storage.getStoredProfile('adalovelace');
     expect(stored.company).toBe('Analytical Engines');
     expect(typeof stored.updatedAt).toBe('number');
+  });
+
+  it('keeps a photo the profile decoration does not carry', async () => {
+    // LinkedIn serves no photo on the top card for anybody but ourselves,
+    // while the connections list and search hits do. A profile read must not
+    // hand back less than we already knew.
+    await storage.putProfile({
+      publicId: 'bobbright',
+      photoUrl: 'https://media.licdn.com/dms/image/bob/400_400',
+    });
+
+    const raw = structuredClone(profileView);
+    const subject = raw.included.find((e) => e.publicIdentifier === 'adalovelace');
+    subject.publicIdentifier = 'bobbright';
+    subject.profilePicture = { a11yText: 'Bob Bright' };
+    net.push(raw);
+
+    const res = await handle(ACTIONS.PROFILE_GET, { publicId: 'bobbright' });
+    expect(res.data.photoUrl).toBe('https://media.licdn.com/dms/image/bob/400_400');
   });
 
   it('profile.export reports per-url failures without stopping', async () => {
