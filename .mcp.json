@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "linkedin-toolkit": {
+      "command": "npx",
+      "args": ["-y", "linkedin-toolkit-mcp"]
+    }
+  }
+}
