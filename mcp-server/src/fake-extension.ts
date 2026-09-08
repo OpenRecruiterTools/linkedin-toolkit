@@ -19,6 +19,20 @@ export type FakeExtensionOptions = {
   host?: string;
 };
 
+/**
+ * The engine attaches a quota snapshot to every `outreach.*` answer (see the
+ * response envelope in docs/actions.md), so the fake does too. Without it
+ * nothing downstream of the bridge — the HTTP envelope, an MCP tool result —
+ * is ever exercised with one.
+ */
+export const FAKE_RATE_LIMIT: Record<string, number> = Object.freeze({
+  hourlyUsed: 3,
+  hourlyCap: 20,
+  dailyUsed: 12,
+  dailyCap: 100,
+  nextAllowedAt: 0,
+});
+
 /** Throw this from a handler to answer with a contract error envelope. */
 export class FakeActionError extends Error {
   constructor(
@@ -129,7 +143,12 @@ export class FakeExtensionClient {
     }
     try {
       const data = await handler(frame.params ?? {});
-      this.send({ id: frame.id, ok: true, data });
+      this.send({
+        id: frame.id,
+        ok: true,
+        data,
+        ...(frame.action.startsWith('outreach.') ? { rateLimit: FAKE_RATE_LIMIT } : {}),
+      });
     } catch (err) {
       if (err instanceof FakeActionError) {
         this.send({

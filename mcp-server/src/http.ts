@@ -277,7 +277,7 @@ export class HttpServer {
     }
 
     try {
-      const data = await this.toolkit.call(
+      const { data, rateLimit } = await this.toolkit.callFull(
         action as ActionName,
         {
           ...(parsed.data as object),
@@ -285,7 +285,12 @@ export class HttpServer {
         },
         { origin: originOf(req) },
       );
-      sendJson(res, 200, { id: randomUUID(), ok: true, data });
+      sendJson(res, 200, {
+        id: randomUUID(),
+        ok: true,
+        data,
+        ...(rateLimit ? { rateLimit } : {}),
+      });
     } catch (err) {
       sendJson(res, 200, errorEnvelope(err));
     }
@@ -324,13 +329,18 @@ export class HttpServer {
     }
 
     try {
-      const data = await runTool(
+      const { data, rateLimit } = await runTool(
         this.toolkit,
         tool,
         parsed.data as Record<string, unknown>,
         originOf(req),
       );
-      sendJson(res, 200, { id: randomUUID(), ok: true, data });
+      sendJson(res, 200, {
+        id: randomUUID(),
+        ok: true,
+        data,
+        ...(rateLimit ? { rateLimit } : {}),
+      });
     } catch (err) {
       sendJson(res, 200, errorEnvelope(err));
     }

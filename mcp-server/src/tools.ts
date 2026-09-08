@@ -6,7 +6,7 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { BridgeError } from './bridge.js';
+import { BridgeError, type BridgeResponse } from './bridge.js';
 import {
   TOOLS,
   toolInputSchema,
@@ -21,15 +21,20 @@ import type { Toolkit } from './toolkit.js';
 export const SERVER_NAME = 'linkedin-toolkit';
 export const SERVER_VERSION = '2.0.0';
 
-/** A tool result: the JSON text an agent reads plus machine-readable output. */
-export function toolResult(data: unknown): CallToolResult {
+/**
+ * A tool result: the JSON text an agent reads plus machine-readable output.
+ *
+ * `rateLimit` rides alongside the data rather than inside it, so an agent that
+ * just sent an invite can see what it has left without another status call.
+ */
+export function toolResult(data: unknown, rateLimit?: Record<string, number>): CallToolResult {
   const structured =
     data !== null && typeof data === 'object' && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : { result: data };
   return {
     content: [{ type: 'text', text: JSON.stringify(data ?? null) }],
-    structuredContent: structured,
+    structuredContent: rateLimit ? { ...structured, rateLimit } : structured,
   };
 }
 
@@ -46,27 +51,31 @@ export function toolError(err: unknown): CallToolResult {
   };
 }
 
-/** Run one tool by name against the toolkit. Shared by MCP and the CLI tests. */
+/**
+ * Run one tool by name against the toolkit. Shared by MCP and the HTTP tool
+ * route. The three server-local tools have no quota snapshot to report; a tool
+ * that reaches the extension passes on whatever came back with the answer.
+ */
 export async function runTool(
   toolkit: Toolkit,
   tool: ToolDef,
   args: Record<string, unknown>,
   origin: RequestOrigin = 'mcp',
-): Promise<unknown> {
+): Promise<BridgeResponse> {
   switch (tool.name) {
     case 'linkedin_query_sql': {
       const sql = String(args.sql ?? '');
       const params = (args.params ?? []) as (string | number | null)[];
-      return toolkit.db.query(sql, params);
+      return { data: toolkit.db.query(sql, params) };
     }
     case 'linkedin_sync': {
       const since = typeof args.since === 'number' ? args.since : undefined;
-      return await toolkit.sync(since, origin);
+      return { data: await toolkit.sync(since, origin) };
     }
     case 'linkedin_research_pack':
-      return await toolkit.researchPack(args, { origin });
+      return { data: await toolkit.researchPack(args, { origin }) };
     default:
-      return await toolkit.call(tool.action as ActionName, args, { origin });
+      return await toolkit.callFull(tool.action as ActionName, args, { origin });
   }
 }
 
@@ -85,7 +94,8 @@ export function registerTools(server: McpServer, toolkit: Toolkit): void {
       },
       async (args: Record<string, unknown>): Promise<CallToolResult> => {
         try {
-          return toolResult(await runTool(toolkit, tool, args ?? {}, 'mcp'));
+          const { data, rateLimit } = await runTool(toolkit, tool, args ?? {}, 'mcp');
+          return toolResult(data, rateLimit);
         } catch (err) {
           return toolError(err);
         }

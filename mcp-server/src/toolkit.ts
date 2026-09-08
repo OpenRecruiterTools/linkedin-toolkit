@@ -2,7 +2,12 @@
  * The shared core behind every surface: MCP tools, the HTTP action API and the
  * CLI all go through one `Toolkit` instance, so they cannot drift apart.
  */
-import { BridgeServer, BridgeError, type BridgeOptions } from './bridge.js';
+import {
+  BridgeServer,
+  BridgeError,
+  type BridgeOptions,
+  type BridgeResponse,
+} from './bridge.js';
 import { Db } from './db.js';
 import { Webhooks } from './webhooks.js';
 import type { ServerConfig } from './config.js';
@@ -79,18 +84,27 @@ export class Toolkit {
   }
 
   /**
-   * Call an action on the extension and mirror whatever it returns.
-   * `origin` travels with the frame so the extension can tell an
-   * agent-originated write from a human one.
+   * Call an action on the extension and mirror whatever it returns, keeping
+   * the quota snapshot that came with it. `origin` travels with the frame so
+   * the extension can tell an agent-originated write from a human one.
    */
+  async callFull(
+    action: ActionName,
+    params: unknown = {},
+    options: { timeoutMs?: number; origin?: RequestOrigin } = {},
+  ): Promise<BridgeResponse> {
+    const response = await this.bridge.requestFull(action, params, options);
+    this.db.recordToolResult(action, response.data);
+    return response;
+  }
+
+  /** `callFull` for callers that only want the data. */
   async call(
     action: ActionName,
     params: unknown = {},
     options: { timeoutMs?: number; origin?: RequestOrigin } = {},
   ): Promise<unknown> {
-    const data = await this.bridge.request(action, params, options);
-    this.db.recordToolResult(action, data);
-    return data;
+    return (await this.callFull(action, params, options)).data;
   }
 
   /** `sync.pull` since the last sync, applied to the local mirror. */

@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../src/tools.js';
 import { TOOL_NAMES, TOOLS } from '../src/contract.js';
+import { FAKE_RATE_LIMIT } from '../src/fake-extension.js';
 import { makeHarness, type Harness } from './helpers.js';
 import { defaultHandlers, ada, pack } from './fixtures.js';
 import { FakeError } from './fakeExtension.js';
@@ -77,6 +78,23 @@ describe('tool calls through the fake extension', () => {
     expect(result.isError).toBeFalsy();
     expect(payload(result)).toMatchObject({ loggedIn: true, extensionVersion: '2.0.0' });
     expect(result.structuredContent).toMatchObject({ loggedIn: true });
+  });
+
+  it('puts the quota snapshot alongside the data in structuredContent', async () => {
+    const result: any = await client.callTool({
+      name: 'linkedin_send_invite',
+      arguments: { publicId: 'ada-lovelace', note: 'Hi Ada' },
+    });
+    expect(result.isError).toBeFalsy();
+    // The data stays the top-level shape; rateLimit sits beside it.
+    expect(result.structuredContent).toMatchObject({ status: 'queued', queueId: 'q_2' });
+    expect(result.structuredContent.rateLimit).toEqual(FAKE_RATE_LIMIT);
+    expect(payload(result).rateLimit).toBeUndefined();
+  });
+
+  it('leaves rateLimit off a read tool the extension sent none with', async () => {
+    const result: any = await client.callTool({ name: 'linkedin_get_status', arguments: {} });
+    expect(result.structuredContent.rateLimit).toBeUndefined();
   });
 
   it('passes params through to the extension', async () => {

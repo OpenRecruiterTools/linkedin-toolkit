@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { HttpServer } from '../src/http.js';
 import { TOOL_NAMES } from '../src/contract.js';
+import { FAKE_RATE_LIMIT } from '../src/fake-extension.js';
 import { makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
 import { ada } from './fixtures.js';
 
@@ -107,6 +108,25 @@ describe('POST /actions/{action}', () => {
   it('mirrors results into SQLite', async () => {
     await post('/actions/search.people', { keywords: 'sre' });
     expect(harness.toolkit.db.counts().profiles).toBe(2);
+  });
+
+  it('carries rateLimit through from the extension on an outreach action', async () => {
+    const { body } = await post('/actions/outreach.invite', { publicId: 'ada-lovelace' });
+    expect(body.ok).toBe(true);
+    expect(body.data).toMatchObject({ status: 'queued' });
+    expect(body.rateLimit).toEqual(FAKE_RATE_LIMIT);
+  });
+
+  it('leaves rateLimit off an envelope the extension did not send one with', async () => {
+    const { body } = await post('/actions/status.get', {});
+    expect(body.ok).toBe(true);
+    expect('rateLimit' in body).toBe(false);
+  });
+
+  it('carries rateLimit through the /tools route as well', async () => {
+    const { body } = await post('/tools/linkedin_send_invite', { publicId: 'ada-lovelace' });
+    expect(body.ok).toBe(true);
+    expect(body.rateLimit).toEqual(FAKE_RATE_LIMIT);
   });
 
   it('rejects bad params with INVALID_PARAMS before calling the extension', async () => {

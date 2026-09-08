@@ -58,8 +58,18 @@ export function offlineError(): BridgeError {
   );
 }
 
+/**
+ * What the extension answered: the action's data, plus the quota snapshot it
+ * attaches to an outreach write. The envelope in docs/actions.md has always
+ * carried `rateLimit`; carrying it here is what lets every surface pass it on.
+ */
+export type BridgeResponse = {
+  data: unknown;
+  rateLimit?: Record<string, number>;
+};
+
 type Pending = {
-  resolve: (data: unknown) => void;
+  resolve: (response: BridgeResponse) => void;
   reject: (err: Error) => void;
   timer: NodeJS.Timeout;
 };
@@ -170,14 +180,15 @@ export class BridgeServer extends EventEmitter {
   }
 
   /**
-   * Send an action to the extension and wait for its response.
-   * Rejects with a BridgeError carrying the contract error code.
+   * Send an action to the extension and wait for its whole response, quota
+   * snapshot included. Rejects with a BridgeError carrying the contract error
+   * code.
    */
-  async request(
+  async requestFull(
     action: string,
     params: unknown = {},
     options: { timeoutMs?: number; origin?: RequestOrigin } = {},
-  ): Promise<unknown> {
+  ): Promise<BridgeResponse> {
     const socket = this.socket;
     if (!socket || socket.readyState !== WebSocket.OPEN) throw offlineError();
 
@@ -185,7 +196,7 @@ export class BridgeServer extends EventEmitter {
     const timeoutMs = options.timeoutMs ?? this.defaultTimeoutMs;
     const origin = options.origin;
 
-    return await new Promise<unknown>((resolve, reject) => {
+    return await new Promise<BridgeResponse>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(
@@ -208,6 +219,15 @@ export class BridgeServer extends EventEmitter {
         reject(new BridgeError('INTERNAL', `Failed to send ${action}: ${String(err)}`));
       }
     });
+  }
+
+  /** `requestFull` for callers that only want the data. */
+  async request(
+    action: string,
+    params: unknown = {},
+    options: { timeoutMs?: number; origin?: RequestOrigin } = {},
+  ): Promise<unknown> {
+    return (await this.requestFull(action, params, options)).data;
   }
 
   /* ---------------------------------------------------------------- */
@@ -306,7 +326,10 @@ export class BridgeServer extends EventEmitter {
     clearTimeout(pending.timer);
 
     if (frame.ok === true) {
-      pending.resolve(frame.data);
+      pending.resolve({
+        data: frame.data,
+        ...(frame.rateLimit ? { rateLimit: frame.rateLimit } : {}),
+      });
       return;
     }
     const error = frame.error ?? {};
