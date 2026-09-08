@@ -21,6 +21,7 @@ import { getProfileNormalized, resolveProfileUrn, sendInvite, sendMessage } from
 
 // Feature modules register their own contract actions on import.
 import './extract.js';
+import './lists.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; the engine reports them back    */
