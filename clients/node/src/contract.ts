@@ -293,6 +293,12 @@ export const RateLimitSchema = z
 
 export const QUOTA_KINDS = ['invite', 'message', 'visit', 'search'] as const;
 
+/** One word per endpoint, from `status.get { verify: true }`. */
+export const ENDPOINT_RESULTS = ['ok', 'failed', 'unverified', 'skipped'] as const;
+export type EndpointResult = (typeof ENDPOINT_RESULTS)[number];
+
+export const EndpointReportSchema = z.record(z.string(), z.enum(ENDPOINT_RESULTS));
+
 export const StatusSchema = z
   .object({
     connected: z.literal(true),
@@ -305,6 +311,11 @@ export const StatusSchema = z
     quotas: z.record(z.enum(QUOTA_KINDS), RateLimitSchema),
     queue: z.object({ pending: z.number() }).passthrough(),
     campaigns: z.object({ active: z.number(), paused: z.number() }).passthrough(),
+    // Present only when the call asked to verify.
+    endpoints: EndpointReportSchema.optional(),
+    clientVersionCaptured: z.string().optional(),
+    endpointsCapturedAt: z.string().optional(),
+    endpointErrors: z.record(z.string(), z.string()).optional(),
   })
   .passthrough();
 
@@ -445,7 +456,10 @@ const Empty = z.object({});
 const Pagination = { start: z.number().int().min(0).optional(), count: z.number().int().min(1).optional() };
 
 export const PARAMS = {
-  'status.get': Empty,
+  'status.get': z.object({
+    verify: z.boolean().optional(),
+    postUrl: z.string().optional(),
+  }),
   'config.get': Empty,
   'config.set': PartialConfigSchema,
 
@@ -718,12 +732,22 @@ export const SQL_QUERY_PARAMS = z.object({
 
 export const SYNC_PARAMS = z.object({ since: z.number().optional() });
 
+/** `linkedin_endpoints_check` always verifies; the post is an optional probe. */
+export const ENDPOINTS_CHECK_PARAMS = z.object({ postUrl: z.string().optional() });
+
 export const TOOLS: ToolDef[] = [
   {
     name: 'linkedin_get_status',
     action: 'status.get',
     description:
       'Check that the Chrome extension is connected and the user is logged in to LinkedIn. Call this first in any session and again after a rate-limit error; returns extension version, autopilot on/off, business-hours flag, per-quota usage (invite, message, visit, search), pending approval-queue size and campaign counts.',
+    write: false,
+  },
+  {
+    name: 'linkedin_endpoints_check',
+    action: 'status.get',
+    description:
+      'Self-test every LinkedIn endpoint the extension uses; run this first when a tool returns LINKEDIN_ERROR. One read-only call per endpoint reports ok, failed, unverified or skipped, plus the LinkedIn client version the endpoint table was captured against, so you can tell "LinkedIn moved" from "the toolkit is broken". The search and profile reads it makes count against the normal daily caps.',
     write: false,
   },
   {
@@ -1005,6 +1029,7 @@ export function toolInputSchema(tool: ToolDef): z.ZodObject<z.ZodRawShape> {
   let base: z.ZodObject<z.ZodRawShape>;
   if (tool.name === 'linkedin_query_sql') base = SQL_QUERY_PARAMS;
   else if (tool.name === 'linkedin_sync') base = SYNC_PARAMS;
+  else if (tool.name === 'linkedin_endpoints_check') base = ENDPOINTS_CHECK_PARAMS;
   else base = PARAMS[tool.action as ActionName] as unknown as z.ZodObject<z.ZodRawShape>;
   return tool.write ? base.extend({ dry_run: z.boolean().optional() }) : base;
 }

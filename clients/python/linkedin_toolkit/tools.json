@@ -8,7 +8,29 @@
       "write": false,
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "verify": {
+            "type": "boolean"
+          },
+          "postUrl": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "linkedin_endpoints_check",
+      "action": "status.get",
+      "description": "Self-test every LinkedIn endpoint the extension uses; run this first when a tool returns LINKEDIN_ERROR. One read-only call per endpoint reports ok, failed, unverified or skipped, plus the LinkedIn client version the endpoint table was captured against, so you can tell \"LinkedIn moved\" from \"the toolkit is broken\". The search and profile reads it makes count against the normal daily caps.",
+      "write": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "postUrl": {
+            "type": "string"
+          }
+        },
         "additionalProperties": false
       }
     },

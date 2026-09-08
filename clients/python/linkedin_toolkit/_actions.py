@@ -20,15 +20,20 @@ class ActionMethods:
     def _invoke(self, action: str, params: dict[str, Any]) -> Any:  # pragma: no cover
         raise NotImplementedError
 
-    def status_get(self) -> Any:
+    def status_get(self, *, verify: Optional[bool] = None, postUrl: Optional[str] = None) -> Any:
         """``status.get``.
 
         Check that the Chrome extension is connected and the user is logged in to LinkedIn. Call
         this first in any session and again after a rate-limit error; returns extension version,
         autopilot on/off, business-hours flag, per-quota usage (invite, message, visit, search),
         pending approval-queue size and campaign counts.
+
+        Args:
+            verify (bool): Optional.
+            postUrl (str): Optional.
         """
-        return self._invoke("status.get", {})
+        params = {"verify": verify, "postUrl": postUrl}
+        return self._invoke("status.get", {k: v for k, v in params.items() if v is not None})
 
     def config_get(self) -> Any:
         """``config.get``.

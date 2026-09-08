@@ -57,3 +57,22 @@ export async function makeHarness(
     },
   };
 }
+
+/**
+ * A port on loopback that nothing is listening on.
+ *
+ * Tests for "the server is not running" must not simply use the default 47830:
+ * a developer running `lit serve --http` on their own machine listens there, so
+ * the request reaches a real server and is refused for the token instead of the
+ * connection, and the test fails for a reason that has nothing to do with what
+ * it is checking. Binding and immediately releasing a port gives one the kernel
+ * has just confirmed is free.
+ */
+export async function closedPort(): Promise<number> {
+  const { createServer } = await import('node:http');
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  const port = (server.address() as { port: number }).port;
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return port;
+}

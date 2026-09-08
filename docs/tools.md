@@ -26,6 +26,7 @@ sending. That is success.
 | Tool | Action | What it does |
 |---|---|---|
 | `linkedin_get_status` | `status.get` | Connection, login, Autopilot, business hours, backoff, challenge, per-action quota, queue depth, campaign counts. **Call this first.** |
+| `linkedin_endpoints_check` | `status.get` (`verify: true`) | Self-test every LinkedIn endpoint the extension uses. **Run this first when a tool returns `LINKEDIN_ERROR`.** One read-only call each, reported `ok`, `failed`, `unverified` or `skipped`, with the client version the endpoint table was captured against. Optional `postUrl` also checks reactions. Costs one search and one visit against the daily caps. |
 
 ### Search and read
 
@@ -117,6 +118,13 @@ All of these honour Copilot mode and the hard caps.
 // → { "connected": true, "loggedIn": true, "autopilot": false, "businessHours": true,
 //     "quotas": { "search": { "dailyUsed": 0, "dailyCap": 1000, … }, … },
 //     "queue": { "pending": 0 }, "campaigns": { "active": 1, "paused": 0 } }
+
+// linkedin_endpoints_check — after a LINKEDIN_ERROR, before anything else
+{}
+// -> { "endpoints": { "me": "ok", "search": "ok", "memberPosts": "failed",
+//                     "groupMembers": "unverified", "reactions": "skipped", ... },
+//      "clientVersionCaptured": "1.13.35548", "connected": true, ... }
+// "failed" means LinkedIn moved that endpoint, not that the toolkit is broken.
 
 // linkedin_search_people
 { "keywords": "data engineering fintech", "title": "Head of Data Engineering",

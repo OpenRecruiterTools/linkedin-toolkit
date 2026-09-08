@@ -5,9 +5,9 @@ import pytest
 from linkedin_toolkit import raw_tools, tool_by_name, tools, tools_version
 
 
-def test_thirty_nine_tools_with_json_schema_parameters():
+def test_forty_tools_with_json_schema_parameters():
     definitions = tools()
-    assert len(definitions) == 39
+    assert len(definitions) == 40
     for tool in definitions:
         assert tool["name"].startswith("linkedin_")
         assert len(tool["description"]) > 40

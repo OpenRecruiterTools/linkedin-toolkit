@@ -948,6 +948,30 @@
               "paused"
             ],
             "additionalProperties": true
+          },
+          "endpoints": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "failed",
+                "unverified",
+                "skipped"
+              ]
+            }
+          },
+          "clientVersionCaptured": {
+            "type": "string"
+          },
+          "endpointsCapturedAt": {
+            "type": "string"
+          },
+          "endpointErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -1205,7 +1229,14 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "verify": {
+                    "type": "boolean"
+                  },
+                  "postUrl": {
+                    "type": "string"
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -6150,7 +6181,57 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "verify": {
+                    "type": "boolean"
+                  },
+                  "postUrl": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/linkedin_endpoints_check": {
+      "post": {
+        "operationId": "tool_linkedin_endpoints_check",
+        "summary": "linkedin_endpoints_check",
+        "description": "Self-test every LinkedIn endpoint the extension uses; run this first when a tool returns LINKEDIN_ERROR. One read-only call per endpoint reports ok, failed, unverified or skipped, plus the LinkedIn client version the endpoint table was captured against, so you can tell \"LinkedIn moved\" from \"the toolkit is broken\". The search and profile reads it makes count against the normal daily caps.",
+        "tags": [
+          "tools"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "postUrl": {
+                    "type": "string"
+                  }
+                },
                 "additionalProperties": false
               }
             }

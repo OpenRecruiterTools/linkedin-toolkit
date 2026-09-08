@@ -19,6 +19,22 @@ lit serve --http --fake                # fake extension client: no LinkedIn acco
 `GET /health` for a liveness check, `GET /openapi.json` for the generated OpenAPI 3.1 document.
 Bearer token is `token` in `~/.linkedin-toolkit/config.json`, or run `lit config get token --reveal`.
 
+## Diagnose
+
+```bash
+lit endpoints check                    # self-test every LinkedIn endpoint the extension uses
+lit endpoints check --post <post-url>  # also check the reactions endpoint
+lit endpoints check --json             # the raw status.get { verify: true } envelope
+```
+
+Run this first when anything returns `LINKEDIN_ERROR`. One read-only call per endpoint, reported as
+`ok`, `failed`, `unverified` (never checked against the current LinkedIn client) or `skipped`
+(nothing on this account to check it against), each with the client version the endpoint table was
+captured against. **Exits 2 if any endpoint failed**, so CI can watch for a LinkedIn release
+breaking a query id: a `failed` row means LinkedIn moved, not that the toolkit is broken — see
+[`voyager-endpoints.md`](voyager-endpoints.md) for how to recapture. The pass costs one search
+result and one profile visit against the daily caps, metered exactly as the real actions are.
+
 ## Read
 
 ```bash

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { loadConfig, saveConfig, configPath, type ServerConfig } from '../src/config.js';
 import { run, maskToken, coerceSetting, CliError, SETTABLE_KEYS } from '../src/cli.js';
 import { HttpServer } from '../src/http.js';
-import { makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
+import { closedPort, makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
 
 let home: string;
 let previousHome: string | undefined;
@@ -292,7 +292,16 @@ describe('LINKEDIN_TOOLKIT_URL and LINKEDIN_TOOLKIT_TOKEN', () => {
   });
 
   it('fall back to the config when unset', async () => {
-    loadConfig();
+    // A free port, not the default: a developer running `lit serve --http`
+    // would otherwise answer this request and refuse the token instead.
+    const port = await closedPort();
+    saveConfig({
+      token: TEST_TOKEN,
+      bridgePort: port,
+      httpPort: port,
+      dbPath: join(home, 'toolkit.db'),
+      researchTimeoutMs: 600_000,
+    });
     const code = await run(['status'], io);
     expect(code).toBe(1);
     expect(stderr()).toContain('server is not running');

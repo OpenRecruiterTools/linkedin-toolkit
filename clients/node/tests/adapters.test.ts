@@ -27,9 +27,9 @@ beforeEach(() => {
 });
 
 describe('toOpenAITools', () => {
-  it('produces the function-tool shape for all 39 tools', () => {
+  it('produces the function-tool shape for all 40 tools', () => {
     const tools = toOpenAITools(client);
-    expect(tools).toHaveLength(39);
+    expect(tools).toHaveLength(40);
     for (const tool of tools) {
       expect(tool.type).toBe('function');
       expect(tool.function.name).toMatch(/^linkedin_/);
@@ -114,7 +114,7 @@ describe('runOpenAIToolCall', () => {
 describe('toOpenAIAgentsTools', () => {
   it('produces the Agents SDK shape, which is not the Chat Completions one', () => {
     const tools = toOpenAIAgentsTools(client);
-    expect(tools).toHaveLength(39);
+    expect(tools).toHaveLength(40);
     const search = tools.find((t) => t.name === 'linkedin_search_people')!;
     expect(search.parameters).toBeInstanceOf(z.ZodObject);
     // Strict mode would require every optional filter to be sent as null.
@@ -139,7 +139,7 @@ describe('toOpenAIAgentsTools', () => {
 describe('toVercelAITools', () => {
   it('keys the record by tool name and carries both v4 and v5 schema fields', () => {
     const tools = toVercelAITools(client);
-    expect(Object.keys(tools)).toHaveLength(39);
+    expect(Object.keys(tools)).toHaveLength(40);
     const search = tools.linkedin_search_people;
     expect(search.description.length).toBeGreaterThan(40);
     expect(search.parameters).toBeInstanceOf(z.ZodObject);

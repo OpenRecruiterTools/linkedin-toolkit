@@ -257,8 +257,15 @@ describe('the CLI against the spawned server', () => {
 
   it('exits 1 with the pairing hint when no server is running', async () => {
     const elsewhere = mkdtempSync(join(tmpdir(), 'lit-none-'));
+    // Aim at a port the kernel has just confirmed is free. Left on the default
+    // 47830 this reaches whatever the developer happens to be running and is
+    // refused for the token, which is a different failure entirely.
+    const nowhere = await freePort();
     try {
-      const { code, stderr } = await run(['status'], { LINKEDIN_TOOLKIT_HOME: elsewhere });
+      const { code, stderr } = await run(['status'], {
+        LINKEDIN_TOOLKIT_HOME: elsewhere,
+        LINKEDIN_TOOLKIT_URL: `http://127.0.0.1:${nowhere}`,
+      });
       expect(code).toBe(1);
       expect(stderr).toContain('lit serve --http');
     } finally {

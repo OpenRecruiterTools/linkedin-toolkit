@@ -72,6 +72,10 @@ export async function runTool(
       const since = typeof args.since === 'number' ? args.since : undefined;
       return { data: await toolkit.sync(since, origin) };
     }
+    case 'linkedin_endpoints_check':
+      // The whole point of this tool is the verification pass, so it is not
+      // left to the caller to remember the flag.
+      return await toolkit.callFull('status.get', { ...args, verify: true }, { origin });
     case 'linkedin_research_pack':
       return { data: await toolkit.researchPack(args, { origin }) };
     default:

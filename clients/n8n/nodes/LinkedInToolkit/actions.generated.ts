@@ -133,7 +133,26 @@ export const ACTIONS: ActionSpec[] = [
     "description": "Check that the Chrome extension is connected and the user is logged in to LinkedIn. Call this first in any session and again after a rate-limit error; returns extension version, autopilot on/off, business-hours flag, per-quota usage (invite, message, visit, search), pending approval-queue size and campaign counts.",
     "write": false,
     "required": [],
-    "optional": []
+    "optional": [
+      {
+        "name": "status_get_verify",
+        "key": "verify",
+        "displayName": "Verify",
+        "required": false,
+        "description": "The Verify parameter.",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "name": "status_get_postUrl",
+        "key": "postUrl",
+        "displayName": "Post URL",
+        "required": false,
+        "description": "The Post URL parameter.",
+        "type": "string",
+        "default": ""
+      }
+    ]
   },
   {
     "action": "config.get",

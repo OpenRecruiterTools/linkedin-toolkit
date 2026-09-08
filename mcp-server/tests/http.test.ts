@@ -255,7 +255,7 @@ describe('POST /mcp', () => {
     });
     await client.connect(transport);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(39);
+    expect(tools).toHaveLength(40);
     const result: any = await client.callTool({ name: 'linkedin_get_status', arguments: {} });
     expect(JSON.parse(result.content[0].text).loggedIn).toBe(true);
     await client.close();

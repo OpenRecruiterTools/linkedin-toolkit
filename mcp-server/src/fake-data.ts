@@ -8,6 +8,32 @@
  */
 import type { FakeHandlers } from './fake-extension.js';
 
+/** What `status.get { verify: true }` reports in fake mode. */
+export const FAKE_CLIENT_VERSION = '1.13.35548';
+export const FAKE_VERIFIED_ENDPOINTS = [
+  'me',
+  'profile',
+  'profileExperience',
+  'search',
+  'company',
+  'companyEmployees',
+  'connections',
+  'sentInvitations',
+  'conversations',
+  'followers',
+  'memberPosts',
+];
+export const FAKE_UNVERIFIED_ENDPOINTS = [
+  'comments',
+  'groupMembers',
+  'eventAttendees',
+  'salesNavSearch',
+  'recruiterSearch',
+  'follow',
+  'invite',
+  'message',
+];
+
 export const FAKE_BANNER = 'FAKE MODE — no LinkedIn calls are made; demo data only';
 
 const CAPTURED_AT = Date.UTC(2026, 8, 1, 9, 0, 0);
@@ -470,7 +496,19 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
   };
 
   return {
-    'status.get': () => ({
+    'status.get': (params: any) => ({
+      ...(params?.verify
+        ? {
+            endpoints: {
+              ...Object.fromEntries(FAKE_VERIFIED_ENDPOINTS.map((name) => [name, 'ok'])),
+              // Without a post to count reactions on there is nothing to check.
+              reactions: params?.postUrl ? 'ok' : 'skipped',
+              ...Object.fromEntries(FAKE_UNVERIFIED_ENDPOINTS.map((name) => [name, 'unverified'])),
+            },
+            clientVersionCaptured: FAKE_CLIENT_VERSION,
+            endpointsCapturedAt: '2026-09-08',
+          }
+        : {}),
       connected: true,
       extensionVersion: '2.0.0 (fake)',
       loggedIn: true,

@@ -36,6 +36,8 @@ Commands:
                                      CSV.
   sync [options]                     Pull everything changed in the extension
                                      into the local mirror.
+  endpoints                          Check the LinkedIn endpoints the extension
+                                     depends on.
   config                             Read and change this server's local
                                      settings
                                      (~/.linkedin-toolkit/config.json).

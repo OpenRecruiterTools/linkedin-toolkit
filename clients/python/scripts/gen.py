@@ -125,7 +125,13 @@ def wrap(text: str, width: int, indent: str) -> list[str]:
 def generate_actions() -> str:
     openapi = json.loads(OPENAPI_SOURCE.read_text(encoding="utf-8"))
     tools = json.loads(TOOLS_SOURCE.read_text(encoding="utf-8"))["tools"]
-    tool_by_action = {t["action"]: t for t in tools if t.get("action")}
+    # First tool wins: several tools may drive one action (linkedin_get_status
+    # and linkedin_endpoints_check both call status.get), and the action-level
+    # docstring should describe the action, not the last specialisation of it.
+    tool_by_action: dict[str, Any] = {}
+    for t in tools:
+        if t.get("action") and t["action"] not in tool_by_action:
+            tool_by_action[t["action"]] = t
     write_actions = {t["action"] for t in tools if t.get("write") and t.get("action")}
 
     lines: list[str] = [BANNER, "", "", "class ActionMethods:", '    """Every action in the contract, as a keyword-only method."""', ""]

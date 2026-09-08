@@ -310,10 +310,10 @@ describe('health and tools', () => {
     expect(server.last.headers.authorization).toBeUndefined();
   });
 
-  it('returns 39 tool definitions with JSON Schema parameters and no network call', () => {
+  it('returns 40 tool definitions with JSON Schema parameters and no network call', () => {
     const before = server.requests.length;
     const tools = client().tools();
-    expect(tools).toHaveLength(39);
+    expect(tools).toHaveLength(40);
     expect(server.requests.length).toBe(before);
     for (const tool of tools) {
       expect(tool.name).toMatch(/^linkedin_/);

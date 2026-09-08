@@ -178,7 +178,13 @@ function field(name: string, raw: Schema, document: Schema, required: boolean, p
 export function buildActions(): { actions: ActionSpec[]; resources: string[] } {
   const document = JSON.parse(readFileSync(OPENAPI_SOURCE, 'utf8')) as Schema;
   const tools = (JSON.parse(readFileSync(TOOLS_SOURCE, 'utf8')) as { tools: any[] }).tools;
-  const toolByAction = new Map<string, any>(tools.filter((t) => t.action).map((t) => [t.action, t]));
+  // First tool wins: several tools may drive one action (linkedin_get_status
+  // and linkedin_endpoints_check both call status.get), and the operation
+  // description should describe the action, not the last specialisation of it.
+  const toolByAction = new Map<string, any>();
+  for (const tool of tools) {
+    if (tool.action && !toolByAction.has(tool.action)) toolByAction.set(tool.action, tool);
+  }
 
   const actions: ActionSpec[] = [];
   const resources: string[] = [];

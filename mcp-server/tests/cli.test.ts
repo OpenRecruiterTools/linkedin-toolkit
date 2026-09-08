@@ -16,7 +16,7 @@ import {
   NOT_RUNNING,
   CliError,
 } from '../src/cli.js';
-import { makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
+import { closedPort, makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
 import { defaultHandlers, pack } from './fixtures.js';
 import type { Handlers } from './fakeExtension.js';
 
@@ -143,6 +143,7 @@ describe('--help', () => {
       'sql',
       'export',
       'sync',
+      'endpoints',
       'config',
       'token',
       'research',
@@ -164,6 +165,20 @@ describe('--help', () => {
 });
 
 describe('with no server running', () => {
+  // Point at a port the kernel has just confirmed is free, so this tests the
+  // "nothing is listening" path rather than whatever happens to be on 47830 on
+  // the machine running the suite.
+  beforeEach(async () => {
+    const port = await closedPort();
+    saveConfig({
+      token: TEST_TOKEN,
+      bridgePort: port,
+      httpPort: port,
+      dbPath: join(home, 'toolkit.db'),
+      researchTimeoutMs: 600_000,
+    });
+  });
+
   it('tells the user how to start one', async () => {
     const code = await run(['status'], io);
     expect(code).toBe(1);

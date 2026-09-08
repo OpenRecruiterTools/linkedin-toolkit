@@ -5,7 +5,7 @@ import { createMcpServer } from '../src/tools.js';
 import { TOOL_NAMES, TOOLS } from '../src/contract.js';
 import { FAKE_RATE_LIMIT } from '../src/fake-extension.js';
 import { makeHarness, type Harness } from './helpers.js';
-import { defaultHandlers, ada, pack } from './fixtures.js';
+import { defaultHandlers, ada, pack, status } from './fixtures.js';
 import { FakeError } from './fakeExtension.js';
 
 let harness: Harness;
@@ -38,7 +38,7 @@ describe('tool list', () => {
   it('exposes exactly the tools in the contract mapping', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
-    expect(tools).toHaveLength(39);
+    expect(tools).toHaveLength(40);
   });
 
   it('gives every tool a description and an object input schema', async () => {
@@ -219,6 +219,56 @@ describe('linkedin_query_sql', () => {
     });
     expect(result.isError).toBe(true);
     expect(payload(result).error.message).toMatch(/read-only/i);
+  });
+});
+
+describe('linkedin_endpoints_check', () => {
+  beforeEach(async () => {
+    harness = await makeHarness();
+    client = await connectClient(harness);
+  });
+
+  it('always asks the extension to verify, without the caller saying so', async () => {
+    await client.callTool({ name: 'linkedin_endpoints_check', arguments: {} });
+    expect(harness.ext.seen.at(-1)).toMatchObject({
+      action: 'status.get',
+      params: { verify: true },
+    });
+  });
+
+  it('passes a probe post through', async () => {
+    await client.callTool({
+      name: 'linkedin_endpoints_check',
+      arguments: { postUrl: 'https://www.linkedin.com/feed/update/1/' },
+    });
+    expect(harness.ext.seen.at(-1)?.params).toMatchObject({
+      verify: true,
+      postUrl: 'https://www.linkedin.com/feed/update/1/',
+    });
+  });
+
+  it('returns the endpoint report the extension sent', async () => {
+    harness.ext.setHandler('status.get', (params: any) => ({
+      ...status,
+      ...(params?.verify
+        ? {
+            endpoints: { me: 'ok', search: 'failed', groupMembers: 'unverified' },
+            clientVersionCaptured: '1.13.35548',
+          }
+        : {}),
+    }));
+    const result: any = await client.callTool({ name: 'linkedin_endpoints_check', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    const data = JSON.parse(result.content[0].text);
+    expect(data.endpoints).toEqual({ me: 'ok', search: 'failed', groupMembers: 'unverified' });
+    expect(data.clientVersionCaptured).toBe('1.13.35548');
+  });
+
+  it('takes no dry_run, being read-only', async () => {
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === 'linkedin_endpoints_check')!;
+    expect(Object.keys(tool.inputSchema.properties ?? {})).not.toContain('dry_run');
+    expect(tool.annotations?.readOnlyHint).toBe(true);
   });
 });
 

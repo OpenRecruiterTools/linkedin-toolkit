@@ -148,6 +148,18 @@ export function slugify(input: string): string {
   );
 }
 
+/** The note column of `lit endpoints check`. */
+export function endpointNote(result: string, clientVersion: string, error?: string): string {
+  if (result === 'ok') return `verified ${clientVersion}`;
+  if (result === 'failed') {
+    return error
+      ? `${error} — LinkedIn likely moved; recapture per docs/voyager-endpoints.md`
+      : 'LinkedIn likely moved; recapture per docs/voyager-endpoints.md';
+  }
+  if (result === 'skipped') return 'nothing to check it against on this account';
+  return 'not yet verified against the current LinkedIn client';
+}
+
 /** Fixed-width table for human output. */
 export function table(rows: Record<string, unknown>[], columns: string[]): string {
   if (rows.length === 0) return '(nothing)';
@@ -780,6 +792,53 @@ export function buildProgram(io: Io = defaultIo): Command {
       });
     });
 
+  const endpointsCommand = program
+    .command('endpoints')
+    .description('Check the LinkedIn endpoints the extension depends on.');
+
+  endpointsCommand
+    .command('check')
+    .description(
+      'Self-test every endpoint and report which ones LinkedIn still serves. ' +
+        'Exits 2 if any endpoint failed.',
+    )
+    .option('--post <url>', 'a post URL, so the reaction endpoint can be checked too')
+    .option('--json', 'print raw JSON')
+    .action(async (options) => {
+      const status = await client().action('status.get', {
+        verify: true,
+        ...(options.post ? { postUrl: options.post } : {}),
+      });
+      const endpoints: Record<string, string> = status.endpoints ?? {};
+      const errors: Record<string, string> = status.endpointErrors ?? {};
+      const captured = status.clientVersionCaptured ?? 'unknown';
+
+      if (options.json) {
+        io.out(JSON.stringify(status, null, 2));
+      } else {
+        const rows = Object.entries(endpoints).map(([name, result]) => ({
+          name,
+          result,
+          note: endpointNote(String(result), captured, errors[name]),
+        }));
+        io.out(table(rows, ['name', 'result', 'note']));
+      }
+
+      const failed = Object.entries(endpoints).filter(([, result]) => result === 'failed');
+      if (failed.length > 0) {
+        if (!options.json) {
+          io.out('');
+          io.out(
+            `${failed.length} endpoint${failed.length === 1 ? '' : 's'} failed. ` +
+              'LinkedIn most likely moved: see docs/voyager-endpoints.md for how to recapture.',
+          );
+        }
+        // A distinct code so CI and scripts can tell "some endpoint broke" from
+        // "the command itself could not run".
+        throw new CliError('', 2);
+      }
+    });
+
   const configCommand = program
     .command('config')
     .description('Read and change this server\'s local settings (~/.linkedin-toolkit/config.json).');
@@ -940,7 +999,9 @@ export async function run(argv: string[], io: Io = defaultIo): Promise<number> {
       return err.exitCode === 0 || err.code === 'commander.helpDisplayed' ? 0 : err.exitCode;
     }
     if (err instanceof CliError) {
-      io.err(err.message);
+      // An exit code on its own is a valid outcome: `lit endpoints check`
+      // reports the detail itself and then fails with code 2.
+      if (err.message) io.err(err.message);
       return err.exitCode;
     }
     io.err(err instanceof Error ? err.message : String(err));
