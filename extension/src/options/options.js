@@ -1,182 +1,118 @@
 /**
- * LinkedIn Toolkit — Options Page Controller
+ * Options page — the same settings module full-width, plus settings
+ * import/export and a danger zone.
  */
 
-(function () {
-  'use strict';
+import { el, render } from '../ui/dom.js';
+import { call, send } from '../ui/api.js';
+import { ACTIONS } from '../lib/actions.js';
+import { renderSettings } from '../ui/settings.js';
+import { card, row, busyButton, button, pill, confirmDialog } from '../ui/components.js';
+import { downloadJson, today } from '../ui/download.js';
+import { readTextFile } from '../ui/csv.js';
 
-  function send(msg) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(msg, (resp) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-        if (resp && resp.error) {
-          reject(new Error(resp.error));
-          return;
-        }
-        resolve(resp);
-      });
-    });
-  }
+/** Import / export and the danger zone, appended under the settings form. */
+export function extraCards(ctx) {
+  const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'input' });
 
-  function $(id) { return document.getElementById(id); }
+  return [
+    card(
+      'Settings file',
+      { hint: 'A plain JSON copy of your configuration. It contains your API keys.' },
+      row(
+        busyButton(
+          'Export settings',
+          async () => {
+            const config = await call(ACTIONS.CONFIG_GET, {});
+            await downloadJson(`linkedin-toolkit-settings-${today()}.json`, config);
+          },
+          { error: ctx.error },
+        ),
+      ),
+      row(
+        fileInput,
+        busyButton(
+          'Import settings',
+          async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) throw new Error('Choose a settings file first.');
+            let parsed;
+            try {
+              parsed = JSON.parse(await readTextFile(file));
+            } catch {
+              throw new Error('That file is not valid JSON.');
+            }
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+              throw new Error('That file does not contain a settings object.');
+            }
+            await call(ACTIONS.CONFIG_SET, parsed);
+            ctx.status.set('Imported. Reloading the form…');
+            await ctx.reload();
+          },
+          { error: ctx.error },
+        ),
+      ),
+    ),
 
-  function setStatus(text, type) {
-    const el = $('status');
-    el.textContent = text;
-    el.className = 'status';
-    if (type) el.classList.add(`status--${type}`);
-  }
-
-  /* ================================================================ */
-  /*  Settings map                                                    */
-  /* ================================================================ */
-
-  const fields = [
-    { id: 'cfg-minDelayMs', key: 'minDelayMs', valId: 'val-min', suffix: 's', divisor: 1000 },
-    { id: 'cfg-maxDelayMs', key: 'maxDelayMs', valId: 'val-max', suffix: 's', divisor: 1000 },
-    { id: 'cfg-maxPerHour', key: 'maxPerHour', valId: 'val-hour' },
-    { id: 'cfg-maxInvitesPerDay', key: 'maxInvitesPerDay', valId: 'val-invites' },
-    { id: 'cfg-maxMessagesPerDay', key: 'maxMessagesPerDay', valId: 'val-messages' },
-    { id: 'cfg-windowStartHour', key: 'windowStartHour', valId: 'val-start' },
-    { id: 'cfg-windowEndHour', key: 'windowEndHour', valId: 'val-end' },
+    card(
+      'Danger zone',
+      {
+        class: 'card--danger',
+        hint: 'Lists, campaigns, the queue, captured profiles and every setting.',
+      },
+      busyButton(
+        'Clear all data',
+        async () => {
+          const sure = await confirmDialog({
+            title: 'Erase everything this extension has stored?',
+            message:
+              'Lists, campaigns, queued items, captured profiles and all settings go. ' +
+              'Nothing on LinkedIn itself is touched, and nothing can be undone.',
+            confirmLabel: 'Erase everything',
+            typeToConfirm: 'ERASE',
+            danger: true,
+          });
+          if (!sure) return;
+          await chrome.storage.local.clear();
+          ctx.status.set('Cleared. Reload the extension to start fresh.');
+          await ctx.reload();
+        },
+        { variant: 'danger', error: ctx.error },
+      ),
+    ),
   ];
+}
 
-  // Live display updates
-  fields.forEach((f) => {
-    const input = $(f.id);
-    if (!input) return;
-    input.addEventListener('input', () => {
-      const display = $(f.valId);
-      if (!display) return;
-      const val = f.divisor ? (parseInt(input.value, 10) / f.divisor) : parseInt(input.value, 10);
-      display.textContent = val + (f.suffix || '');
-    });
-  });
-
-  /* ================================================================ */
-  /*  Load / Save                                                     */
-  /* ================================================================ */
-
-  async function loadConfig() {
-    try {
-      const config = await send({ type: 'GET_CONFIG' });
-
-      fields.forEach((f) => {
-        const input = $(f.id);
-        if (!input) return;
-        input.value = config[f.key];
-
-        const display = $(f.valId);
-        if (display) {
-          const val = f.divisor ? (config[f.key] / f.divisor) : config[f.key];
-          display.textContent = val + (f.suffix || '');
-        }
-      });
-
-      $('cfg-windowWeekdaysOnly').checked = config.windowWeekdaysOnly;
-    } catch (err) {
-      setStatus('Failed to load settings: ' + err.message, 'err');
-    }
+/** Paint the small connection summary in the page header. */
+export async function paintHeader(host) {
+  if (!host) return;
+  const envelope = await send(ACTIONS.STATUS_GET, {});
+  if (!envelope.ok) {
+    render(host, pill('engine offline', 'bad'));
+    return;
   }
+  const status = envelope.data || {};
+  render(host, [
+    status.loggedIn ? pill('LinkedIn ✓', 'good') : pill('signed out', 'bad'),
+    status.autopilot ? pill('Autopilot', 'warn') : pill('Copilot', 'info'),
+  ]);
+}
 
-  $('btn-save').addEventListener('click', async () => {
-    const config = {};
-    fields.forEach((f) => {
-      const input = $(f.id);
-      if (input) config[f.key] = parseInt(input.value, 10);
-    });
-    config.windowWeekdaysOnly = $('cfg-windowWeekdaysOnly').checked;
+export async function start(nodes) {
+  await paintHeader(nodes.headStatus);
+  await renderSettings(nodes.view, { extras: extraCards });
+  const backToPopup = el(
+    'p',
+    { class: 'hint' },
+    button('Reload this page', () => window.location.reload(), { variant: 'link' }),
+  );
+  nodes.view.appendChild(backToPopup);
+}
 
-    try {
-      await send({ type: 'SET_CONFIG', config });
-      setStatus('Settings saved.', 'ok');
-    } catch (err) {
-      setStatus('Failed to save: ' + err.message, 'err');
-    }
+/* istanbul ignore next — browser bootstrap, exercised by the smoke checklist */
+if (typeof document !== 'undefined' && document.getElementById('view')) {
+  start({
+    view: document.getElementById('view'),
+    headStatus: document.getElementById('head-status'),
   });
-
-  /* ================================================================ */
-  /*  Import / Export                                                  */
-  /* ================================================================ */
-
-  $('btn-export').addEventListener('click', async () => {
-    try {
-      const config = await send({ type: 'GET_CONFIG' });
-      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'linkedin-toolkit-settings.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatus('Settings exported.', 'ok');
-    } catch (err) {
-      setStatus('Export failed: ' + err.message, 'err');
-    }
-  });
-
-  $('btn-import').addEventListener('click', () => {
-    $('import-area').style.display = 'block';
-    $('import-actions').style.display = 'flex';
-    $('import-area').value = '';
-    $('import-area').focus();
-  });
-
-  $('btn-import-cancel').addEventListener('click', () => {
-    $('import-area').style.display = 'none';
-    $('import-actions').style.display = 'none';
-  });
-
-  $('btn-import-confirm').addEventListener('click', async () => {
-    const raw = $('import-area').value.trim();
-    if (!raw) {
-      setStatus('Paste JSON settings first.', 'err');
-      return;
-    }
-
-    try {
-      const config = JSON.parse(raw);
-      await send({ type: 'SET_CONFIG', config });
-      setStatus('Settings imported and saved.', 'ok');
-      $('import-area').style.display = 'none';
-      $('import-actions').style.display = 'none';
-      await loadConfig();
-    } catch (err) {
-      setStatus('Invalid JSON: ' + err.message, 'err');
-    }
-  });
-
-  /* ================================================================ */
-  /*  Clear all data                                                  */
-  /* ================================================================ */
-
-  $('btn-clear').addEventListener('click', async () => {
-    if (!confirm('This will erase ALL extension data including campaigns, settings, and usage history. Continue?')) {
-      return;
-    }
-
-    try {
-      await chrome.storage.local.clear();
-      setStatus('All data cleared. Reload to apply defaults.', 'ok');
-      await loadConfig();
-    } catch (err) {
-      setStatus('Failed to clear: ' + err.message, 'err');
-    }
-  });
-
-  /* ================================================================ */
-  /*  Version                                                         */
-  /* ================================================================ */
-
-  const manifest = chrome.runtime.getManifest();
-  $('version').textContent = `LinkedIn Toolkit v${manifest.version}`;
-
-  /* ================================================================ */
-  /*  Boot                                                            */
-  /* ================================================================ */
-
-  loadConfig();
-})();
+}
