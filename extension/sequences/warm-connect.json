@@ -1,0 +1,18 @@
+{
+  "name": "Warm connect",
+  "description": "Warm someone up with a visit and a follow before the invite ever lands.",
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 7200000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "note": "Hi {{firstName|there}} — I've been reading what {{company}} is publishing and would like to follow your work properly.",
+      "variants": [
+        "Hi {{firstName|there}} — your work at {{company}} keeps coming up in my reading. Worth being connected.",
+        "Hi {{firstName|there}} — I follow this space closely and would rather read you here than in a feed."
+      ]
+    }
+  ]
+}

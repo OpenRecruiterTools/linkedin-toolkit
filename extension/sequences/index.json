@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "note": "Placeholder sequences bundled with the extension. The content workstream replaces these with the full library; the shape is the contract Step type.",
+  "sequences": [
+    {
+      "file": "warm-connect.json",
+      "name": "Warm connect",
+      "description": "Warm someone up with a visit and a follow before the invite ever lands."
+    },
+    {
+      "file": "connect-then-message.json",
+      "name": "Connect, then message",
+      "description": "Invite, then branch: message the people who accept, keep following the ones who don't."
+    }
+  ]
+}
