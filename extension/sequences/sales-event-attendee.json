@@ -1,0 +1,55 @@
+{
+  "name": "Sales — event attendee",
+  "description": "Uses a shared event as the reason to exist. Works before the event (\"are you going?\") and after (\"what did you make of it?\"). Written for the after case, which converts better.",
+  "audience": "Lists built from `event.attendees`, a conference badge scan, or a webinar registration export.",
+  "tags": ["sales", "event", "trigger"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — we were both at the same event and didn't manage to speak. Fixing that here. Connecting, no agenda.",
+        "Hi {{firstName|there}} — saw you on the attendee list. Would rather connect properly than let another conference pass without it."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. What did you actually take away from it? I came out convinced everyone has the same problem and nobody wants to say so on a panel.",
+              "Good to connect, {{firstName|there}}. Was any of it useful to you, or was it the usual? I got more out of the corridors than the stage."
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — the recurring theme for me was how much of this is still done by hand. Is that the picture at {{company|your company}} too?",
+              "One thing that stuck with me, {{firstName|there}}: nobody had solved the manual part. Curious whether {{company|your team}} has."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll leave it there, {{firstName|there}} — good to have met you on paper at least. See you at the next one.",
+              "Signing off, {{firstName|there}}. If you're at the next one, find me — the corridors are better than the panels."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

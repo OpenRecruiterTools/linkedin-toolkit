@@ -1,0 +1,55 @@
+{
+  "name": "Referral ask",
+  "description": "Asks someone to point you at the right person. Makes the ask small and specific — a name, not an introduction — because a name costs ten seconds and an introduction costs social capital.",
+  "audience": "People adjacent to your buyer: former colleagues of theirs, advisors, or anyone who plainly knows the person you actually need.",
+  "tags": ["network", "referral", "warm"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — you sit right in the middle of a network I'm trying to understand. Connecting; I'd value your read on something small.",
+        "Hi {{firstName|there}} — you know the people I'm trying to reach far better than I do. Happy to connect and ask one short question."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. One question, ten seconds: who at {{company|a company like yours}} actually owns this decision? A name is plenty — I'll do the rest myself.",
+              "Small ask, {{firstName|there}}: who would you go to about this if you were me? Just a name, no introduction needed."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — no obligation at all. If it's easier to say \"not my area\", that's a genuinely useful answer too.",
+              "Happy to hear \"I don't know\", {{firstName|there}} — it saves me guessing. And if there's anything I can point you at in return, say so."
+            ]
+          },
+          { "type": "wait", "waitMs": 604800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Leaving it there, {{firstName|there}} — thanks for connecting regardless. Happy to return the favour any time.",
+              "I'll stop asking, {{firstName|there}}. If I can ever be useful in the other direction, just ask."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

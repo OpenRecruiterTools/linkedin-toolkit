@@ -494,9 +494,9 @@ describe('shipped sequence templates', () => {
     net.push(profileView); // the view
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);
 
-    // the wait
+    // the wait (the template decides how long)
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
-    jump(2 * HOUR);
+    jump(connectThenMessage.steps[1].waitMs + HOUR);
 
     net.push({}); // the invite
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);

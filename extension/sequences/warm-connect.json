@@ -1,18 +1,49 @@
 {
   "name": "Warm connect",
-  "description": "Warm someone up with a visit and a follow before the invite ever lands.",
+  "description": "The default. Visit, follow, then invite with a short note two days later, so the invite lands on someone who has already seen your name. Two messages after acceptance, spaced wide.",
+  "audience": "Anyone you have no relationship with yet and no specific trigger for. The safe starting template if you are unsure which to use.",
+  "tags": ["general", "starter", "low-risk"],
   "steps": [
     { "type": "view" },
-    { "type": "wait", "waitMs": 7200000 },
+    { "type": "wait", "waitMs": 86400000 },
     { "type": "follow" },
     { "type": "wait", "waitMs": 86400000 },
     {
       "type": "invite",
-      "note": "Hi {{firstName|there}} — I've been reading what {{company}} is publishing and would like to follow your work properly.",
       "variants": [
-        "Hi {{firstName|there}} — your work at {{company}} keeps coming up in my reading. Worth being connected.",
-        "Hi {{firstName|there}} — I follow this space closely and would rather read you here than in a feed."
+        "Hi {{firstName|there}} — I follow the work coming out of {{company|your team}} and would rather read your posts in my feed than miss them. Happy to connect.",
+        "Hi {{firstName|there}}, your work as {{title|a leader}} at {{company|your company}} keeps crossing my feed. Would be good to connect properly."
       ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. No pitch — I mostly wanted to follow what {{company|your team}} is building. What's taking up most of your time this quarter?",
+              "Appreciate the connect, {{firstName|there}}. Genuinely curious what the next six months look like for {{company|your team}} — what's the thing you keep coming back to?"
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "No worries if this isn't a good moment, {{firstName|there}}. I'll stay out of your inbox — if the {{company|your team}} roadmap ever needs an outside pair of eyes, I'm here.",
+              "Last one from me, {{firstName|there}} — I'll leave you to it. Ping me any time if something at {{company|your company}} is worth a conversation."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
     }
-  ]
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
 }

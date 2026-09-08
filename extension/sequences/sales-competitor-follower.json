@@ -1,0 +1,57 @@
+{
+  "name": "Sales — competitor follower",
+  "description": "For people following or engaging with a competitor. Never names the competitor and never rubbishes them — that reads as insecurity. Leads with the category problem instead.",
+  "audience": "Lists built from a competitor's company followers or the engagers on a competitor's posts.",
+  "tags": ["sales", "competitive", "category"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — you clearly pay attention to this category, which is rarer than it should be. Connecting to follow what {{company|your team}} is doing with it.",
+        "Hi {{firstName|there}} — we work in the same category you're evidently tracking. Would be good to be connected."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 259200000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Since you're evaluating this space — what's the thing none of the tools you've looked at actually do? That answer is worth more to me than a demo slot.",
+              "Straight question, {{firstName|there}}: what did the tools you've tried get wrong? I'd rather hear that than pitch you something you've already rejected."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — no comparison chart, I promise. If you want, I'll show you the one thing we do differently and you can tell me whether it matters.",
+              "Ten minutes, {{firstName|there}}, one difference, no slides. Worth it or shall I leave you to your shortlist?"
+            ]
+          },
+          { "type": "wait", "waitMs": 518400000 },
+          {
+            "type": "message",
+            "variants": [
+              "I'll stop there, {{firstName|there}}. Genuinely hope whatever you pick works — come back if it doesn't.",
+              "Leaving it, {{firstName|there}}. If the tool you choose disappoints in six months, that's a fine time to talk."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

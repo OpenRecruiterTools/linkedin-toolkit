@@ -1,0 +1,55 @@
+{
+  "name": "Sales — post engager",
+  "description": "For people who liked or commented on a post about your problem space. The trigger is fresh and specific, so this sequence moves faster and references the post directly in the first touch.",
+  "audience": "Lists built from `post.engagers` on a post — yours or someone else's — that is about the problem you solve.",
+  "tags": ["sales", "trigger", "intent"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "{{firstName|Hi}} — we both ended up in the comments on that thread. Clearly a shared preoccupation. Connecting so I can follow what you're doing at {{company|your company}}.",
+        "Hi {{firstName|there}} — saw you engaging with the same thread I was. Would be good to connect with someone else who cares about this."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks {{firstName|there}}. Since you were on that thread — how are you handling it at {{company|your company}}? Everyone we speak to seems to be doing it manually and quietly hating it.",
+              "Genuinely curious, {{firstName|there}}: is this a live problem at {{company|your company}} or were you just enjoying the argument? Both are valid answers."
+            ]
+          },
+          { "type": "wait", "waitMs": 345600000 },
+          {
+            "type": "message",
+            "variants": [
+              "{{firstName|Hi}} — we built something for exactly this. Happy to show you in ten minutes, or send a two-minute recording if that's easier. Your call.",
+              "If it is a live problem, {{firstName|there}}, I can show you what we did about it in ten minutes. If it isn't, tell me and I'll go away."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "Last one, {{firstName|there}} — I'll assume the timing's wrong. If it changes at {{company|your company}}, you know where I am.",
+              "Closing this off, {{firstName|there}}. Thanks for the thread either way — it was a better discussion than most."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "follow" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

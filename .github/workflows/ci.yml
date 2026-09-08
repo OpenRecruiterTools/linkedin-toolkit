@@ -72,6 +72,9 @@ jobs:
       - name: Validate every sequence template
         run: node sequences/validate.mjs
 
+      - name: Bundled copy in the extension is current
+        run: node scripts/copy-sequences.mjs && git diff --exit-code -- extension/sequences
+
   python:
     name: python ${{ matrix.python }}
     runs-on: ubuntu-latest

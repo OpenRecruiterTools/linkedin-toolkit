@@ -11,7 +11,15 @@ import sequenceIndex from '../../sequences/index.json';
 import warmConnect from '../../sequences/warm-connect.json';
 import connectThenMessage from '../../sequences/connect-then-message.json';
 
+// Every bundled template, keyed the way the popup fetches them.
+const ALL_SEQUENCES = Object.fromEntries(
+  Object.entries(import.meta.glob('../../sequences/*.json', { eager: true, import: 'default' })).map(
+    ([path, doc]) => [`sequences/${path.split('/').pop()}`, doc],
+  ),
+);
+
 const BUNDLE = {
+  ...ALL_SEQUENCES,
   'sequences/index.json': sequenceIndex,
   'sequences/warm-connect.json': warmConnect,
   'sequences/connect-then-message.json': connectThenMessage,
@@ -279,15 +287,15 @@ describe('Campaigns tab', () => {
     const templateSelect = node.querySelector('select');
     expect([...templateSelect.options].map((o) => o.value)).toEqual([
       '',
-      'warm-connect.json',
-      'connect-then-message.json',
+      ...sequenceIndex.sequences.map((entry) => entry.file),
     ]);
+    expect(sequenceIndex.sequences.length).toBe(20);
 
     templateSelect.value = 'connect-then-message.json';
     clickLabelled(node, 'Load template');
     await flush(10);
 
-    expect(host.textContent).toContain('Loaded "Connect, then message"');
+    expect(host.textContent).toContain(`Loaded "${connectThenMessage.name}"`);
     expect(builder(host).querySelectorAll('[data-testid="steps"] > .step')).toHaveLength(4);
 
     clickLabelled(builder(host), 'Create campaign');

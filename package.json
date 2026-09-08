@@ -18,7 +18,8 @@
     "sequences": "node sequences/validate.mjs",
     "zip:extension": "node scripts/zip-extension.mjs",
     "test:python": "node scripts/python-check.mjs",
-    "release:check": "npm run build && npm run gen && git diff --exit-code -- mcp-server/openapi.json mcp-server/tools.json && npm run lint && npm test && npm run test:python && npm run sequences && npm run zip:extension"
+    "release:check": "npm run build && npm run gen && git diff --exit-code -- mcp-server/openapi.json mcp-server/tools.json && npm run lint && npm test && npm run test:python && npm run sequences && npm run sequences:bundle && git diff --exit-code -- extension/sequences && npm run zip:extension",
+    "sequences:bundle": "node scripts/copy-sequences.mjs"
   },
   "devDependencies": {
     "adm-zip": "^0.5.16",
