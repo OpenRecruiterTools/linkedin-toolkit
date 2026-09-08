@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (must already exist)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve tag
+        id: tag
+        run: echo "value=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Validate sequence templates
+        run: node sequences/validate.mjs
+
+      # The extension has no build step, so the zip is the source folder. Users load it
+      # unpacked via chrome://extensions — deliberately not the Chrome Web Store, whose policy
+      # forbids extensions facilitating third-party ToS violations.
+      - name: Package the extension
+        run: |
+          TAG="${{ steps.tag.outputs.value }}"
+          ZIP="linkedin-toolkit-extension-${TAG}.zip"
+          cd extension
+          zip -r "../${ZIP}" . -x '*.DS_Store' -x 'tests/*' -x 'node_modules/*'
+          cd ..
+          echo "Built ${ZIP} ($(du -h "${ZIP}" | cut -f1))"
+          unzip -l "${ZIP}" | tail -5
+
+      - name: Build the MCP server
+        run: npm run build -w mcp-server
+
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: ${{ steps.tag.outputs.value }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.value, '-') }}
+          files: linkedin-toolkit-extension-${{ steps.tag.outputs.value }}.zip
+          body: |
+            ## Install
+
+            **Extension** — download `linkedin-toolkit-extension-${{ steps.tag.outputs.value }}.zip`
+            below, unzip it, then open `chrome://extensions`, turn on **Developer mode**, click
+            **Load unpacked**, and pick the unzipped folder.
+
+            **Server** — `npx linkedin-toolkit-mcp`. The first run prints a pairing token; paste it
+            into the extension popup → Settings → Connect.
+
+            Full setup, including the config block for your agent:
+            [docs/agents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md)
+
+            ---
+
+      # Publishing is optional so that a fork, or this repo before the npm token exists, still
+      # produces a usable release.
+      - name: Check for an npm token
+        id: npm
+        run: |
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "NPM_TOKEN is not set — skipping npm publish."
+          fi
+
+      - name: Publish linkedin-toolkit-mcp
+        if: steps.npm.outputs.publish == 'true'
+        run: npm publish -w mcp-server --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

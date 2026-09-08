@@ -1,0 +1,82 @@
+name: Feature request
+description: Suggest something new
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you write this, please check
+        [docs/roadmap.md](../blob/main/docs/roadmap.md) — it lists what is planned, and also the
+        things that will never be built because they need a server or break the local-first
+        guarantee.
+
+        The usual reason a good idea gets declined here is that it requires hosted
+        infrastructure. Cloud sessions, team dashboards, seats and shared state all fall into
+        that category.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What are you trying to do that you cannot do today? Describe the situation, not the
+        solution — the best feature requests here have started as a description of a workflow.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What you would like
+      description: If you have a shape in mind, describe it. Tool names, action names, or UI.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: The workaround, if there is one. Even "I do it by hand" is useful.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Extraction (a new data source)
+        - Lists and CRM
+        - Sequences and campaigns
+        - Inbox
+        - Research Pack
+        - Agent tools (MCP, HTTP, clients)
+        - Skills
+        - CLI
+        - Safety and rate limiting
+        - Popup and options UI
+        - Docs
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Fits the project's constraints
+      description: >
+        These are non-negotiable. A request that needs any of them is a fork, not a PR.
+      options:
+        - label: This does not require a hosted service, a backend, or shared state between users
+          required: true
+        - label: This does not require a headless browser (Playwright, Puppeteer, CDP)
+          required: true
+        - label: This does not require raising the hard caps, bypassing the approval queue, or evading detection
+          required: true
+        - label: I have read docs/roadmap.md and this is not already listed as out of scope
+          required: true
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you build it?
+      options:
+        - label: I would be willing to open a PR for this

@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  sequences:
+    name: sequence templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Zero dependencies on purpose — this runs before anything is installed.
+      - name: Validate every sequence template
+        run: node sequences/validate.mjs
+
+  python:
+    name: python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        run: pip install -e "clients/python[test]"
+
+      - name: Test
+        if: hashFiles('clients/python/pyproject.toml') != ''
+        run: pytest clients/python
+
+      - name: Skipped
+        if: hashFiles('clients/python/pyproject.toml') == ''
+        run: echo "No clients/python/pyproject.toml yet — nothing to test."
+
+  no-headless-browser:
+    name: no headless browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A non-negotiable from the spec: no Playwright, Puppeteer, or CDP anywhere in the
+      # repository, including tests and examples. The whole value proposition is that this is
+      # not a browser bot. This job fails the build if one gets added.
+      # Code and manifests only. Prose is allowed to name these tools — the docs, the issue
+      # templates and CONTRIBUTING all have to say which ones are forbidden.
+      - name: Fail on browser automation dependencies
+        run: |
+          TARGETS=""
+          for d in extension mcp-server clients examples sequences skills scripts; do
+            [ -d "$d" ] && TARGETS="$TARGETS $d"
+          done
+          TARGETS="$TARGETS package.json package-lock.json"
+
+          if grep -rniE '\b(playwright|puppeteer|puppeteer-core|selenium|webdriver|chrome-remote-interface)\b' \
+               --include='*.json' --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' \
+               --include='*.py' --include='*.toml' --include='*.txt' \
+               --exclude-dir=node_modules --exclude-dir=dist \
+               $TARGETS ; then
+            echo "::error::Browser automation dependency found. This project never uses a headless browser, including in tests and examples — see docs/why-browser-agents-fail-on-linkedin.md"
+            exit 1
+          fi
+          echo "Clean."

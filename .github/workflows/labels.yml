@@ -1,0 +1,32 @@
+name: Labels
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/labels.yml', '.github/workflows/labels.yml']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report what would change without changing it
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply .github/labels.yml
+        uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          yaml-file: .github/labels.yml
+          # Labels not listed in the file are left alone. Delete them by hand if you mean to —
+          # removing a label removes it from every issue that carries it.
+          skip-delete: true
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
