@@ -35,6 +35,7 @@ describe('Extract tab', () => {
       'My connections',
       'My followers',
       'Inbox export',
+      'Mass unfollow',
     ]);
     expect(extract.CARDS.map((c) => c.action)).toEqual([
       ACTIONS.SEARCH_PEOPLE,

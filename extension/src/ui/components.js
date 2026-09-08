@@ -206,7 +206,7 @@ export function spinner() {
  * @param {string} label
  * @param {(ctx: {status: object, progress: object, button: HTMLButtonElement}) => Promise<*>} handler
  * @param {{ variant?: string, error?: object, status?: object, progress?: object,
- *           title?: string, disabled?: boolean, onDone?: Function }} [opts]
+ *           title?: string, ariaLabel?: string, disabled?: boolean, onDone?: Function }} [opts]
  * @returns {HTMLButtonElement}
  */
 export function busyButton(label, handler, opts = {}) {
@@ -215,6 +215,7 @@ export function busyButton(label, handler, opts = {}) {
     type: 'button',
     class: `btn btn--${variant}`,
     title: opts.title || null,
+    'aria-label': opts.ariaLabel || null,
     disabled: Boolean(opts.disabled),
   });
 

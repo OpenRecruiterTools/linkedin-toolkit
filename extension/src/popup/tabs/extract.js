@@ -3,6 +3,9 @@
  *
  * Every card runs an action, shows progress, counts the rows, and offers
  * "save to list" and a CSV/JSON download built in the popup.
+ *
+ * One card at the bottom is not an extraction: mass unfollow, which the engine
+ * will only run from the popup. See `unfollowCard`.
  */
 
 import { el, render, fmtNumber } from '../../ui/dom.js';
@@ -21,6 +24,7 @@ import {
   progressBar,
   busyButton,
   button,
+  confirmDialog,
   empty,
 } from '../../ui/components.js';
 import { downloadCsv, downloadJson, slug, today } from '../../ui/download.js';
@@ -504,6 +508,77 @@ function extractionCard(spec, shared) {
 }
 
 /* ================================================================== */
+/*  Mass unfollow                                                      */
+/* ================================================================== */
+
+/**
+ * Mass unfollow is not an extraction — it returns counts, not rows — so it is
+ * not in `CARDS` and has no results panel. It lives here because it is the
+ * only other thing you do to your own network, and because the engine will
+ * only run it from the popup: it drives the tab you are looking at.
+ */
+export const UNFOLLOW_WARNING =
+  'Runs in your active LinkedIn tab, clicking Unfollow one person at a time with 2–5 second ' +
+  'gaps. There is no undo.';
+
+export function unfollowCard() {
+  const err = errorLine();
+  const status = statusLine();
+
+  const countBtn = busyButton(
+    'Check count',
+    async () => {
+      const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, {});
+      const count = Number(data.count) || 0;
+      status.set(`${fmtNumber(count)} account${count === 1 ? '' : 's'} you can unfollow.`);
+    },
+    {
+      variant: 'ghost',
+      error: err,
+      ariaLabel: 'Check how many accounts you follow',
+    },
+  );
+
+  const unfollowBtn = busyButton(
+    'Unfollow all',
+    async () => {
+      const sure = await confirmDialog({
+        title: 'Unfollow everyone?',
+        message: UNFOLLOW_WARNING,
+        confirmLabel: 'Unfollow all',
+        danger: true,
+      });
+      if (!sure) {
+        status.set('Cancelled — nothing was unfollowed.');
+        return;
+      }
+      status.set('Unfollowing in your LinkedIn tab…');
+      try {
+        const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, {});
+        const count = Number(data.unfollowed) || 0;
+        status.set(`Unfollowed ${fmtNumber(count)} account${count === 1 ? '' : 's'}.`);
+      } catch (e) {
+        status.clear();
+        throw e;
+      }
+    },
+    {
+      variant: 'danger',
+      error: err,
+      ariaLabel: 'Unfollow everyone you follow',
+    },
+  );
+
+  return card(
+    'Mass unfollow',
+    { hint: UNFOLLOW_WARNING, class: 'extract-unfollow' },
+    row(countBtn, unfollowBtn),
+    status,
+    err,
+  );
+}
+
+/* ================================================================== */
 /*  Tab                                                                */
 /* ================================================================== */
 
@@ -516,8 +591,8 @@ export async function mount(container) {
     shared.lists = [];
   }
 
-  render(
-    container,
-    CARDS.map((spec) => extractionCard(spec, shared)),
-  );
+  render(container, [
+    ...CARDS.map((spec) => extractionCard(spec, shared)),
+    unfollowCard(),
+  ]);
 }

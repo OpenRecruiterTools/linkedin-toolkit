@@ -59,6 +59,13 @@ Approving is a human action. An agent asking to approve its own queue is refused
 and `queue.reject` answer `UNAUTHORIZED` from an MCP client unless you have turned Autopilot on.
 The popup and `lit queue approve` at your own terminal are you, so both work.
 
+The `cli` origin is asserted by the caller itself, in the `X-LinkedIn-Toolkit-Origin` header on the
+request to the local bridge, and it is trusted for one reason: the bearer token that header rides
+with is only ever issued over loopback and is stored in a file readable by your account alone, so
+anything holding it is already you at your own machine. Everything else arriving over the bridge is
+stamped `mcp` — an MCP client cannot promote itself to `popup`, which is the origin the
+popup-only actions (Autopilot, the safety caps, mass unfollow) require.
+
 Autopilot exists, and turning it on is a decision only you can make, in the popup — no config
 file, no API call, no agent. Turn it on when you have watched a few hundred drafts and trust what
 the sequence produces. Approving is still not sending: an approved item waits for the delay, the
