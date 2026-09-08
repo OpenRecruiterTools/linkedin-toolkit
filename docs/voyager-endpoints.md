@@ -35,10 +35,18 @@ GET /voyager/api/graphql?includeWebMetadata=true&variables=(…)&queryId=<name>.
 ```
 
 `variables` is Rest.li 2.0 syntax, not JSON and not form encoding:
-`(key:value,list:List(a,b),nested:(k:v))`. `(`, `)`, `,` and `:` are the syntax
-and stay literal — which is what lets a urn be written inline — and everything
-else is percent-encoded, so a space is `%20`. `encodeVariables()` in
-`voyager-core.js` is the only place that is implemented, and it is unit-tested.
+`(key:value,list:List(a,b),nested:(k:v))`. `(`, `)`, `,` and `:` are the
+syntax; **inside a value they are percent-encoded like everything else**, so a
+urn goes on the wire as `urn%3Ali%3Aactivity%3A7501…` and a space as `%20`.
+Leaving the colons literal is accepted by search and answered with a 400 by
+`voyagerSocialDashReactions` and the whole messaging surface, so there is one
+rule and no exceptions. `encodeVariables()` in `voyager-core.js` is the only
+place that is implemented, and it is unit-tested against the byte-exact URL of
+a verified probe.
+
+`includeWebMetadata=true` is **not** sent. The web app puts it on some queries
+and not others, and the ones that do not want it answer 400; the helper takes
+it as an opt-in flag and nothing currently opts in.
 
 Messaging has its own surface at `/voyager/api/voyagerMessagingGraphQL/graphql`,
 which puts `queryId` first and addresses every call to a mailbox — the mailbox
@@ -55,13 +63,15 @@ Each of these returned HTTP 200 with real data on the capture date.
 | `profiles` + `decorations.fullProfile` | same, `decorationId=…FullProfile-76` | `profile.get { full: true }` — adds summary and industry |
 | `queryIds.profileComponents` | `variables=(profileUrn:<urn>,sectionType:experience,locale:en_US)` | `Profile.experience` (and `education`, `skills` on a full read) |
 | `queryIds.searchClusters` | `variables=(start,count,origin,query:(keywords,flagshipSearchIntent:SEARCH_SRP,queryParameters:List(…),includeFiltersInResponse:false))` | `search.people`, `company.employees`, `network.followers`, mutual connections |
-| `queryIds.company` | `variables=(universalName:<name>)` | `company.get`, and the id lookup `company.employees` needs |
+| `companies` | `GET /organization/companies?decorationId=…WebFullCompanyMain-12&q=universalName&universalName=<name>` | `company.get` — the read that actually answers with a company |
+| `queryIds.company` | `variables=(universalName:<name>)` | the fallback for the row above, and the id lookup `company.employees` needs |
 | `queryIds.reactions` | `variables=(threadUrn:<urn:li:activity:…>,count,start)` | `post.engagers { kind: 'likes' }` |
 | `connections` | `GET /relationships/dash/connections?decorationId=…ConnectionListWithProfile-16&q=search&sortType=RECENTLY_ADDED&start&count` | `network.connections` |
 | `sentInvitations` | `GET /relationships/sentInvitationViewsV2?q=invitationType&invitationType=CONNECTION&start&count` | `network.status`, the campaign `accepted` branch, the already-connected pre-check |
 | `queryIds.sentInvitations` | `variables=(start,count,invitationType:CONNECTION)` | fallback for the row above |
-| `queryIds.conversations` | messaging: `variables=(query:(predicateUnions:List((conversationCategoryPredicate:(category:INBOX)))),count,mailboxUrn:<self>,lastUpdatedBefore)` | `inbox.threads`, reply detection |
-| `queryIds.messages` / `messagesBefore` | messaging: `variables=(conversationUrn:<urn>)`, or `(deliveredAt,conversationUrn,countBefore,countAfter:0)` | `inbox.messages` |
+| `queryIds.conversations` | messaging: `variables=(categories:List(INBOX,SPAM,ARCHIVE),count,firstDegreeConnections:false,mailboxUrn:<self>,read:false)` | `inbox.threads`, reply detection |
+| `queryIds.conversationsByCategory` | messaging: `variables=(query:(predicateUnions:List((conversationCategoryPredicate:(category:INBOX)))),count,mailboxUrn:<self>,lastUpdatedBefore:<ms>)` | paging back through the inbox |
+| `queryIds.messages` | messaging: `variables=(deliveredAt:<ms>,conversationUrn:<urn>,countBefore:<n>,countAfter:0)` | `inbox.messages` |
 | `queryIds.memberPosts` | `variables=(count,start,profileUrn:<urn>,paginationToken?)` | `research.pack`'s `recentPosts` |
 
 ### What these endpoints do *not* give us
@@ -71,10 +81,20 @@ Each of these returned HTTP 200 with real data on the capture date.
   title, no dates, no description. It is in the table for the record; the
   engine reads experience from `profileComponents` instead, which does carry
   the rendered title, employer and date range.
-- The **company** query answers with a thin decoration for some organisations —
-  for `microsoft` on the capture date it returned nothing but the `entityUrn`.
-  `normalizeCompany` returns what came back and echoes the requested universal
-  name; the urn alone is still enough for an employee search.
+- The **company GraphQL** query answers with a thin decoration for some
+  organisations — for `microsoft` on the capture date it returned nothing but
+  the `entityUrn`. That is why `company.get` reads REST first and keeps GraphQL
+  as the fallback: the urn alone is still enough for an employee search.
+  Note the two surfaces spell the urn differently,
+  `urn:li:fs_normalized_company:1035` and `urn:li:fsd_company:1035`.
+- The **messaging surface is fussy** in a way the rest of Voyager is not. It
+  rejects `includeWebMetadata`, and each query wants its variables by exactly
+  the right names in exactly the right order.
+- **No decoration carries the member photo** for anybody but ourselves — the
+  top card and the full profile both return a `profilePicture` with only
+  `a11yText`. The connections list and search results do carry it, so a profile
+  read returns the *stored* record, which keeps a photo an earlier read found;
+  `profile.get { full: true }` also captures one from the page.
 - **Followers** come back through the search surface, and their navigation urls
   carry the obfuscated member id rather than a vanity name, so `publicId` is
   that id. It is still a working profile URL and a stable key.
