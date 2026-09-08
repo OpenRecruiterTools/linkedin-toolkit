@@ -37,7 +37,6 @@ export * from './voyager-normalize.js';
 export const ENDPOINTS = Object.freeze({
   /** Full profile view; `{publicId}` is substituted. */
   profileView: '/identity/profiles/{publicId}/profileView',
-  dashProfiles: '/identity/dash/profiles',
   searchClusters: '/search/dash/clusters',
   salesNavSearch: `${LINKEDIN_BASE}/sales-api/salesApiPeopleSearch`,
   recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
@@ -53,7 +52,6 @@ export const ENDPOINTS = Object.freeze({
   memberPosts: '/identity/profileUpdatesV2',
   followingStates: '/feed/dash/followingStates',
   normInvitations: '/growth/normInvitations',
-  profileViewBeacon: '/identity/dash/profileViews',
 });
 
 const SEARCH_DECORATION =
@@ -182,33 +180,10 @@ export async function getProfileNormalized(publicId, source = 'profile') {
  * Register a profile view.
  *
  * The authenticated `profileView` fetch is itself what LinkedIn records as a
- * visit; `beacon: true` additionally posts to `ENDPOINTS.profileViewBeacon`
- * (off by default because that path is the least stable of the catalogue).
+ * visit, so there is nothing else to do.
  */
-export async function viewProfile(publicId, { beacon = false } = {}) {
-  const profile = normalizeProfileView(await getProfile(publicId), 'visit');
-  if (beacon && profile.urn) {
-    try {
-      await voyagerFetch(ENDPOINTS.profileViewBeacon, {
-        method: 'POST',
-        body: { viewedProfileUrn: profile.urn, trackingId: generateTrackingId() },
-      });
-    } catch {
-      /* the view is already registered by the fetch above */
-    }
-  }
-  return profile;
-}
-
-/** Connection degree for a public identifier. */
-export async function getConnectionStatus(publicId) {
-  const profile = await getProfileNormalized(publicId);
-  return {
-    connected: profile.connectionDegree === 1,
-    degree: profile.connectionDegree || 0,
-    distance: profile.connectionDegree ? `DISTANCE_${profile.connectionDegree}` : '',
-    urn: profile.urn,
-  };
+export async function viewProfile(publicId) {
+  return normalizeProfileView(await getProfile(publicId), 'visit');
 }
 
 /* ================================================================== */
@@ -465,11 +440,3 @@ export async function commentPost({ postUrl, body }) {
   });
 }
 
-/* ================================================================== */
-/*  v1 compatibility                                                  */
-/* ================================================================== */
-
-/** The v1 raw search call, kept so the untouched v1 popup keeps working. */
-export async function searchPeople({ keywords, start = 0, count = 25 }) {
-  return runSearch(searchQuery({ keywords }), { start, count });
-}
