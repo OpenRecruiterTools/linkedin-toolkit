@@ -9,6 +9,7 @@
  */
 
 import { getConfig } from '../lib/config.js';
+import { hasHostAccess } from '../lib/permissions.js';
 
 export const HUNTER_BASE = 'https://api.hunter.io/v2/email-finder';
 
@@ -73,6 +74,10 @@ export async function lookupEmail(profile, company) {
   });
   if (!request) return { provider: settings.provider, reason: 'not-enough-input' };
 
+  if (!(await hasHostAccess(request.url))) {
+    return { provider: settings.provider, reason: 'permission-missing' };
+  }
+
   try {
     const response = await fetch(request.url, { method: 'GET' });
     if (!response.ok) return { provider: settings.provider, reason: `http-${response.status}` };
@@ -85,5 +90,6 @@ export async function lookupEmail(profile, company) {
 /** True when a provider other than `none` is configured with a key. */
 export async function isEnrichmentConfigured() {
   const { enrichment } = await getConfig();
-  return !!(enrichment && PROVIDERS[enrichment.provider] && enrichment.apiKey);
+  if (!enrichment || !PROVIDERS[enrichment.provider] || !enrichment.apiKey) return false;
+  return hasHostAccess(HUNTER_BASE);
 }

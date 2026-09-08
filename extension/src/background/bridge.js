@@ -226,6 +226,12 @@ export async function ensureConnected() {
   socket.onclose = onClose;
   socket.onerror = (e) => {
     state.lastError = (e && e.message) || 'socket error';
+    // Some environments fire onerror without a following onclose, which would
+    // otherwise leave the client stuck 'connecting' and never retrying.
+    if (!state.connected) {
+      state.connecting = false;
+      scheduleRetry();
+    }
   };
 
   return { connected: false, reason: 'connecting' };

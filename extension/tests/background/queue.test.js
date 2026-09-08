@@ -109,8 +109,10 @@ describe('the send path', () => {
 
     const res = await invite('popup');
     expect(res.data.status).toBe('sent');
-    expect(delays).toHaveLength(1);
+    // Two pauses: the visit that resolves the profile urn, then the invite.
+    expect(delays).toHaveLength(2);
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
 
     const log = await storage.allActions();
     expect(log[0]).toMatchObject({
@@ -163,10 +165,13 @@ describe('the send path', () => {
   it('draws follow, like and view from the visit bucket and inmail from message', async () => {
     net.push(profileView);
     await handle(ACTIONS.OUTREACH_VIEW, { publicId: 'adalovelace' }, 'popup');
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+
+    // A follow costs its own visit plus the profile read that resolves the urn.
     net.push(profileView);
     net.push({});
     await handle(ACTIONS.OUTREACH_FOLLOW, { publicId: 'adalovelace' }, 'popup');
-    expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(3);
 
     net.push(profileView);
     net.push({});
@@ -176,6 +181,18 @@ describe('the send path', () => {
       'popup',
     );
     expect((await quota.snapshot('message')).dailyUsed).toBe(1);
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(4);
+  });
+
+  it('a caller that already has the urn is not charged a second visit', async () => {
+    net.push({});
+    await handle(
+      ACTIONS.OUTREACH_FOLLOW,
+      { publicId: 'adalovelace', profileUrn: 'urn:li:fsd_profile:ACoAAAada' },
+      'popup',
+    );
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+    expect(net.calls).toHaveLength(1);
   });
 });
 

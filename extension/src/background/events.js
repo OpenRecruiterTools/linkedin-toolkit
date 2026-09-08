@@ -10,7 +10,7 @@
  */
 
 import { EVENTS } from '../lib/actions.js';
-import { K, get, set } from '../lib/storage.js';
+import { K, get, update } from '../lib/storage.js';
 
 const KNOWN = new Set(Object.values(EVENTS));
 
@@ -59,9 +59,14 @@ function notify(name, payload) {
 }
 
 async function record(frame) {
-  const log = await get(K.EVENTS, []);
-  log.push(frame);
-  await set(K.EVENTS, log.length > MAX_EVENT_LOG ? log.slice(-MAX_EVENT_LOG) : log);
+  await update(
+    K.EVENTS,
+    (log) => {
+      const next = [...log, frame];
+      return next.length > MAX_EVENT_LOG ? next.slice(-MAX_EVENT_LOG) : next;
+    },
+    [],
+  );
 }
 
 /**

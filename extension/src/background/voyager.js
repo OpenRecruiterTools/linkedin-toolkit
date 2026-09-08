@@ -22,6 +22,7 @@ import {
   normalizeRecruiterSearch,
   normalizeSalesNavSearch,
   normalizeSearchClusters,
+  normalizeSentInvitations,
   normalizeTotal,
   threadIdFromUrn,
 } from './voyager-normalize.js';
@@ -356,11 +357,27 @@ export async function getMutualConnectionsCount({ profileUrn }) {
 /*  Writes                                                            */
 /* ================================================================== */
 
-function toFsdProfileUrn(urn) {
+export function toFsdProfileUrn(urn) {
   const str = String(urn || '');
   if (!str) return '';
   if (str.includes('fsd_profile')) return str;
   return str.replace('fs_miniProfile', 'fsd_profile').replace('fs_profile', 'fsd_profile');
+}
+
+/**
+ * Invitations we have sent that are still pending.
+ *
+ * One cheap call that answers "did they accept?" for everybody at once, with
+ * no profile views spent. This is the endpoint `network.status` and the
+ * campaign 'accepted' branch lean on.
+ *
+ * @returns {Promise<{publicId: string, invitationUrn: string, sentAt?: number}[]>}
+ */
+export async function getSentInvitations({ start = 0, count = 100 } = {}) {
+  const raw = await voyagerFetch(
+    `${ENDPOINTS.normInvitations}?${qs({ q: 'sentInvitationsV2', start, count })}`,
+  );
+  return normalizeSentInvitations(raw);
 }
 
 /** Resolve a profile urn from a public identifier when the caller has none. */

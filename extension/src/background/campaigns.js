@@ -18,6 +18,7 @@ import { emit } from './events.js';
 import * as inbox from './inbox.js';
 import { isWithinBusinessHours } from './quota.js';
 import * as lists from './lists.js';
+import * as queue from './queue.js';
 
 // network.status must be registered for the 'accepted' branch to resolve.
 import './extract.js';
@@ -344,11 +345,10 @@ async function stepParams(campaign, step, enrollment) {
   };
   // A step may carry `variants` with no `note`/`body` at all — the shipped
   // sequence templates do exactly that — so the variant is the text, and a
-  // literal `note`/`body` is only the fallback.
+  // literal `note`/`body` is only the fallback. The cursor only moves once the
+  // write has actually happened, so a refused step does not burn a variant.
   const variant = pickVariant(step.variants, campaign.variantCursor || 0);
-  if (step.variants && step.variants.length) {
-    campaign.variantCursor = (campaign.variantCursor || 0) + 1;
-  }
+  const variantUsed = !!(step.variants && step.variants.length);
 
   const params = {
     publicId: enrollment.publicId,
@@ -365,7 +365,7 @@ async function stepParams(campaign, step, enrollment) {
     params.postUrl = step.postUrl || '';
     if (step.type === 'comment') params.body = renderTemplate(variant || step.body, profile);
   }
-  return params;
+  return { params, variantUsed };
 }
 
 /* ================================================================== */
@@ -402,12 +402,45 @@ export async function tick() {
     if (campaign.status !== 'active') continue;
 
     const enrollments = await readEnrollments(campaign.campaignId);
+    const cursorBefore = campaign.variantCursor || 0;
     let dirty = false;
 
     for (const enrollment of enrollments) {
       if (halted) break;
       if (enrollment.status !== 'active') continue;
       if ((enrollment.nextAt || 0) > now) continue;
+
+      // A step that is sitting in the approval queue has not happened yet.
+      // Advancing past it would run the next step out of order, and re-running
+      // it would queue a duplicate — so wait for the human either way.
+      if (enrollment.pendingQueueId) {
+        const item = await queue.byId(enrollment.pendingQueueId);
+        if (!item || item.status === 'pending' || item.status === 'approved') continue;
+
+        delete enrollment.pendingQueueId;
+        enrollment.updatedAt = Date.now();
+        dirty = true;
+
+        if (item.status === 'rejected') {
+          enrollment.status = 'stopped';
+          enrollment.error = 'The queued step was rejected.';
+          continue;
+        }
+        if (item.status === 'failed') {
+          enrollment.status = 'stopped';
+          enrollment.error =
+            (item.result && item.result.error && item.result.error.message) || 'The queued step failed.';
+          continue;
+        }
+
+        // Sent: carry on from the step after the one that was queued.
+        enrollment.lastActionAt = Date.now();
+        advance(campaign, enrollment);
+        if (isFinished(campaign, enrollment)) {
+          await finish(campaign, enrollment);
+          continue;
+        }
+      }
 
       if (campaign.settings.stopOnReply) {
         const watermark = enrollment.lastActionAt || enrollment.enrolledAt || 0;
@@ -494,7 +527,7 @@ export async function tick() {
           continue;
         }
 
-        const params = await stepParams(campaign, step, enrollment);
+        const { params, variantUsed } = await stepParams(campaign, step, enrollment);
         const res = await handle(action, params, 'campaign');
         wrote = true;
 
@@ -511,14 +544,21 @@ export async function tick() {
           break;
         }
 
-        if (res.data.status === 'sent') executed += 1;
-        else queued += 1;
-
         const doneIndex = enrollment.stepIndex;
-        enrollment.lastActionAt = Date.now();
-        advance(campaign, enrollment);
         enrollment.updatedAt = Date.now();
         dirty = true;
+        if (variantUsed) campaign.variantCursor = (campaign.variantCursor || 0) + 1;
+
+        if (res.data.status === 'queued') {
+          queued += 1;
+          // Stay on this step; the next tick picks it up once a human has
+          // approved or rejected it.
+          enrollment.pendingQueueId = res.data.queueId;
+        } else {
+          executed += 1;
+          enrollment.lastActionAt = Date.now();
+          advance(campaign, enrollment);
+        }
 
         await emit(EVENTS.CAMPAIGN_STEP_DONE, {
           campaignId: campaign.campaignId,
@@ -533,6 +573,13 @@ export async function tick() {
     }
 
     if (dirty) await writeEnrollments(campaign.campaignId, enrollments);
+
+    // stepParams advances variantCursor in memory; without this the rotation
+    // restarts at A on every tick and everyone gets the same variant.
+    if ((campaign.variantCursor || 0) !== cursorBefore) {
+      campaign.updatedAt = Date.now();
+      await writeCampaigns(campaigns);
+    }
 
     const remaining = (await readEnrollments(campaign.campaignId)).filter(
       (e) => e.status === 'active',

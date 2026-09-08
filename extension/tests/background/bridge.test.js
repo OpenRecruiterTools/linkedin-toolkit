@@ -287,6 +287,24 @@ describe('resilience', () => {
     expect(timers).toHaveLength(1);
   });
 
+  it('an onerror with no onclose still clears connecting and retries', async () => {
+    await bridge.ensureConnected();
+    expect(bridge.bridgeState().connecting).toBe(true);
+
+    socket().onerror({ message: 'ECONNRESET' });
+
+    expect(bridge.bridgeState().connecting).toBe(false);
+    expect(bridge.bridgeState().lastError).toMatch(/ECONNRESET/);
+    expect(timers).toHaveLength(1);
+  });
+
+  it('an onerror on a live connection does not tear it down', async () => {
+    await connect();
+    socket().onerror({ message: 'transient' });
+    expect(bridge.isConnected()).toBe(true);
+    expect(timers).toHaveLength(0);
+  });
+
   it('a send on a dead socket does not throw', async () => {
     await connect();
     socket().send = () => {

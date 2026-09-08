@@ -31,9 +31,11 @@ beforeEach(async () => {
   quota.setSleepFn(() => Promise.resolve());
   seedSession();
   net = stubFetch();
-  // The tick reads the inbox before it evaluates anything, so give it a quiet
-  // one by default; the stopOnReply tests re-route it.
-  net.route('/messaging/conversations', { elements: [] });
+  // Reads that every tick makes, answered by URL so the tests only have to
+  // queue the writes they care about. Individual tests re-route these.
+  net.route('/messaging/conversations', { elements: [] }); // a quiet inbox
+  net.route('normInvitations?q=sentInvitationsV2', { elements: [] }); // nothing pending
+  net.route('/identity/profiles/', profileView); // 2nd degree
   seen = [];
   events.setSink((f) => seen.push(f));
   await setConfig({
@@ -167,9 +169,7 @@ describe('linear sequence', () => {
     expect(net.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
 
     jump(24 * HOUR);
-    net.push(profileView); // the already-connected pre-check
-    net.push(profileView); // urn resolution for the invite
-    net.push({});
+    net.push({}); // the invite
     res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data.executed).toBe(1);
 
@@ -216,21 +216,14 @@ describe('branching', () => {
     },
   ];
 
-  /** invite = pre-check, urn resolution, the POST. */
-  function pushInvite() {
-    net.push(profileView);
-    net.push(profileView);
-    net.push({});
-  }
-
   it('takes the then arm when the invite was accepted', async () => {
     const c = await makeCampaign(branched);
-    pushInvite();
+    net.push({}); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    net.push(inviteAccepted); // network.status → connected
-    net.push(profileView); // urn for the message
-    net.push({}); // message
+    // The invitation is no longer pending, so network.status calls it accepted
+    // without spending a profile view.
+    net.push({}); // the message
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const log = await storage.allActions();
@@ -241,12 +234,12 @@ describe('branching', () => {
 
   it('takes the else arm when it was not accepted', async () => {
     await makeCampaign(branched);
-    pushInvite();
+    net.push({}); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    net.push(profileView); // still 2nd degree
-    net.push(profileView); // urn for the follow
-    net.push({}); // follow
+    // The invitation is still pending, so the branch takes the else arm.
+    net.route('normInvitations?q=sentInvitationsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const log = await storage.allActions();
@@ -256,11 +249,9 @@ describe('branching', () => {
 
   it('climbs back out of the arm and finishes', async () => {
     const c = await makeCampaign(branched);
-    pushInvite();
+    net.push({}); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
-    net.push(profileView);
-    net.push(profileView);
-    net.push({});
+    net.push({}); // whichever arm it takes
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -282,16 +273,15 @@ describe('branching', () => {
         },
       },
     ]);
-    pushInvite();
+    net.push({}); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect((await enrollmentOf(c.campaignId)).path).toEqual([]);
 
     jump(73 * HOUR);
-    net.push(profileView); // still not connected
-    net.push(profileView); // urn for the follow
-    net.push({});
+    net.route('normInvitations?q=sentInvitationsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect((await storage.allActions()).map((e) => e.action)).toContain(ACTIONS.OUTREACH_FOLLOW);
   });
@@ -363,11 +353,7 @@ describe('variants', () => {
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
     await storage.putProfile({ publicId: 'carlachen', firstName: 'Carla' });
 
-    for (let i = 0; i < 3; i += 1) {
-      net.push(profileView); // pre-check
-      net.push(profileView); // urn
-      net.push({}); // the invite
-    }
+    for (let i = 0; i < 3; i += 1) net.push({}); // three invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
@@ -387,11 +373,7 @@ describe('variants without a note or body', () => {
     });
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
 
-    for (let i = 0; i < 2; i += 1) {
-      net.push(profileView);
-      net.push(profileView);
-      net.push({});
-    }
+    for (let i = 0; i < 2; i += 1) net.push({}); // two invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
@@ -404,7 +386,6 @@ describe('variants without a note or body', () => {
       steps: [{ type: 'message', variants: ['Body A {{firstName}}'] }],
       publicIds: ['adalovelace'],
     });
-    net.push(profileView); // urn resolution
     net.push({}); // the message
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -419,7 +400,7 @@ describe('variants without a note or body', () => {
 describe('already connected', () => {
   it('skips an invite to someone we are already connected to', async () => {
     const c = await makeCampaign([{ type: 'invite', note: 'Hi' }]);
-    net.push(inviteAccepted); // the pre-check says 1st degree
+    net.route('/identity/profiles/', inviteAccepted); // 1st degree
 
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data).toEqual({ executed: 0, queued: 0 });
@@ -450,9 +431,7 @@ describe('already connected', () => {
       },
     ]);
 
-    net.push(inviteAccepted); // the invite pre-check: already connected, skip
-    net.push(inviteAccepted); // the branch check: accepted
-    net.push(profileView); // urn resolution for the message
+    net.route('/identity/profiles/', inviteAccepted); // 1st degree already
     net.push({}); // the message
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -466,9 +445,7 @@ describe('already connected', () => {
 
   it('still invites someone we are not connected to', async () => {
     await makeCampaign([{ type: 'invite', note: 'Hi' }]);
-    net.push(profileView); // 2nd degree
-    net.push(profileView);
-    net.push({});
+    net.push({}); // the invite
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data.executed).toBe(1);
   });
@@ -508,8 +485,6 @@ describe('shipped sequence templates', () => {
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     jump(2 * HOUR);
 
-    net.push(profileView); // invite pre-check
-    net.push(profileView); // urn
     net.push({}); // the invite
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);
     expect(net.calls[net.calls.length - 1].json.message).toMatch(/^Hi Ada/);
@@ -535,6 +510,101 @@ describe('copilot and quotas', () => {
     expect((await enrollmentOf(c.campaignId)).status).toBe('active');
   });
 
+  it('carries the campaign context through the queue into the action log', async () => {
+    await setConfig({ autopilot: false });
+    const c = await makeCampaign([{ type: 'invite', note: 'Hi {{firstName}}' }]);
+
+    const tickRes = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+    expect(tickRes.data.queued).toBe(1);
+
+    const item = (await queue.list('pending'))[0];
+    expect(item.context).toEqual({ campaignId: c.campaignId, stepIndex: 0 });
+    // The engine's own fields never reach LinkedIn.
+    expect(item.params.campaignId).toBeUndefined();
+    expect(item.params.stepIndex).toBeUndefined();
+    expect(item.params.note).toBe('Hi Ada');
+
+    net.push({}); // the invite
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [item.id] });
+
+    const entry = (await storage.allActions()).find((e) => e.action === ACTIONS.OUTREACH_INVITE);
+    expect(entry.campaignId).toBe(c.campaignId);
+    expect(entry.stepIndex).toBe(0);
+
+    const stats = (await handle(ACTIONS.CAMPAIGN_GET, { campaignId: c.campaignId })).data.stats;
+    expect(stats.sent).toBe(1);
+    expect(stats.byStep[0]).toEqual({ sent: 1 });
+  });
+
+  it('does not advance past a queued step until it has been sent', async () => {
+    await setConfig({ autopilot: false });
+    const c = await makeCampaign([
+      { type: 'invite', note: 'Hi' },
+      { type: 'message', body: 'Following up' },
+    ]);
+
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+    const item = (await queue.list('pending'))[0];
+    let e = await enrollmentOf(c.campaignId);
+    expect(e.stepIndex).toBe(0);
+    expect(e.pendingQueueId).toBe(item.id);
+
+    // While it waits, the tick does nothing at all for this person.
+    expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data).toEqual({
+      executed: 0,
+      queued: 0,
+    });
+    expect(await queue.list('pending')).toHaveLength(1);
+
+    net.push({}); // the approved invite
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [item.id] });
+
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+    e = await enrollmentOf(c.campaignId);
+    expect(e.stepIndex).toBe(1);
+    expect(e.pendingQueueId).not.toBe(item.id); // the message is queued instead
+    expect(await queue.list('pending')).toHaveLength(1);
+  });
+
+  it('stops the enrollment when a queued step is rejected', async () => {
+    await setConfig({ autopilot: false });
+    const c = await makeCampaign([{ type: 'invite', note: 'Hi' }, { type: 'view' }]);
+
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+    const item = (await queue.list('pending'))[0];
+    await handle(ACTIONS.QUEUE_REJECT, { ids: [item.id] });
+
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+    const e = await enrollmentOf(c.campaignId);
+    expect(e.status).toBe('stopped');
+    expect(e.error).toMatch(/rejected/i);
+  });
+
+  it('keeps rotating variants across ticks, not just within one', async () => {
+    const c = (
+      await handle(ACTIONS.CAMPAIGN_CREATE, {
+        name: 'Across ticks',
+        steps: [{ type: 'invite', variants: ['A {{firstName}}', 'B {{firstName}}'] }],
+        publicIds: ['adalovelace'],
+      })
+    ).data;
+    await handle(ACTIONS.CAMPAIGN_ENROLL, { campaignId: c.campaignId, publicIds: ['bobbright'] });
+    await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
+
+    // One person a tick, by leaving only one invite's worth of quota per day.
+    await setConfig({ accountPreset: 'free', dailyInviteCap: 1, hourlyCap: 50 });
+
+    net.push({});
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+
+    jump(24 * HOUR);
+    net.push({});
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+
+    const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
+    expect(notes).toEqual(['A Ada', 'B Bob']);
+  });
+
   it('halts the tick outside business hours', async () => {
     await setConfig({ businessHoursOnly: true, businessStart: 9, businessEnd: 18 });
     const c = await makeCampaign([{ type: 'invite', note: 'Hi' }]);
@@ -544,6 +614,7 @@ describe('copilot and quotas', () => {
     expect((await enrollmentOf(c.campaignId)).status).toBe('active');
     // It reads the inbox and then stops: no profile reads, no writes.
     expect(net.calls.every((x) => x.url.includes('/messaging/conversations'))).toBe(true);
+    expect(net.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
   });
 
   it('runs the registered tick hooks', async () => {

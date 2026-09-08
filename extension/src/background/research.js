@@ -102,6 +102,19 @@ export function universalNameFromDomain(domain) {
 /*  Resolution                                                        */
 /* ================================================================== */
 
+/** The company a row's domain, email domain or company name points at. */
+async function resolveCompany(row) {
+  const domain = domainOf(row);
+  const universalName = domain
+    ? universalNameFromDomain(domain)
+    : universalNameFromDomain(`${row.company || ''}.com`);
+  if (!universalName) return null;
+
+  const res = await handle(ACTIONS.COMPANY_GET, { universalName }, 'system');
+  if (!res.ok) return null;
+  return { row, kind: 'company', universalName, confidence: domain ? 0.9 : 0.5 };
+}
+
 /**
  * Match one row to a LinkedIn profile or company.
  * @returns {Promise<{row, kind: 'person'|'company'|'unresolved', publicId?, universalName?, confidence: number, candidates?: Profile[]}>}
@@ -134,7 +147,8 @@ export async function resolveRow(row = {}) {
       return { row, kind: 'person', publicId: best.publicId, confidence: bestScore };
     }
     if (candidates.length) {
-      return { row, kind: 'unresolved', confidence: bestScore, candidates };
+      const company = await resolveCompany(row);
+      return company || { row, kind: 'unresolved', confidence: bestScore, candidates };
     }
   }
 
@@ -370,20 +384,40 @@ export async function startPack(rows, { listName, enrich = false, full = false }
 /*  Gathering one row                                                 */
 /* ================================================================== */
 
+/** Errors that mean the whole job should pause, not just this row. */
+const PAUSE_CODES = new Set([
+  ERROR.QUOTA_EXCEEDED,
+  ERROR.OUTSIDE_BUSINESS_HOURS,
+  ERROR.RATE_LIMITED,
+  ERROR.CHALLENGE_DETECTED,
+  ERROR.NOT_LOGGED_IN,
+]);
+
+/**
+ * Run an action and hand back its data. A quota or challenge error is
+ * rethrown so the job pauses; anything else is just a gap in this pack.
+ */
+async function run(action, params) {
+  const res = await handle(action, params, 'system');
+  if (res.ok) return res.data;
+  if (PAUSE_CODES.has(res.error.code)) {
+    throw new EngineError(res.error.code, res.error.message, res.error);
+  }
+  return null;
+}
+
 async function gather(resolved, { full }) {
   const pack = { row: resolved.row, resolved, signals: [] };
 
   if (resolved.kind === 'person') {
-    const res = await handle(ACTIONS.PROFILE_GET, { publicId: resolved.publicId, full }, 'system');
-    if (res.ok) pack.profile = res.data;
+    // profile.get reserves a visit and paces itself, so this is where a job
+    // that has run out of quota stops for the day.
+    pack.profile = await run(ACTIONS.PROFILE_GET, { publicId: resolved.publicId, full });
 
     if (pack.profile && pack.profile.company) {
-      const company = await handle(
-        ACTIONS.COMPANY_GET,
-        { universalName: universalNameFromDomain(`${pack.profile.company}.com`) },
-        'system',
-      );
-      if (company.ok) pack.company = company.data;
+      pack.company = await run(ACTIONS.COMPANY_GET, {
+        universalName: universalNameFromDomain(`${pack.profile.company}.com`),
+      });
     }
 
     try {
@@ -404,15 +438,10 @@ async function gather(resolved, { full }) {
       pack.mutualConnections = undefined;
     }
 
-    const status = await handle(
-      ACTIONS.NETWORK_STATUS,
-      { publicIds: [resolved.publicId] },
-      'system',
-    );
-    if (status.ok) pack.connectionStatus = status.data.statuses[resolved.publicId];
+    const status = await run(ACTIONS.NETWORK_STATUS, { publicIds: [resolved.publicId] });
+    if (status) pack.connectionStatus = status.statuses[resolved.publicId];
   } else if (resolved.kind === 'company') {
-    const res = await handle(ACTIONS.COMPANY_GET, { universalName: resolved.universalName }, 'system');
-    if (res.ok) pack.company = res.data;
+    pack.company = await run(ACTIONS.COMPANY_GET, { universalName: resolved.universalName });
   }
 
   pack.signals = packSignals(pack);
@@ -439,7 +468,6 @@ export async function progress() {
   for (const job of running) {
     job.status = 'running';
     const packs = await readPacks(job.jobId);
-    let paused = false;
 
     for (let n = 0; n < ROWS_PER_TICK && job.cursor < job.total; n += 1) {
       const startedAt = Date.now();
@@ -449,14 +477,7 @@ export async function progress() {
         const resolved = await resolveRow(job.rows[job.cursor]);
         pack = await gather(resolved, { full: job.full });
       } catch (e) {
-        if (
-          e.code === ERROR.QUOTA_EXCEEDED ||
-          e.code === ERROR.RATE_LIMITED ||
-          e.code === ERROR.CHALLENGE_DETECTED
-        ) {
-          paused = true;
-          break;
-        }
+        if (PAUSE_CODES.has(e.code)) break;
         pack = {
           row: job.rows[job.cursor],
           resolved: { row: job.rows[job.cursor], kind: 'unresolved', confidence: 0 },
@@ -492,15 +513,17 @@ export async function progress() {
         etaMs: etaFor(job),
       });
 
-      if (!(await hasQuotaLeft())) {
-        paused = true;
-        break;
-      }
+      if (!(await hasQuotaLeft())) break;
+
+      // Pace the job the same way every other read is paced.
+      if (job.cursor < job.total) await quota.humanDelay();
     }
 
     await set(K.researchPacks(job.jobId), packs);
 
-    if (!paused && job.cursor >= job.total) {
+    // The job is finished when every row is done, whether or not the quota ran
+    // out on the very last one.
+    if (job.cursor >= job.total) {
       job.status = 'done';
       job.completedAt = Date.now();
       const list = await lists.ensureList(job.listName);

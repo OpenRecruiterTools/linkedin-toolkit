@@ -10,7 +10,7 @@
  */
 
 import { ACTIONS, EVENTS } from '../lib/actions.js';
-import { K, get, newId, set, stamp } from '../lib/storage.js';
+import { K, get, newId, set, stamp, update, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
 import { register } from './engine.js';
 
@@ -22,7 +22,7 @@ export const QUEUEABLE = Object.freeze([
   ACTIONS.OUTREACH_COMMENT,
 ]);
 
-/** Installed by outreach.js: `(action, params) => Promise<WriteResult>`. */
+/** Installed by outreach.js: `(action, params, context) => Promise<WriteResult>`. */
 let executor = null;
 
 export function setExecutor(fn) {
@@ -37,28 +37,28 @@ async function readQueue() {
   return get(K.QUEUE, []);
 }
 
-async function writeQueue(items) {
-  await set(K.QUEUE, items);
-  return items;
-}
-
 /**
  * Park a write for human approval.
+ *
+ * `context` is whatever the originator needs to see on the other side of the
+ * approval — for a campaign step, its campaignId and stepIndex, without which
+ * the action log entry written on approval could not be attributed and the
+ * campaign's stats would read zero.
+ *
  * @returns {Promise<object>} the QueueItem
  */
-export async function enqueue(action, params, origin, profile) {
-  const items = await readQueue();
+export async function enqueue(action, params, origin, profile, context) {
   const item = stamp({
     id: newId('q'),
     action,
     params,
     origin,
     profile: profile || undefined,
+    context: context && Object.keys(context).length ? context : undefined,
     createdAt: Date.now(),
     status: 'pending',
   });
-  items.push(item);
-  await writeQueue(items);
+  await update(K.QUEUE, (items) => [...items, item], []);
   await emit(EVENTS.QUEUE_ITEM_ADDED, { id: item.id, action, origin, publicId: params.publicId });
   return item;
 }
@@ -83,56 +83,86 @@ export async function pendingCount() {
  * @returns {Promise<{approved: number}>} how many actually sent
  */
 export async function approve(ids, edits = {}) {
-  const items = await readQueue();
+  // Claim the items first, under the lock, so two approvals of the same id
+  // cannot both send. Executing happens outside the lock — it makes network
+  // calls and must not block every other queue write for its duration.
+  const claimed = await withKeyLock(K.QUEUE, async () => {
+    const items = await readQueue();
+    const taken = [];
+    for (const id of ids) {
+      const item = items.find((i) => i.id === id);
+      if (!item || item.status === 'sent' || item.status === 'approved') continue;
+      const edit = (edits && edits[id]) || {};
+      const params = { ...item.params };
+      if (edit.note !== undefined) params.note = edit.note;
+      if (edit.body !== undefined) params.body = edit.body;
+      if (edit.subject !== undefined) params.subject = edit.subject;
+      item.params = params;
+      item.status = 'approved';
+      item.updatedAt = Date.now();
+      taken.push(item.id);
+    }
+    await set(K.QUEUE, items);
+    return taken;
+  });
+
   let approved = 0;
 
-  for (const id of ids) {
-    const item = items.find((i) => i.id === id);
-    if (!item || item.status === 'sent') continue;
+  for (const id of claimed) {
+    const item = (await readQueue()).find((i) => i.id === id);
+    if (!item) continue;
 
-    const edit = (edits && edits[id]) || {};
-    const params = { ...item.params };
-    if (edit.note !== undefined) params.note = edit.note;
-    if (edit.body !== undefined) params.body = edit.body;
-    if (edit.subject !== undefined) params.subject = edit.subject;
-    item.params = params;
-    item.status = 'approved';
-
+    let patch;
+    let sent = null;
     try {
       if (!executor) throw new Error('No outreach executor is installed.');
-      const result = await executor(item.action, params);
-      item.status = 'sent';
-      item.result = result;
+      const result = await executor(item.action, item.params, item.context || {});
+      patch = { status: 'sent', result };
+      sent = result;
       approved += 1;
+    } catch (e) {
+      patch = { status: 'failed', result: { error: { code: e.code || 'INTERNAL', message: e.message } } };
+    }
+
+    await update(
+      K.QUEUE,
+      (items) =>
+        items.map((i) => (i.id === id ? { ...i, ...patch, updatedAt: Date.now() } : i)),
+      [],
+    );
+
+    if (sent) {
       await emit(EVENTS.QUEUE_ITEM_SENT, {
         id: item.id,
         action: item.action,
-        publicId: params.publicId,
-        result,
+        publicId: item.params.publicId,
+        result: sent,
+        ...(item.context || {}),
       });
-    } catch (e) {
-      item.status = 'failed';
-      item.result = { error: { code: e.code || 'INTERNAL', message: e.message } };
     }
-    item.updatedAt = Date.now();
   }
 
-  await writeQueue(items);
   return { approved };
 }
 
 export async function reject(ids) {
-  const items = await readQueue();
   let rejected = 0;
-  for (const id of ids) {
-    const item = items.find((i) => i.id === id);
-    if (!item || item.status === 'sent') continue;
-    item.status = 'rejected';
-    item.updatedAt = Date.now();
-    rejected += 1;
-  }
-  await writeQueue(items);
+  await update(
+    K.QUEUE,
+    (items) =>
+      items.map((item) => {
+        if (!ids.includes(item.id) || item.status === 'sent') return item;
+        rejected += 1;
+        return { ...item, status: 'rejected', updatedAt: Date.now() };
+      }),
+    [],
+  );
   return { rejected };
+}
+
+/** One queue item by id, or null. */
+export async function byId(id) {
+  return (await readQueue()).find((i) => i.id === id) || null;
 }
 
 /* ================================================================== */

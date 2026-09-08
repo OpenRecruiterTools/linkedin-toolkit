@@ -529,3 +529,37 @@ export function normalizeTotal(raw) {
     0
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Invitations                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `growth/normInvitations?q=sentInvitationsV2` → the people whose invitation
+ * is still outstanding. Voyager has moved this shape around, so the invitee is
+ * read from any of the three wrappers it has used.
+ */
+export function normalizeSentInvitations(raw) {
+  const elements = (raw && raw.elements) || (raw && raw.data && raw.data.elements) || [];
+  const out = [];
+
+  for (const element of elements) {
+    const invitee =
+      (element.invitee && element.invitee['com.linkedin.voyager.growth.invitation.InviteeProfile']) ||
+      element.invitee ||
+      element.inviteeProfile ||
+      element.toMember ||
+      {};
+    const mini = invitee.miniProfile || invitee;
+    const publicId = mini.publicIdentifier || publicIdFromUrl(mini.publicProfileUrl);
+    if (!publicId) continue;
+
+    out.push({
+      publicId,
+      invitationUrn: element.entityUrn || element.invitationUrn || '',
+      sentAt: element.sentTime || element.createdAt || undefined,
+    });
+  }
+
+  return out;
+}

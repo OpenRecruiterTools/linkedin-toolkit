@@ -10,6 +10,7 @@ import { ACTIONS, ERROR, EngineError } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { register } from './engine.js';
 import { parseOutput, promptFor } from './ai-prompts.js';
+import { hasHostAccess, originPatternFor } from '../lib/permissions.js';
 
 export const DEFAULT_MODELS = Object.freeze({
   anthropic: 'claude-sonnet-5',
@@ -154,7 +155,9 @@ export async function isConfigured() {
   if (!ai || ai.provider === 'none' || !ADAPTERS[ai.provider]) return false;
   if (NEEDS_KEY.has(ai.provider) && !ai.apiKey) return false;
   if (ai.provider === 'openai-compatible' && !ai.baseUrl) return false;
-  return true;
+  const model = ai.model || DEFAULT_MODELS[ai.provider];
+  const { url } = ADAPTERS[ai.provider].request(ai, model, { system: '', user: '', maxTokens: 1 });
+  return hasHostAccess(url);
 }
 
 function assertConfigured(ai) {
@@ -193,6 +196,19 @@ export async function complete(task, input = {}) {
   const model = ai.model || DEFAULT_MODELS[ai.provider];
   const prompt = promptFor(task, input);
   const { url, init } = adapter.request(ai, model, prompt);
+
+  // An MV3 worker cannot fetch a host it has no permission for, and the
+  // failure looks like a network error. Say what it actually is.
+  if (!(await hasHostAccess(url))) {
+    throw new EngineError(
+      ERROR.AI_NOT_CONFIGURED,
+      `The extension has no permission to reach ${originPatternFor(url)}.`,
+      {
+        howToFix:
+          'Open Settings → AI provider and press "Grant access", then approve the prompt.',
+      },
+    );
+  }
 
   let response;
   try {

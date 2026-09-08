@@ -34,6 +34,9 @@ const mock = {
   executeScriptCalls: [],
   lastError: undefined,
   nextTabId: 1,
+  /** Optional host permissions. Everything is granted unless a test says otherwise. */
+  grantAllPermissions: true,
+  grantedOrigins: new Set(),
 };
 
 function settle(value, callback) {
@@ -187,6 +190,24 @@ function buildChrome() {
       }),
     },
 
+    permissions: {
+      contains: vi.fn((query, callback) => {
+        const origins = (query && query.origins) || [];
+        const granted =
+          mock.grantAllPermissions || origins.every((o) => mock.grantedOrigins.has(o));
+        return settle(granted, callback);
+      }),
+      request: vi.fn((query, callback) => {
+        for (const origin of (query && query.origins) || []) mock.grantedOrigins.add(origin);
+        return settle(true, callback);
+      }),
+      remove: vi.fn((query, callback) => {
+        for (const origin of (query && query.origins) || []) mock.grantedOrigins.delete(origin);
+        return settle(true, callback);
+      }),
+      getAll: vi.fn((callback) => settle({ origins: [...mock.grantedOrigins] }, callback)),
+    },
+
     downloads: {
       download: vi.fn((options, callback) => {
         mock.downloads.push(options);
@@ -246,6 +267,8 @@ export function resetChrome() {
   mock.executeScriptResult = [{ result: null }];
   mock.lastError = undefined;
   mock.nextTabId = 1;
+  mock.grantAllPermissions = true;
+  mock.grantedOrigins.clear();
 
   globalThis.chrome = buildChrome();
   globalThis.fetch = vi.fn(async () => ({

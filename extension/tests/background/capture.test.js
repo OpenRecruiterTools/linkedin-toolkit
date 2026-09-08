@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { ACTIONS } from '../../src/lib/actions.js';
 import { handle } from '../../src/background/engine.js';
 import * as capture from '../../src/background/capture.js';
+import * as quota from '../../src/background/quota.js';
+import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
 import { seedSession, stubFetch } from '../helpers/net.js';
 
@@ -15,11 +17,18 @@ const CAPTURED = {
 
 let net;
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   seedSession();
   net = stubFetch();
   capture.setSleepFn(() => Promise.resolve());
+  // profile.get reserves a visit and paces itself; keep the tests instant.
+  quota.setSleepFn(() => Promise.resolve());
+  await setConfig({ accountPreset: 'recruiter' });
 });
+
+afterEach(() => vi.useRealTimers());
 
 function answerCapture(response = CAPTURED) {
   chrome.tabs.sendMessage = vi.fn(async (tabId, message) => {

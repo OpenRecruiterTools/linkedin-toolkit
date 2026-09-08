@@ -49,6 +49,43 @@ export const MAX_PAGE_TEXT = 60000;
 export const MAX_ACTION_LOG = 5000;
 
 /* ================================================================== */
+/*  Serialisation                                                     */
+/* ================================================================== */
+
+/**
+ * One promise chain per storage key.
+ *
+ * `chrome.storage.local` has no compare-and-swap, so every read-modify-write
+ * in the worker (quota counters, the queue, the action log, list members) is a
+ * race waiting to happen: two callers read the same value and the second write
+ * silently discards the first. Everything that mutates a key goes through
+ * `withKeyLock`, which runs the callbacks for one key strictly in order.
+ *
+ * This is per-worker, not per-machine. Chrome runs exactly one service worker
+ * per extension, so that is the whole population of writers.
+ */
+const locks = new Map();
+
+export function withKeyLock(key, fn) {
+  const previous = locks.get(key) || Promise.resolve();
+  const run = previous.then(fn, fn);
+  // Keep the chain alive whether or not this callback threw.
+  locks.set(
+    key,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
+}
+
+/** Wait for every queued mutation to settle (tests, and shutdown). */
+export async function drainLocks() {
+  await Promise.all([...locks.values()]);
+}
+
+/* ================================================================== */
 /*  Primitives                                                        */
 /* ================================================================== */
 
@@ -71,12 +108,14 @@ export async function getMany(keys) {
   return chrome.storage.local.get(keys);
 }
 
-/** Read-modify-write a single key. */
+/** Read-modify-write a single key, serialised against every other writer. */
 export async function update(key, fn, fallback = null) {
-  const current = await get(key, fallback);
-  const next = await fn(current);
-  await set(key, next);
-  return next;
+  return withKeyLock(key, async () => {
+    const current = await get(key, fallback);
+    const next = await fn(current);
+    await set(key, next);
+    return next;
+  });
 }
 
 /* ================================================================== */
@@ -124,18 +163,21 @@ export async function putProfile(profile) {
   if (!publicId) return null;
 
   const key = K.profile(publicId);
-  const existing = await get(key, null);
-  const merged = stamp(
-    trimProfile({ ...(existing || {}), ...profile, publicId }),
-    profile.updatedAt || Date.now(),
-  );
-  await set(key, merged);
+  const merged = await withKeyLock(key, async () => {
+    const existing = await get(key, null);
+    const record = stamp(
+      trimProfile({ ...(existing || {}), ...profile, publicId }),
+      profile.updatedAt || Date.now(),
+    );
+    await set(key, record);
+    return record;
+  });
 
-  const index = await get(K.PROFILE_INDEX, []);
-  if (!index.includes(publicId)) {
-    index.push(publicId);
-    await set(K.PROFILE_INDEX, index);
-  }
+  await update(
+    K.PROFILE_INDEX,
+    (index) => (index.includes(publicId) ? index : [...index, publicId]),
+    [],
+  );
   return merged;
 }
 
@@ -193,9 +235,14 @@ export async function logAction(entry) {
   if (entry.stepIndex !== undefined) record.stepIndex = entry.stepIndex;
   record.updatedAt = record.at;
 
-  const log = await get(K.ACTIONS, []);
-  log.push(record);
-  await set(K.ACTIONS, log.length > MAX_ACTION_LOG ? log.slice(-MAX_ACTION_LOG) : log);
+  await update(
+    K.ACTIONS,
+    (log) => {
+      const next = [...log, record];
+      return next.length > MAX_ACTION_LOG ? next.slice(-MAX_ACTION_LOG) : next;
+    },
+    [],
+  );
   return record;
 }
 

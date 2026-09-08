@@ -19,7 +19,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `event.attendees` | `{ eventUrl, start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.connections` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
 | `network.followers` | `{ start?, count? }` | `{ profiles: Profile[], nextStart? }` |
-| `network.status` | `{ publicIds: string[] }` | `{ statuses: Record<string, 'connected'\|'pending'\|'none'> }` |
+| `network.status` | `{ publicIds: string[] }` (≤ 25) | `{ statuses: Record<string, 'connected'\|'pending'\|'none'> }` |
 | `network.unfollowCount` | `{}` | `{ count: number }` |
 | `network.unfollowAll` | `{}` | `{ unfollowed: number }` |
 | `outreach.view` | `{ publicId }` | `WriteResult` |
@@ -95,6 +95,8 @@ type Config = { minDelayMs; maxDelayMs; hourlyCap; dailyInviteCap; dailyMessageC
 ```
 
 Hard ceilings are clamped in `config.set` regardless of the value requested. `config.set` also accepts the command flag `clearChallenge: true`, which clears a detected security challenge and is never persisted.
+
+Every `profileView` fetch — `profile.get`, each row of `profile.export`, a connection check, the urn resolution before a message — is metered against the `visit` bucket and paced, because that is what LinkedIn records as a profile visit. `network.status` takes at most 25 publicIds per call and answers from the sent-invitations collection wherever it can, spending a visit only for somebody never invited.
 
 `hourlyCap` is additionally clamped to a ceiling of 50 and paces the `invite`, `message` and `visit` buckets only; `search` is metered in results per day, not per hour.
 

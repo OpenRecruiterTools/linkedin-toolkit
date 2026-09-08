@@ -45,6 +45,8 @@
   ];
 
   const MAX_TEXT = 60000;
+  /** Anything larger than this is not a profile photo. */
+  const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
   /**
    * `document.body.innerText` → something worth sending to a model.
@@ -123,26 +125,42 @@
     return null;
   }
 
-  /**
-   * The profile photo as a data URL, so it survives without a network call.
-   * Returns '' whenever the image is not there, is not loaded, or the canvas
-   * is tainted — a missing photo must never fail a capture.
+    /**
+   * Read the photo bytes and turn them into a data URL.
+   *
+   * `canvas.toDataURL` is the obvious way and the wrong one: media.licdn.com
+   * serves the image without CORS headers, so drawing it taints the canvas and
+   * the read throws a SecurityError. Fetching the same URL from the content
+   * script and running the blob through FileReader gets the bytes without
+   * touching a canvas at all.
+   *
+   * A missing or unreadable photo must never fail a capture, so every failure
+   * path returns ''.
    */
-  function capturePhoto() {
+  async function capturePhotoAsync() {
     const img = findPhoto();
-    if (!img) return '';
+    const src = img && (img.currentSrc || img.src);
+    if (!src) return '';
     try {
-      const size = 256;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return '';
-      ctx.drawImage(img, 0, 0, size, size);
-      return canvas.toDataURL('image/jpeg', 0.85);
+      const response = await fetch(src, { credentials: 'omit', mode: 'cors' });
+      if (!response.ok) return '';
+      const blob = await response.blob();
+      if (!blob.size || blob.size > MAX_PHOTO_BYTES) return '';
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(blob);
+      });
     } catch {
       return '';
     }
+  }
+
+  /** The photo's URL, which is always worth keeping even when the bytes are not. */
+  function photoUrl() {
+    const img = findPhoto();
+    return (img && (img.currentSrc || img.src)) || '';
   }
 
   /* ================================================================ */
@@ -151,12 +169,13 @@
 
   /**
    * Everything the API cannot give us about the profile currently rendered.
-   * @returns {{pageText: string, photoDataUrl: string, sections: object, url: string, capturedAt: number}}
+   * @returns {Promise<{pageText, photoDataUrl, photoUrl, sections, url, capturedAt}>}
    */
-  function captureFull() {
+  async function captureFull() {
     return {
       pageText: cleanText(document.body ? document.body.innerText : ''),
-      photoDataUrl: capturePhoto(),
+      photoDataUrl: await capturePhotoAsync(),
+      photoUrl: photoUrl(),
       sections: captureSections(),
       url: location.href,
       capturedAt: Date.now(),
@@ -273,11 +292,17 @@
     DOM_COMMENT: (msg) => domComment(msg.postUrl, msg.body),
   };
 
-  /** Run one background→content message. Returns null for anything else. */
+  /**
+   * Run one background→content message. Returns null for anything else, so the
+   * caller can tell "not mine" from a result.
+   */
   function handleMessage(msg) {
     if (!msg || !HANDLERS[msg.type]) return null;
     try {
-      return HANDLERS[msg.type](msg);
+      const out = HANDLERS[msg.type](msg);
+      return out && typeof out.then === 'function'
+        ? out.catch((e) => ({ ok: false, error: e.message }))
+        : out;
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -286,7 +311,8 @@
   globalThis.LITK = {
     cleanText,
     captureSections,
-    capturePhoto,
+    capturePhotoAsync,
+    photoUrl,
     captureFull,
     humanClick,
     findButton,

@@ -302,12 +302,14 @@
       return undefined;
     }
 
-    // Page requests from the background: capture.js does the work.
+    // Page requests from the background: capture.js does the work. Some of
+    // them (a full capture reads the photo bytes) are async.
     const page = globalThis.LITK && globalThis.LITK.handleMessage(msg);
-    if (page !== null && page !== undefined) {
-      sendResponse(page);
-      return true;
-    }
-    return undefined;
+    if (page === null || page === undefined) return undefined;
+
+    Promise.resolve(page)
+      .then(sendResponse)
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
   });
 })();

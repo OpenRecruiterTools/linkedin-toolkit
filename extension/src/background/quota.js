@@ -12,7 +12,7 @@
 
 import { ERROR, EngineError, EVENTS, HARD_CAPS } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
-import { K, get, set } from '../lib/storage.js';
+import { K, get, set, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
 
 /* ================================================================== */
@@ -175,27 +175,31 @@ export function isWithinBusinessHours(config, now = new Date()) {
  */
 export async function noteBackoff(status) {
   const now = Date.now();
-  const state = await readState(new Date(now));
+  const challenge = Number(status) === 451;
 
-  if (Number(status) === 451) {
-    state.challenge = { detectedAt: now };
-    await writeState(state);
-    await emit(EVENTS.CHALLENGE_DETECTED, { detectedAt: now });
-    return state;
-  }
+  const state = await withKeyLock(K.QUOTA, async () => {
+    const current = await readState(new Date(now));
+    if (challenge) {
+      current.challenge = { detectedAt: now };
+    } else {
+      const ms = BACKOFF_MS[Number(status)] || MINUTE;
+      current.backoffUntil = Math.max(current.backoffUntil, now + ms);
+    }
+    return writeState(current);
+  });
 
-  const ms = BACKOFF_MS[Number(status)] || MINUTE;
-  state.backoffUntil = Math.max(state.backoffUntil, now + ms);
-  await writeState(state);
+  if (challenge) await emit(EVENTS.CHALLENGE_DETECTED, { detectedAt: now });
   return state;
 }
 
 /** Clear a security challenge once the human has dealt with it. */
 export async function clearChallenge() {
-  const state = await readState();
-  state.challenge = null;
-  state.backoffUntil = 0;
-  return writeState(state);
+  return withKeyLock(K.QUOTA, async () => {
+    const state = await readState();
+    state.challenge = null;
+    state.backoffUntil = 0;
+    return writeState(state);
+  });
 }
 
 /** `{ backoffUntil?, challenge? }` for `status.get`. */
@@ -227,6 +231,28 @@ function assertKind(kind) {
  */
 export async function check(kind, cost = 1) {
   assertKind(kind);
+  return gate(kind, cost);
+}
+
+/**
+ * Check and count in one indivisible step.
+ *
+ * `check` then `record` as two awaits is a race: two writes that both see
+ * `daily = cap - 1` will both pass and both count, taking the account one over
+ * a hard cap. Every caller that is about to actually do the thing should
+ * reserve instead, and accept that a reserved unit is spent whether or not
+ * LinkedIn answers — over-counting is safe, under-counting is not.
+ */
+export async function reserve(kind, cost = 1) {
+  assertKind(kind);
+  return withKeyLock(K.QUOTA, async () => {
+    const rateLimit = await gate(kind, cost);
+    await bump(kind, cost);
+    return rateLimit;
+  });
+}
+
+async function gate(kind, cost) {
   const now = Date.now();
   const config = await getConfig();
   const state = await readState(new Date(now));
@@ -285,7 +311,13 @@ export async function check(kind, cost = 1) {
 /** Count `n` units against a bucket (search records the number of results). */
 export async function record(kind, n = 1) {
   assertKind(kind);
+  return withKeyLock(K.QUOTA, () => bump(kind, n));
+}
+
+/** The counter increment itself. Callers must already hold the quota lock. */
+async function bump(kind, n) {
   const units = Math.max(0, Math.round(n));
+  if (!units) return (await readState()).daily[kind];
   const state = await readState();
   state.daily[kind] += units;
   state.hourly[kind] += units;

@@ -27,7 +27,10 @@ beforeEach(async () => {
   net = stubFetch();
   seen = [];
   events.setSink((f) => seen.push(f));
-  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false });
+  // A pack row costs two profile reads (the profile itself, then the
+  // connection check), so give the hour enough room for a full tick.
+  await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false, hourlyCap: 50 });
+  net.route('sentInvitationsV2', { elements: [] });
 });
 
 afterEach(() => {
@@ -315,24 +318,58 @@ describe('pacing', () => {
     expect(job.status).toBe('done');
   });
 
-  it('pauses when the quota is spent and resumes on the next tick', async () => {
-    await setConfig({ accountPreset: 'free', dailyVisitCap: 80 });
+  it('pauses when the visit quota runs out mid-job and resumes the next day', async () => {
+    // A row costs two profile reads, so a cap of two leaves room for exactly one.
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 2, hourlyCap: 50 });
     const started = await handle(ACTIONS.RESEARCH_PACK, { rows: rows(4) });
     pushRows(4);
 
-    await quota.record('visit', 80); // visit bucket is spent
     let out = await research.progress();
-    expect(out.processed).toBe(1); // the first row goes through, then it stops
+    expect(out.processed).toBe(1);
 
     let job = (await handle(ACTIONS.RESEARCH_GET, { jobId: started.data.jobId })).data;
     expect(job.status).toBe('running');
+    expect(job.done).toBe(1);
 
-    // A new day: the counters roll over and the job carries on.
+    // A new day: the counters roll over and the job carries on, one row a day.
     vi.setSystemTime(new Date(2026, 8, 10, 11, 0, 0));
     out = await research.progress();
-    expect(out.processed).toBe(3);
+    expect(out.processed).toBe(1);
+
+    vi.setSystemTime(new Date(2026, 8, 11, 11, 0, 0));
+    await research.progress();
+    vi.setSystemTime(new Date(2026, 8, 12, 11, 0, 0));
+    await research.progress();
+
     job = (await handle(ACTIONS.RESEARCH_GET, { jobId: started.data.jobId })).data;
+    expect(job.done).toBe(4);
     expect(job.status).toBe('done');
+  });
+
+  it('stops the job the moment the quota is already gone, without half-built packs', async () => {
+    await setConfig({ accountPreset: 'free', dailyVisitCap: 1 });
+    const started = await handle(ACTIONS.RESEARCH_PACK, { rows: rows(3) });
+    await quota.record('visit', 1);
+
+    const out = await research.progress();
+    expect(out.processed).toBe(0);
+
+    const job = (await handle(ACTIONS.RESEARCH_GET, { jobId: started.data.jobId })).data;
+    expect(job.status).toBe('running');
+    expect(job.packs).toHaveLength(0);
+  });
+
+  it('paces itself between rows', async () => {
+    const delays = [];
+    quota.setSleepFn((ms) => {
+      delays.push(ms);
+      return Promise.resolve();
+    });
+    await handle(ACTIONS.RESEARCH_PACK, { rows: rows(3) });
+    pushRows(3);
+    await research.progress();
+    // Two profile reads per row, plus a pause between rows.
+    expect(delays.length).toBeGreaterThanOrEqual(3 * 2 + 2);
   });
 
   it('narrows the ETA as rows complete', async () => {

@@ -80,42 +80,63 @@ describe('captureSections', () => {
   });
 });
 
-describe('capturePhoto', () => {
-  it('returns an empty string when there is no photo', () => {
-    expect(LITK.capturePhoto()).toBe('');
+describe('capturePhotoAsync', () => {
+  const PHOTO = '<img class="pv-top-card-profile-picture__image" src="https://media.licdn.com/a.jpg">';
+
+  it('returns an empty string when there is no photo', async () => {
+    expect(await LITK.capturePhotoAsync()).toBe('');
   });
 
-  it('returns an empty string rather than throwing when the canvas is unusable', () => {
-    document.body.innerHTML =
-      '<img class="pv-top-card-profile-picture__image" src="https://media.licdn.com/a.jpg">';
-    expect(LITK.capturePhoto()).toBe('');
+  it('fetches the bytes and reads them as a data URL, never touching a canvas', async () => {
+    document.body.innerHTML = PHOTO;
+    const createElement = vi.spyOn(document, 'createElement');
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(['binary'], { type: 'image/jpeg' }),
+    }));
+
+    const out = await LITK.capturePhotoAsync();
+    expect(out.startsWith('data:image/jpeg')).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://media.licdn.com/a.jpg',
+      expect.objectContaining({ credentials: 'omit' }),
+    );
+    expect(createElement.mock.calls.map((c) => c[0])).not.toContain('canvas');
+    createElement.mockRestore();
   });
 
-  it('draws the photo onto a canvas and returns a data URL', () => {
-    document.body.innerHTML =
-      '<img class="pv-top-card-profile-picture__image" src="https://media.licdn.com/a.jpg">';
-    const drawImage = vi.fn();
-    vi.spyOn(document, 'createElement').mockImplementation((tag) => {
-      if (tag !== 'canvas') return Document.prototype.createElement.call(document, tag);
-      return {
-        getContext: () => ({ drawImage }),
-        toDataURL: () => 'data:image/jpeg;base64,AAA',
-      };
+  it('returns an empty string when the fetch fails or the image is huge', async () => {
+    document.body.innerHTML = PHOTO;
+
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error('CORS');
     });
+    expect(await LITK.capturePhotoAsync()).toBe('');
 
-    expect(LITK.capturePhoto()).toBe('data:image/jpeg;base64,AAA');
-    expect(drawImage).toHaveBeenCalled();
-    vi.restoreAllMocks();
+    globalThis.fetch = vi.fn(async () => ({ ok: false }));
+    expect(await LITK.capturePhotoAsync()).toBe('');
+
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      blob: async () => ({ size: 5 * 1024 * 1024, type: 'image/jpeg' }),
+    }));
+    expect(await LITK.capturePhotoAsync()).toBe('');
+  });
+
+  it('keeps the photo URL even when the bytes cannot be read', async () => {
+    document.body.innerHTML = PHOTO;
+    expect(LITK.photoUrl()).toBe('https://media.licdn.com/a.jpg');
+    expect(LITK.photoUrl.length).toBe(0);
   });
 });
 
 describe('captureFull', () => {
-  it('returns the cleaned text, the sections and the url', () => {
+  it('returns the cleaned text, the sections and the url', async () => {
     setBody(
       '<section><div id="about"></div><p>About text</p></section>',
       'LinkedIn\nAda Lovelace\n\n\nChief Analyst',
     );
-    const out = LITK.captureFull();
+    const out = await LITK.captureFull();
     expect(out.pageText).toBe('Ada Lovelace\n\nChief Analyst');
     expect(out.sections.about).toContain('About text');
     expect(out.url).toContain('localhost');
@@ -198,9 +219,9 @@ describe('DOM_COMMENT', () => {
 });
 
 describe('handleMessage', () => {
-  it('routes the four message types and ignores anything else', () => {
+  it('routes the four message types and ignores anything else', async () => {
     setBody('<p>Ada</p>', 'Ada');
-    expect(LITK.handleMessage({ type: 'CAPTURE_FULL' }).pageText).toBe('Ada');
+    expect((await LITK.handleMessage({ type: 'CAPTURE_FULL' })).pageText).toBe('Ada');
     expect(LITK.handleMessage({ type: 'DOM_LIKE', postUrl: POST_URL }).ok).toBe(false);
     expect(LITK.handleMessage({ type: 'NOPE' })).toBe(null);
     expect(LITK.handleMessage(null)).toBe(null);
