@@ -54,7 +54,7 @@ describe('profile', () => {
     expect(typeof p.capturedAt).toBe('number');
   });
 
-  it('sets connectionDegree to null when the response carries no distance', () => {
+  it('sets connectionDegree to null when a profile read carries no distance', () => {
     const raw = structuredClone(profileView);
     const profile = raw.included.find((e) => e.publicIdentifier === 'adalovelace');
     delete profile.distance;
@@ -62,6 +62,31 @@ describe('profile', () => {
     const p = v.normalizeProfileView(raw);
     expect(p.connectionDegree).toBe(null);
     expect('connectionDegree' in p).toBe(true);
+  });
+
+  it('leaves connectionDegree off every shape that never carries a distance', () => {
+    // A search hit, a group member, an event attendee, a reaction and a
+    // recruiter result all know nothing about the degree. Saying `null` would
+    // be a claim; saying nothing lets the merge keep what we already know.
+    for (const profile of v.normalizeSearchClusters(searchClusters).profiles) {
+      expect('connectionDegree' in profile).toBe(false);
+    }
+    for (const source of [groupMembers, eventAttendees, followers]) {
+      for (const profile of v.normalizeProfileCollection(source).profiles) {
+        expect('connectionDegree' in profile).toBe(false);
+      }
+    }
+    for (const engager of v.normalizeReactions(reactions)) {
+      expect('connectionDegree' in engager).toBe(false);
+    }
+    for (const profile of v.normalizeRecruiterSearch(recruiterSearch).profiles) {
+      expect('connectionDegree' in profile).toBe(false);
+    }
+
+    // Connections are the exception: being in that collection *is* the answer.
+    for (const profile of v.normalizeProfileCollection(connections, 'connections').profiles) {
+      expect(profile.connectionDegree).toBe(1);
+    }
   });
 
   it('viewProfile hits the profileView path and returns the Profile', async () => {

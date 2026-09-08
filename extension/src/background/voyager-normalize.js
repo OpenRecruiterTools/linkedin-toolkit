@@ -76,12 +76,13 @@ export function toProfile(fields = {}, source = 'profile') {
   };
   if (fields.companyUrn) profile.companyUrn = fields.companyUrn;
 
-  // Always present, and explicitly `null` when the response carried no
-  // parsable distance. Leaving it off would let an older degree survive a
-  // newer read: the record would be stamped fresh while still claiming a
-  // connection state nobody has checked.
-  profile.connectionDegree =
-    fields.connectionDegree === undefined ? null : fields.connectionDegree;
+  // `undefined` means this shape does not carry a distance at all — a search
+  // hit, a group member, a reaction — and must leave whatever we already know
+  // alone. Only a full profile read is entitled to say `null`, meaning "we
+  // looked and could not tell"; that one is passed in explicitly below.
+  if (fields.connectionDegree !== undefined) {
+    profile.connectionDegree = fields.connectionDegree;
+  }
   if (fields.summary) profile.summary = fields.summary;
   if (fields.pageText) profile.pageText = fields.pageText;
   if (fields.photoDataUrl) profile.photoDataUrl = fields.photoDataUrl;
@@ -159,7 +160,10 @@ export function normalizeProfileView(raw, source = 'profile') {
       industry: profile.industryName || profile.industry || '',
       summary: profile.summary || '',
       photoUrl: vectorImageUrl(profile.picture || profile.profilePicture),
-      connectionDegree: degreeOf(profile.distance),
+      // A profile read is the one shape that always knows: an unparsable
+      // distance here is a real "could not tell", not an absent field, and it
+      // must overwrite whatever degree we were holding.
+      connectionDegree: degreeOf(profile.distance) ?? null,
       skills,
       experience: positions,
       education,

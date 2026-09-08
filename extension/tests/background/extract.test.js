@@ -340,6 +340,30 @@ describe('network.status', () => {
     events.setSink(null);
   });
 
+  it('a routine list read does not throw away a confirmed connection', async () => {
+    await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
+    vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
+
+    // Confirmed first degree by a real profile read.
+    net.push(inviteAccepted);
+    await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' });
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(1);
+    const visitsAfterRead = (await quota.snapshot('visit')).dailyUsed;
+
+    // The same person turns up in a search, which knows nothing about degrees.
+    net.push(searchClusters);
+    await handle(ACTIONS.SEARCH_PEOPLE, { keywords: 'analyst' });
+    expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(1);
+
+    // So the acceptance check is answered from what we already knew.
+    net.push({ elements: [] });
+    const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
+
+    expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
+    expect((await quota.snapshot('visit')).dailyUsed).toBe(visitsAfterRead);
+    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(1);
+  });
+
   it('a cached unknown degree never answers an acceptance check', async () => {
     await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
     vi.setSystemTime(new Date(2026, 8, 9, 12, 0, 0));
