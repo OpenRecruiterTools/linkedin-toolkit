@@ -1,11 +1,70 @@
 {
   "data": {
-    "metadata": {},
-    "paging": {
-      "start": 0,
-      "count": 0,
-      "total": 37
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "entityResultAttributes": null,
+          "bserpPaginationContext": null,
+          "totalResultCount": 37,
+          "searchAlert": null,
+          "blockedQueryError": null,
+          "secondaryFilterCluster": null,
+          "$recipeTypes": [
+            "com.linkedin.dfce49e2c6bb412fb4161cbbc7190d0d"
+          ],
+          "lazyRightRail": null,
+          "queryType": "EXPLORE",
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata",
+          "primaryResultType": "PEOPLE",
+          "paginationToken": null,
+          "primaryFilterCluster": null,
+          "blockedQuery": false,
+          "entityActionButtonStyle": null,
+          "searchId": "d3d9cfec-70d4-4161-b127-9c00acd5dfa0",
+          "filterAppliedCount": 0,
+          "clusterTitleFontSize": null,
+          "simpleInsightAttributes": null,
+          "desktopNavigationPanelTrackingId": null,
+          "knowledgeCardRightRail": null
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 37,
+          "$recipeTypes": [
+            "com.linkedin.81b214c2cdd4f02cdb7d827958d2f3a1"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "$recipeTypes": [
+          "com.linkedin.5f1d22f924ecb6a031ee124b8b767900"
+        ],
+        "elements": [],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+      ],
+      "$type": "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+    },
+    "extensions": {
+      "webMetadata": {}
     }
   },
-  "included": []
+  "included": [
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0009FIXTUREPROFILE0009xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0005FIXTUREPROFILE0005xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    }
+  ]
 }

@@ -1,25 +1,575 @@
 {
-  "elements": [
+  "data": {
+    "entityUrn": "urn:li:collectionResponse:ujdH2+JjjuCCAC7hljcPtdwV096xtyYIUV4cfr0tjd4=",
+    "paging": {
+      "count": 10,
+      "start": 0,
+      "links": []
+    },
+    "*elements": [
+      "urn:li:fsd_connection:ACoAAA0078FIXTUREPROFILE0078xxxx",
+      "urn:li:fsd_connection:ACoAAA0079FIXTUREPROFILE0079xxxx",
+      "urn:li:fsd_connection:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "urn:li:fsd_connection:ACoAAA0083FIXTUREPROFILE0083xxxx",
+      "urn:li:fsd_connection:ACoAAA0085FIXTUREPROFILE0085xxxx",
+      "urn:li:fsd_connection:ACoAAA0087FIXTUREPROFILE0087xxxx",
+      "urn:li:fsd_connection:ACoAAA0102FIXTUREPROFILE0102xxxx",
+      "urn:li:fsd_connection:ACoAAA0103FIXTUREPROFILE0103xxxx",
+      "urn:li:fsd_connection:ACoAAA0104FIXTUREPROFILE0104xxxx",
+      "urn:li:fsd_connection:ACoAAA0105FIXTUREPROFILE0105xxxx"
+    ],
+    "$type": "com.linkedin.restli.common.CollectionResponse"
+  },
+  "included": [
     {
-      "$type": "com.linkedin.voyager.dash.relationships.Connection",
-      "createdAt": 1700000000000,
-      "connectedMemberResolutionResult": {
-        "firstName": "Ada",
-        "lastName": "Lovelace",
-        "publicIdentifier": "adalovelace",
-        "headline": "Chief Analyst at Analytical Engines",
-        "entityUrn": "urn:li:fsd_profile:ACoAAAada",
-        "geoLocation": {
-          "geo": {
-            "defaultLocalizedName": "London, United Kingdom"
+      "lastName": "Lovelace",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Ada",
+      "profilePicture": {
+        "a11yText": "Ada Lovelace",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
           }
-        }
-      }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0102FIXTUREPROFILE0102xxxx",
+      "publicIdentifier": "adalovelace",
+      "headline": "Chief Analyst at Analytical Engines"
+    },
+    {
+      "lastName": "Bright",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Bob",
+      "profilePicture": {
+        "a11yText": "Bob Bright",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "publicIdentifier": "bobbright",
+      "headline": "Head of Platform at Difference Engine Co"
+    },
+    {
+      "lastName": "Chen",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Carla",
+      "profilePicture": {
+        "a11yText": "Carla Chen",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0078FIXTUREPROFILE0078xxxx",
+      "publicIdentifier": "carlachen",
+      "headline": "Principal Engineer at Analytical Engines"
+    },
+    {
+      "lastName": "Dupont",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Dana",
+      "profilePicture": {
+        "a11yText": "Dana Dupont",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0103FIXTUREPROFILE0103xxxx",
+      "publicIdentifier": "danadupont",
+      "headline": "Talent Partner at Loom Recruiting"
+    },
+    {
+      "lastName": "Ericsson",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Erik",
+      "profilePicture": {
+        "a11yText": "Erik Ericsson",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0085FIXTUREPROFILE0085xxxx",
+      "publicIdentifier": "erikericsson",
+      "headline": "CTO at Punchcard Systems"
+    },
+    {
+      "lastName": "Farouk",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Fatima",
+      "profilePicture": {
+        "a11yText": "Fatima Farouk",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0104FIXTUREPROFILE0104xxxx",
+      "publicIdentifier": "fatimafarouk",
+      "headline": "VP Engineering at Loom Recruiting"
+    },
+    {
+      "lastName": "Ghosh",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Gita",
+      "profilePicture": {
+        "a11yText": "Gita Ghosh",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0087FIXTUREPROFILE0087xxxx",
+      "publicIdentifier": "gitaghosh",
+      "headline": "Data Lead at Analytical Engines"
+    },
+    {
+      "lastName": "Hansen",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Hugo",
+      "profilePicture": {
+        "a11yText": "Hugo Hansen",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0079FIXTUREPROFILE0079xxxx",
+      "publicIdentifier": "hugohansen",
+      "headline": "Founder at Punchcard Systems"
+    },
+    {
+      "lastName": "Iglesias",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Ines",
+      "profilePicture": {
+        "a11yText": "Ines Iglesias",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0105FIXTUREPROFILE0105xxxx",
+      "publicIdentifier": "inesiglesias",
+      "headline": "Head of Talent at Difference Engine Co"
+    },
+    {
+      "lastName": "Jensen",
+      "memorialized": false,
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "firstName": "Jonas",
+      "profilePicture": {
+        "a11yText": "Jonas Jensen",
+        "displayImageReference": {
+          "vectorImage": {
+            "$recipeTypes": [
+              "com.linkedin.voyager.dash.deco.common.VectorImageOnlyRootUrlAndAttribution"
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQTESTFIXTURE/profile-displayphoto-shrink_",
+            "artifacts": [
+              {
+                "width": 100,
+                "fileIdentifyingUrlPathSegment": "100_100/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 400,
+                "fileIdentifyingUrlPathSegment": "400_400/0/1700000000000?e=1790208000&v=beta&t=fixture",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "$recipeTypes": [
+          "com.linkedin.voyager.dash.deco.identity.profile.ProfilePhotoDecoSpecReadOnlyProfilePicture"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQTESTFIXTURE",
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0083FIXTUREPROFILE0083xxxx",
+      "publicIdentifier": "jonasjensen",
+      "headline": "Staff Engineer at Analytical Engines"
+    },
+    {
+      "createdAt": 1788125101000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0105FIXTUREPROFILE0105xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0105FIXTUREPROFILE0105xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0105FIXTUREPROFILE0105xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788775701000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0079FIXTUREPROFILE0079xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0079FIXTUREPROFILE0079xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0079FIXTUREPROFILE0079xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788441124000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0087FIXTUREPROFILE0087xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0087FIXTUREPROFILE0087xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0087FIXTUREPROFILE0087xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788689931000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788520230000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0083FIXTUREPROFILE0083xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0083FIXTUREPROFILE0083xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0083FIXTUREPROFILE0083xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788783973000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0078FIXTUREPROFILE0078xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0078FIXTUREPROFILE0078xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0078FIXTUREPROFILE0078xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788426463000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0102FIXTUREPROFILE0102xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0102FIXTUREPROFILE0102xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0102FIXTUREPROFILE0102xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788272842000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0103FIXTUREPROFILE0103xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0103FIXTUREPROFILE0103xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0103FIXTUREPROFILE0103xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788205680000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0104FIXTUREPROFILE0104xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0104FIXTUREPROFILE0104xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0104FIXTUREPROFILE0104xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
+    },
+    {
+      "createdAt": 1788510284000,
+      "connectedMember": "urn:li:fsd_profile:ACoAAA0085FIXTUREPROFILE0085xxxx",
+      "entityUrn": "urn:li:fsd_connection:ACoAAA0085FIXTUREPROFILE0085xxxx",
+      "*connectedMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0085FIXTUREPROFILE0085xxxx",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.Connection"
     }
-  ],
-  "paging": {
-    "start": 0,
-    "count": 10,
-    "total": 204
-  }
+  ]
 }

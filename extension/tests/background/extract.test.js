@@ -5,7 +5,7 @@ import { setConfig } from '../../src/lib/config.js';
 import * as quota from '../../src/background/quota.js';
 import * as storage from '../../src/lib/storage.js';
 import '../../src/background/extract.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
@@ -27,10 +27,24 @@ beforeEach(async () => {
   quota.setSleepFn(() => Promise.resolve());
   await setConfig({ accountPreset: 'recruiter' });
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
 });
 
 afterEach(() => vi.useRealTimers());
+
+/**
+ * The calls that were the point of the test.
+ *
+ * A profile read now also asks for the experience section, and anything
+ * touching messaging asks who we are first; both are answered by
+ * `routeBackground` and both are noise in a "how many calls did that take"
+ * assertion.
+ */
+const linkedInCalls = () =>
+  net.calls.filter(
+    (c) =>
+      !c.url.includes('voyagerIdentityDashProfileComponents') && !c.url.includes('/voyager/api/me'),
+  );
 
 /** A sent-invitations response listing these people as still pending. */
 function sentInvitations2(publicIds) {
@@ -119,6 +133,7 @@ describe('company', () => {
   });
 
   it('company.employees returns profiles', async () => {
+    net.push(company); // the universal name is resolved to a numeric id first
     net.push(companyEmployees);
     const res = await handle(ACTIONS.COMPANY_EMPLOYEES, {
       universalName: 'analytical-engines',
@@ -157,9 +172,9 @@ describe('audiences', () => {
     ).toBe('fatimafarouk');
 
     net.push(connections);
-    expect((await handle(ACTIONS.NETWORK_CONNECTIONS, {})).data.profiles[0].publicId).toBe(
-      'adalovelace',
-    );
+    expect(
+      (await handle(ACTIONS.NETWORK_CONNECTIONS, {})).data.profiles.map((p) => p.publicId),
+    ).toContain('adalovelace');
 
     net.push(followers);
     expect((await handle(ACTIONS.NETWORK_FOLLOWERS, {})).data.profiles[0].publicId).toBe(
@@ -175,7 +190,7 @@ describe('network.status', () => {
 
     expect(res.data.statuses).toEqual({ bobbright: 'pending', carlachen: 'pending' });
     expect(net.calls).toHaveLength(1);
-    expect(net.calls[0].url).toContain('sentInvitationsV2');
+    expect(net.calls[0].url).toContain('sentInvitationViewsV2');
     expect((await quota.snapshot('visit')).dailyUsed).toBe(0);
   });
 
@@ -186,7 +201,7 @@ describe('network.status', () => {
 
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
-    expect(net.calls).toHaveLength(2);
+    expect(linkedInCalls()).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
   });
 
@@ -220,7 +235,7 @@ describe('network.status', () => {
     const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
 
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
-    expect(net.calls).toHaveLength(2);
+    expect(linkedInCalls()).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
   });
 
@@ -263,7 +278,7 @@ describe('network.status', () => {
     expect(res.data.partial).toBe(true);
     expect(res.data.reason).toBe(ERROR.QUOTA_EXCEEDED);
     // Three reads, then it stops rather than re-reserving for each of the rest.
-    expect(net.calls.length).toBe(4); // the invitations call plus three reads
+    expect(linkedInCalls().length).toBe(4); // the invitations call plus three reads
     // The 22 it never looked at are absent, not guessed at.
     expect(Object.keys(res.data.statuses)).toEqual(['person0', 'person1', 'person2']);
     expect('person24' in res.data.statuses).toBe(false);
@@ -285,7 +300,7 @@ describe('network.status', () => {
     expect(res.data.partial).toBe(true);
     expect(res.data.statuses).toEqual({ invited1: 'connected', invited2: 'pending' });
     expect('stranger' in res.data.statuses).toBe(false);
-    expect(net.calls).toHaveLength(2);
+    expect(linkedInCalls()).toHaveLength(2);
   });
 
   it('emits invite_accepted once when a pending invite has landed', async () => {
@@ -335,7 +350,7 @@ describe('network.status', () => {
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect(seen.map((f) => f.event)).toContain('invite_accepted');
     // The stale degree-2 record did not answer: a fresh read was made.
-    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(2);
+    expect(net.calls.filter((c) => c.url.includes('/identity/dash/profiles'))).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
     events.setSink(null);
   });
@@ -361,7 +376,7 @@ describe('network.status', () => {
 
     expect(res.data.statuses).toEqual({ adalovelace: 'connected' });
     expect((await quota.snapshot('visit')).dailyUsed).toBe(visitsAfterRead);
-    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(1);
+    expect(net.calls.filter((c) => c.url.includes('/identity/dash/profiles'))).toHaveLength(1);
   });
 
   it('a cached unknown degree never answers an acceptance check', async () => {
@@ -370,7 +385,9 @@ describe('network.status', () => {
 
     // A read that came back without a parsable distance.
     const noDistance = structuredClone(profileView);
-    delete noDistance.included.find((e) => e.publicIdentifier === 'adalovelace').distance;
+    noDistance.included = noDistance.included.filter(
+      (e) => !e.$type.endsWith('MemberRelationship'),
+    );
     net.push(noDistance);
     await handle(ACTIONS.PROFILE_GET, { publicId: 'adalovelace' });
     expect((await storage.getStoredProfile('adalovelace')).connectionDegree).toBe(null);
@@ -390,13 +407,13 @@ describe('network.status', () => {
     net.push({ elements: [] });
     net.push(inviteAccepted);
     await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
-    const readsAfterFirst = net.calls.filter((c) => c.url.includes('/identity/profiles/')).length;
+    const readsAfterFirst = net.calls.filter((c) => c.url.includes('/identity/dash/profiles')).length;
 
     net.push({ elements: [] });
     const again = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
 
     expect(again.data.statuses).toEqual({ adalovelace: 'connected' });
-    expect(net.calls.filter((c) => c.url.includes('/identity/profiles/'))).toHaveLength(
+    expect(net.calls.filter((c) => c.url.includes('/identity/dash/profiles'))).toHaveLength(
       readsAfterFirst,
     );
   });
@@ -404,6 +421,8 @@ describe('network.status', () => {
   describe('when the invitations collection is unavailable', () => {
     /** LinkedIn moved the endpoint, or we are backed off. */
     function invitationsFail() {
+      // Both the REST view and the GraphQL fallback have to fail.
+      net.push({ __status: 404, body: {} });
       net.push({ __status: 404, body: {} });
     }
 
@@ -459,6 +478,7 @@ describe('network.status', () => {
 
       await storage.logAction({ action: ACTIONS.OUTREACH_INVITE, publicId: 'adalovelace' });
       net.push({ data: { paging: { total: 3 } }, included: [] }); // shape LinkedIn changed
+      net.push({ data: { paging: { total: 3 } }, included: [] }); // and so does the fallback
       net.push(profileView); // and the profile says 2nd degree
 
       const res = await handle(ACTIONS.NETWORK_STATUS, { publicIds: ['adalovelace'] });
@@ -562,7 +582,7 @@ describe('profile reads are metered as visits', () => {
     expect(res.data.profiles).toHaveLength(2);
     expect(res.data.failed).toHaveLength(1); // the third stops the run
     expect(res.data.failed[0].error).toMatch(/cap/i);
-    expect(net.calls).toHaveLength(2);
+    expect(linkedInCalls()).toHaveLength(2);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(2);
   });
 });
@@ -574,7 +594,7 @@ describe('audience reads are metered against the search bucket', () => {
       ACTIONS.POST_ENGAGERS,
       { postUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:7000000000000000001/', kind: 'likes' },
       reactions,
-      1,
+      2,
     ],
     ['group.members', ACTIONS.GROUP_MEMBERS, { groupUrl: 'https://www.linkedin.com/groups/12345/' }, groupMembers, 1],
     [
@@ -584,8 +604,8 @@ describe('audience reads are metered against the search bucket', () => {
       eventAttendees,
       1,
     ],
-    ['network.connections', ACTIONS.NETWORK_CONNECTIONS, {}, connections, 1],
-    ['network.followers', ACTIONS.NETWORK_FOLLOWERS, {}, followers, 1],
+    ['network.connections', ACTIONS.NETWORK_CONNECTIONS, {}, connections, 10],
+    ['network.followers', ACTIONS.NETWORK_FOLLOWERS, {}, followers, 2],
   ])('%s records its results', async (_name, action, params, fixture, expected) => {
     net.push(fixture);
     await handle(action, params);

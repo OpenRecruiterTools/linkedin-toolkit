@@ -10,7 +10,7 @@ import * as quota from '../../src/background/quota.js';
 import * as storage from '../../src/lib/storage.js';
 import '../../src/background/outreach.js';
 import '../../src/background/lists.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 import inviteAccepted from '../fixtures/voyager/inviteAccepted.json';
@@ -30,12 +30,12 @@ beforeEach(async () => {
   vi.setSystemTime(START);
   quota.setSleepFn(() => Promise.resolve());
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
   // Reads that every tick makes, answered by URL so the tests only have to
   // queue the writes they care about. Individual tests re-route these.
-  net.route('/messaging/conversations', { elements: [] }); // a quiet inbox
-  net.route('normInvitations?q=sentInvitationsV2', { elements: [] }); // nothing pending
-  net.route('/identity/profiles/', profileView); // 2nd degree
+  net.route('messengerConversations', quietInbox()); // a quiet inbox
+  net.route('sentInvitationViewsV2', { elements: [] }); // nothing pending
+  net.route('/identity/dash/profiles', profileView); // 2nd degree
   seen = [];
   events.setSink((f) => seen.push(f));
   await setConfig({
@@ -66,19 +66,24 @@ const jump = (ms) => vi.setSystemTime(new Date(Date.now() + ms));
 function inboundNow(text = 'Yes, happy to talk.') {
   const at = Date.now();
   const threads = structuredClone(conversations);
-  threads.elements[0].lastActivityAt = at;
-  threads.elements[0].events[0].createdAt = at;
-  threads.elements[0].events[0].eventContent[
-    'com.linkedin.voyager.messaging.event.MessageEvent'
-  ].attributedBody.text = text;
+  const thread = threads.data.data.messengerConversationsByCategoryQuery.elements[0];
+  thread.lastActivityAt = at;
+  thread.messages.elements[0].deliveredAt = at;
+  thread.messages.elements[0].body.text = text;
 
   const messages = structuredClone(conversationEvents);
-  messages.elements[0].createdAt = at;
-  messages.elements[0].eventContent[
-    'com.linkedin.voyager.messaging.event.MessageEvent'
-  ].attributedBody.text = text;
+  const first = messages.data.data.messengerMessagesByConversation.elements[0];
+  first.deliveredAt = at;
+  first.body.text = text;
 
   return { threads, messages };
+}
+
+/** An inbox with no conversations in it. */
+function quietInbox() {
+  const empty = structuredClone(conversations);
+  empty.data.data.messengerConversationsByCategoryQuery.elements = [];
+  return empty;
 }
 
 async function makeCampaign(steps, settings = {}) {
@@ -174,7 +179,7 @@ describe('linear sequence', () => {
     expect(res.data.executed).toBe(1);
 
     const invite = net.calls[net.calls.length - 1];
-    expect(invite.json.message).toBe('Hi Ada');
+    expect(invite.json.customMessage).toBe('Hi Ada');
 
     const done = await enrollmentOf(c.campaignId);
     expect(done.status).toBe('done');
@@ -223,7 +228,7 @@ describe('branching', () => {
 
     // The invitation is no longer pending; the branch confirms with one read
     // that post-dates the invitation, and finds a first-degree connection.
-    net.route('/identity/profiles/', inviteAccepted);
+    net.route('/identity/dash/profiles', inviteAccepted);
     net.push({}); // the message
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -239,7 +244,7 @@ describe('branching', () => {
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     // The invitation is still pending, so the branch takes the else arm.
-    net.route('normInvitations?q=sentInvitationsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.route('sentInvitationViewsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
     net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -281,7 +286,7 @@ describe('branching', () => {
     expect((await enrollmentOf(c.campaignId)).path).toEqual([]);
 
     jump(73 * HOUR);
-    net.route('normInvitations?q=sentInvitationsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
+    net.route('sentInvitationViewsV2', { elements: [{ invitee: { miniProfile: { publicIdentifier: 'adalovelace' } } }] });
     net.push({}); // the follow
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect((await storage.allActions()).map((e) => e.action)).toContain(ACTIONS.OUTREACH_FOLLOW);
@@ -296,8 +301,8 @@ describe('stopOnReply', () => {
 
     jump(HOUR);
     const reply = inboundNow();
-    net.route('/messaging/conversations/', reply.messages);
-    net.route('/messaging/conversations?', reply.threads);
+    net.route('messengerMessages', reply.messages);
+    net.route('messengerConversations', reply.threads);
 
     const postsBefore = net.calls.filter((x) => x.method === 'POST').length;
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -316,8 +321,8 @@ describe('stopOnReply', () => {
 
     jump(HOUR);
     const reply = inboundNow('Yes, interested — can we book a call?');
-    net.route('/messaging/conversations/', reply.messages);
-    net.route('/messaging/conversations?', reply.threads);
+    net.route('messengerMessages', reply.messages);
+    net.route('messengerConversations', reply.threads);
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -333,8 +338,8 @@ describe('stopOnReply', () => {
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     jump(HOUR);
     const reply = inboundNow();
-    net.route('/messaging/conversations/', reply.messages);
-    net.route('/messaging/conversations?', reply.threads);
+    net.route('messengerMessages', reply.messages);
+    net.route('messengerConversations', reply.threads);
 
     net.push(profileView);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -357,7 +362,7 @@ describe('variants', () => {
     for (let i = 0; i < 3; i += 1) net.push({}); // three invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
+    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
     expect(notes).toEqual(['A Ada', 'B Bob', 'A Carla']);
     expect((await handle(ACTIONS.CAMPAIGN_GET, { campaignId: c.campaignId })).data.stats.sent).toBe(
       3,
@@ -377,7 +382,7 @@ describe('variants without a note or body', () => {
     for (let i = 0; i < 2; i += 1) net.push({}); // two invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
+    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
     expect(notes).toEqual(['Only A Ada', 'Only B Bob']);
   });
 
@@ -390,10 +395,7 @@ describe('variants without a note or body', () => {
     net.push({}); // the message
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const body =
-      net.calls[net.calls.length - 1].json.conversationCreate.eventCreate.value[
-        'com.linkedin.voyager.messaging.create.MessageCreate'
-      ].attributedBody.text;
+    const body = net.calls[net.calls.length - 1].json.message.body.text;
     expect(body).toBe('Body A Ada');
   });
 });
@@ -401,7 +403,7 @@ describe('variants without a note or body', () => {
 describe('already connected', () => {
   it('skips an invite to someone we are already connected to', async () => {
     const c = await makeCampaign([{ type: 'invite', note: 'Hi' }]);
-    net.route('/identity/profiles/', inviteAccepted); // 1st degree
+    net.route('/identity/dash/profiles', inviteAccepted); // 1st degree
 
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data).toEqual({ executed: 0, queued: 0 });
@@ -432,7 +434,7 @@ describe('already connected', () => {
       },
     ]);
 
-    net.route('/identity/profiles/', inviteAccepted); // 1st degree already
+    net.route('/identity/dash/profiles', inviteAccepted); // 1st degree already
     net.push({}); // the message
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -453,7 +455,7 @@ describe('already connected', () => {
     expect(res.data.executed).toBe(1);
     // The pre-check read the profile; the urn resolution reused it.
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-    expect(net.calls.filter((x) => x.url.includes('/identity/profiles/'))).toHaveLength(1);
+    expect(net.calls.filter((x) => x.url.includes('/identity/dash/profiles'))).toHaveLength(1);
   });
 
   it('still invites someone we are not connected to', async () => {
@@ -500,7 +502,7 @@ describe('shipped sequence templates', () => {
 
     net.push({}); // the invite
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);
-    expect(net.calls[net.calls.length - 1].json.message).toMatch(/^Hi Ada/);
+    expect(net.calls[net.calls.length - 1].json.customMessage).toMatch(/^Hi Ada/);
   });
 });
 
@@ -614,7 +616,7 @@ describe('copilot and quotas', () => {
     net.push({});
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
-    const notes = net.calls.filter((x) => x.json && x.json.message).map((x) => x.json.message);
+    const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
     expect(notes).toEqual(['A Ada', 'B Bob']);
   });
 
@@ -626,7 +628,12 @@ describe('copilot and quotas', () => {
     expect(res.data).toEqual({ executed: 0, queued: 0 });
     expect((await enrollmentOf(c.campaignId)).status).toBe('active');
     // It reads the inbox and then stops: no profile reads, no writes.
-    expect(net.calls.every((x) => x.url.includes('/messaging/conversations'))).toBe(true);
+    // It reads who we are and then the inbox, and stops there.
+    expect(
+      net.calls.every(
+        (x) => x.url.includes('messengerConversations') || x.url.includes('/voyager/api/me'),
+      ),
+    ).toBe(true);
     expect(net.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
   });
 

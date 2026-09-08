@@ -8,7 +8,7 @@ import * as quota from '../../src/background/quota.js';
 import * as research from '../../src/background/research.js';
 import * as storage from '../../src/lib/storage.js';
 import '../../src/background/outreach.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 import searchClusters from '../fixtures/voyager/searchClusters.json';
@@ -24,13 +24,13 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   quota.setSleepFn(() => Promise.resolve());
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
   seen = [];
   events.setSink((f) => seen.push(f));
   // A pack row costs two profile reads (the profile itself, then the
   // connection check), so give the hour enough room for a full tick.
   await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false, hourlyCap: 50 });
-  net.route('sentInvitationsV2', { elements: [] });
+  net.route('sentInvitationViewsV2', { elements: [] });
 });
 
 afterEach(() => {
@@ -381,7 +381,7 @@ describe('pacing', () => {
     await research.progress();
 
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-    expect(net.calls.filter((x) => x.url.includes('/identity/profiles/'))).toHaveLength(1);
+    expect(net.calls.filter((x) => x.url.includes('/identity/dash/profiles'))).toHaveLength(1);
   });
 
   it('narrows the ETA as rows complete', async () => {

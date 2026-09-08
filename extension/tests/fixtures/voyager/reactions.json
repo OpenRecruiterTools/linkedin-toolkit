@@ -1,24 +1,243 @@
 {
-  "elements": [
+  "data": {
+    "data": {
+      "$recipeTypes": [
+        "com.linkedin.719d1a789b53d132eb666f89333b854a"
+      ],
+      "socialDashReactionsByReactionType": {
+        "metadata": {
+          "paginationToken": "9323684600e391d82440dbabdb45b3d0",
+          "nextStartOffset": null,
+          "socialActivityCounts": null,
+          "$recipeTypes": [
+            "com.linkedin.72f9194816661062cb04c917354fa210"
+          ],
+          "updatedReactionTypeCounts": [],
+          "$type": "com.linkedin.voyager.dash.social.ReactionsMetadata"
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 765,
+          "$recipeTypes": [
+            "com.linkedin.b50259d37125aebe5a937a579bb67345"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "*elements": [
+          "urn:li:fsd_reaction:(urn:li:fsd_profile:ACoAAA0136FIXTUREPROFILE0136xxxx,urn:li:activity:7501456193794633729,0)",
+          "urn:li:fsd_reaction:(urn:li:fsd_profile:ACoAAA0134FIXTUREPROFILE0134xxxx,urn:li:activity:7501456193794633729,0)"
+        ],
+        "$recipeTypes": [
+          "com.linkedin.d34226ba14d7569363e729f024e5c36e"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.719d1a789b53d132eb666f89333b854a"
+    }
+  },
+  "included": [
     {
-      "$type": "com.linkedin.voyager.feed.social.Reaction",
-      "reactionType": "LIKE",
-      "createdAt": 1757000000000,
-      "actorUrn": "urn:li:fsd_profile:ACoAAAada",
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0130FIXTUREPROFILE0130xxxx",
+      "$recipeTypes": [
+        "com.linkedin.4e40620a1546ec1ea7b74f1ac7db436e"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0133FIXTUREPROFILE0133xxxx",
+      "$recipeTypes": [
+        "com.linkedin.4e40620a1546ec1ea7b74f1ac7db436e"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "actorUrn": "urn:li:fsd_profile:ACoAAA0136FIXTUREPROFILE0136xxxx",
       "reactorLockup": {
-        "title": {
-          "text": "Ada Lovelace"
+        "image": {
+          "attributes": [
+            {
+              "scalingType": null,
+              "detailData": {
+                "profilePictureWithoutFrame": null,
+                "profilePictureWithRingStatus": null,
+                "companyLogo": null,
+                "icon": null,
+                "systemImage": null,
+                "nonEntityGroupLogo": null,
+                "vectorImage": null,
+                "nonEntityProfessionalEventLogo": null,
+                "profilePicture": null,
+                "imageUrl": null,
+                "professionalEventLogo": null,
+                "nonEntityCompanyLogo": null,
+                "nonEntitySchoolLogo": null,
+                "groupLogo": null,
+                "schoolLogo": null,
+                "ghostImage": "PROFILE",
+                "nonEntityProfilePicture": null
+              },
+              "tintColor": null,
+              "$recipeTypes": [
+                "com.linkedin.b57b9f6e942a4d58515eb1c80578fea1"
+              ],
+              "tapTargets": [],
+              "displayAspectRatio": null,
+              "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+            }
+          ],
+          "editableAccessibilityText": false,
+          "actionTarget": null,
+          "accessibilityTextAttributes": [],
+          "totalCount": null,
+          "accessibilityText": "Ada Lovelace",
+          "$recipeTypes": [
+            "com.linkedin.9bf954b551982091ba62c4d2fe807451"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
         },
         "subtitle": {
-          "text": "Chief Analyst at Analytical Engines"
+          "textDirection": "USER_LOCALE",
+          "text": "Chief Analyst at Analytical Engines",
+          "attributesV2": [],
+          "accessibilityTextAttributesV2": [],
+          "accessibilityText": null,
+          "$recipeTypes": [
+            "com.linkedin.c032efb3f96704e1ccdaafaf7d4d29df"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
         },
-        "navigationUrl": "https://www.linkedin.com/in/adalovelace"
-      }
+        "navigationUrl": "https://www.linkedin.com/in/adalovelace",
+        "label": {
+          "textDirection": "USER_LOCALE",
+          "text": "1st",
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "title": {
+          "textDirection": "FIRST_STRONG",
+          "text": "Ada Lovelace",
+          "attributesV2": [],
+          "accessibilityTextAttributesV2": [],
+          "accessibilityText": "View Ada Lovelace's profile",
+          "$recipeTypes": [
+            "com.linkedin.c032efb3f96704e1ccdaafaf7d4d29df"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "accessibilityText": "View Ada Lovelace's graphic link",
+        "$recipeTypes": [
+          "com.linkedin.22e03a59aebea3440a4e02a98d83e7bd"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.ux.EntityLockupViewModel"
+      },
+      "$recipeTypes": [
+        "com.linkedin.dab74ef19bdb8a4c518ddf2dca563c96"
+      ],
+      "$type": "com.linkedin.voyager.dash.social.Reaction",
+      "actor": {
+        "companyUrn": null,
+        "*profileUrn": "urn:li:fsd_profile:ACoAAA0136FIXTUREPROFILE0136xxxx"
+      },
+      "reactionType": "LIKE",
+      "entityUrn": "urn:li:fsd_reaction:(urn:li:fsd_profile:ACoAAA0136FIXTUREPROFILE0136xxxx,urn:li:activity:7501456193794633729,0)",
+      "followingState": null,
+      "preDashEntityUrn": "urn:li:fs_reaction:(urn:li:member:900138,urn:li:activity:7501456193794633729)",
+      "preDashActorUrn": "urn:li:fs_miniProfile:ACoAAA0136FIXTUREPROFILE0136xxxx",
+      "createdAt": 1757000000000
+    },
+    {
+      "actorUrn": "urn:li:fsd_profile:ACoAAA0134FIXTUREPROFILE0134xxxx",
+      "reactorLockup": {
+        "image": {
+          "attributes": [
+            {
+              "scalingType": null,
+              "detailData": {
+                "profilePictureWithoutFrame": null,
+                "profilePictureWithRingStatus": null,
+                "companyLogo": null,
+                "icon": null,
+                "systemImage": null,
+                "nonEntityGroupLogo": null,
+                "vectorImage": null,
+                "nonEntityProfessionalEventLogo": null,
+                "profilePicture": null,
+                "imageUrl": null,
+                "professionalEventLogo": null,
+                "nonEntityCompanyLogo": null,
+                "nonEntitySchoolLogo": null,
+                "groupLogo": null,
+                "schoolLogo": null,
+                "ghostImage": "PROFILE",
+                "nonEntityProfilePicture": null
+              },
+              "tintColor": null,
+              "$recipeTypes": [
+                "com.linkedin.b57b9f6e942a4d58515eb1c80578fea1"
+              ],
+              "tapTargets": [],
+              "displayAspectRatio": null,
+              "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+            }
+          ],
+          "editableAccessibilityText": false,
+          "actionTarget": null,
+          "accessibilityTextAttributes": [],
+          "totalCount": null,
+          "accessibilityText": "Bob Bright",
+          "$recipeTypes": [
+            "com.linkedin.9bf954b551982091ba62c4d2fe807451"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
+        },
+        "subtitle": {
+          "textDirection": "USER_LOCALE",
+          "text": "Head of Platform at Difference Engine Co",
+          "attributesV2": [],
+          "accessibilityTextAttributesV2": [],
+          "accessibilityText": null,
+          "$recipeTypes": [
+            "com.linkedin.c032efb3f96704e1ccdaafaf7d4d29df"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "navigationUrl": "https://www.linkedin.com/in/bobbright",
+        "label": {
+          "textDirection": "USER_LOCALE",
+          "text": "3rd+",
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "title": {
+          "textDirection": "FIRST_STRONG",
+          "text": "Bob Bright",
+          "attributesV2": [],
+          "accessibilityTextAttributesV2": [],
+          "accessibilityText": "View Bob Bright's profile",
+          "$recipeTypes": [
+            "com.linkedin.c032efb3f96704e1ccdaafaf7d4d29df"
+          ],
+          "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+        },
+        "accessibilityText": "View Bob Bright's graphic link",
+        "$recipeTypes": [
+          "com.linkedin.22e03a59aebea3440a4e02a98d83e7bd"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.ux.EntityLockupViewModel"
+      },
+      "$recipeTypes": [
+        "com.linkedin.dab74ef19bdb8a4c518ddf2dca563c96"
+      ],
+      "$type": "com.linkedin.voyager.dash.social.Reaction",
+      "actor": {
+        "companyUrn": null,
+        "*profileUrn": "urn:li:fsd_profile:ACoAAA0134FIXTUREPROFILE0134xxxx"
+      },
+      "reactionType": "PRAISE",
+      "entityUrn": "urn:li:fsd_reaction:(urn:li:fsd_profile:ACoAAA0134FIXTUREPROFILE0134xxxx,urn:li:activity:7501456193794633729,0)",
+      "followingState": null,
+      "preDashEntityUrn": "urn:li:fs_reaction:(urn:li:member:900139,urn:li:activity:7501456193794633729)",
+      "preDashActorUrn": "urn:li:fs_miniProfile:ACoAAA0134FIXTUREPROFILE0134xxxx",
+      "createdAt": 1756999999000
     }
-  ],
-  "paging": {
-    "start": 0,
-    "count": 10,
-    "total": 88
-  }
+  ]
 }

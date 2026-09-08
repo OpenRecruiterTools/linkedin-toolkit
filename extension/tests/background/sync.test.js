@@ -10,9 +10,13 @@ import '../../src/background/status.js';
 import '../../src/background/sync.js';
 import '../../src/background/outreach.js';
 import '../../src/background/lists.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import conversations from '../fixtures/voyager/conversations.json';
+import profileView from '../fixtures/voyager/profileView.json';
+import searchClusters from '../fixtures/voyager/searchClusters.json';
+import company from '../fixtures/voyager/company.json';
+import connections from '../fixtures/voyager/connections.json';
 
 const NOW = new Date(2026, 8, 9, 11, 0, 0);
 
@@ -23,7 +27,7 @@ beforeEach(async () => {
   vi.setSystemTime(NOW);
   quota.setSleepFn(() => Promise.resolve());
   bridge.disconnect();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
 });
 
 afterEach(() => {
@@ -99,6 +103,58 @@ describe('status.get', () => {
     await handle(ACTIONS.CONFIG_SET, { bridge: { enabled: true, port: 47830 } });
     const s = (await handle(ACTIONS.STATUS_GET, {})).data;
     expect(s.bridge).toEqual({ enabled: true, connected: false, port: 47830 });
+  });
+
+  it('says nothing about endpoints unless asked', async () => {
+    const s = (await handle(ACTIONS.STATUS_GET, {})).data;
+    expect(s.endpoints).toBeUndefined();
+    expect(s.clientVersionCaptured).toBeUndefined();
+    expect(net.calls).toHaveLength(0);
+  });
+
+  describe('verify: true', () => {
+    it('reports one word per endpoint and the captured client version', async () => {
+      seedSession();
+      net.route('identity/dash/profiles', profileView);
+      net.route('voyagerSearchDashClusters', searchClusters);
+      net.route('voyagerOrganizationDashCompanies', company);
+      net.route('/relationships/dash/connections', connections);
+      net.route('sentInvitationViewsV2', { elements: [] });
+      net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });
+
+      const s = (await handle(ACTIONS.STATUS_GET, { verify: true })).data;
+
+      expect(s.clientVersionCaptured).toBe('1.13.46474');
+      expect(s.endpointsCapturedAt).toBe('2026-09-08');
+      expect(s.endpoints.me).toBe('ok');
+      expect(s.endpoints.search).toBe('ok');
+      expect(s.endpoints.comments).toBe('unverified');
+      expect(s.endpoints.reactions).toBe('skipped');
+      // The rest of the Status is still there.
+      expect(s.connected).toBe(true);
+    });
+
+    it('meters the search and the profile read it makes', async () => {
+      seedSession();
+      net.route('identity/dash/profiles', profileView);
+      net.route('voyagerSearchDashClusters', searchClusters);
+      net.route('voyagerOrganizationDashCompanies', company);
+      net.route('/relationships/dash/connections', connections);
+      net.route('sentInvitationViewsV2', { elements: [] });
+      net.route('voyagerFeedDashProfileUpdates', { data: { data: { x: { elements: [] } } } });
+
+      await handle(ACTIONS.STATUS_GET, { verify: true });
+
+      expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
+      expect((await quota.snapshot('search')).dailyUsed).toBe(1);
+    });
+
+    it('calls nothing at all when signed out', async () => {
+      const s = (await handle(ACTIONS.STATUS_GET, { verify: true })).data;
+      expect(s.endpoints.me).toBe('failed');
+      expect(s.endpoints.search).toBe('skipped');
+      expect(net.calls).toHaveLength(0);
+    });
   });
 });
 

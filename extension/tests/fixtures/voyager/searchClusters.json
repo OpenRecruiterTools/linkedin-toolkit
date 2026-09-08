@@ -1,100 +1,417 @@
 {
   "data": {
-    "metadata": {
-      "totalResultCount": 240
-    },
-    "elements": [
-      {
-        "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
-        "items": [
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "entityResultAttributes": null,
+          "bserpPaginationContext": null,
+          "totalResultCount": 240,
+          "searchAlert": null,
+          "blockedQueryError": null,
+          "secondaryFilterCluster": null,
+          "$recipeTypes": [
+            "com.linkedin.dfce49e2c6bb412fb4161cbbc7190d0d"
+          ],
+          "lazyRightRail": null,
+          "queryType": "EXPLORE",
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata",
+          "primaryResultType": "PEOPLE",
+          "paginationToken": null,
+          "primaryFilterCluster": null,
+          "blockedQuery": false,
+          "entityActionButtonStyle": null,
+          "searchId": "d3d9cfec-70d4-4161-b127-9c00acd5dfa0",
+          "filterAppliedCount": 0,
+          "clusterTitleFontSize": null,
+          "simpleInsightAttributes": null,
+          "desktopNavigationPanelTrackingId": null,
+          "knowledgeCardRightRail": null
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 240,
+          "$recipeTypes": [
+            "com.linkedin.81b214c2cdd4f02cdb7d827958d2f3a1"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "$recipeTypes": [
+          "com.linkedin.5f1d22f924ecb6a031ee124b8b767900"
+        ],
+        "elements": [
           {
-            "item": {
-              "entityResult": {
-                "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
-                "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAada,SEARCH_SRP,DEFAULT)",
-                "trackingUrn": "urn:li:member:ACoAAAada",
-                "title": {
-                  "text": "Ada Lovelace"
+            "image": null,
+            "quickFilterActions": [],
+            "clusterRenderType": "LIST",
+            "dismissable": false,
+            "totalResultCount": null,
+            "controlName": null,
+            "description": null,
+            "title": null,
+            "$recipeTypes": [
+              "com.linkedin.5c853aba2154c55483e72bf6cdfaaf3e"
+            ],
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "actionTypeName": null,
+            "navigationText": null,
+            "feature": null,
+            "navigationCardAction": null,
+            "position": 1,
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0035FIXTUREPROFILE0035xxxx,SEARCH_SRP,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
                 },
-                "primarySubtitle": {
-                  "text": "Chief Analyst at Analytical Engines"
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx,SEARCH_SRP,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
                 },
-                "secondarySubtitle": {
-                  "text": "London, United Kingdom"
-                },
-                "summary": {
-                  "text": "Current: Chief Analyst at Analytical Engines"
-                },
-                "navigationUrl": "https://www.linkedin.com/in/adalovelace?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAada",
-                "image": {
-                  "attributes": [
-                    {
-                      "detailData": {
-                        "nonEntityProfilePicture": {
-                          "vectorImage": {
-                            "rootUrl": "https://media.licdn.com/dms/image/",
-                            "artifacts": [
-                              {
-                                "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
-                              }
-                            ]
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
               }
-            }
+            ],
+            "results": [],
+            "trackingId": "\tµe]LN±\u0004ÛªWRê"
           },
           {
-            "item": {
-              "entityResult": {
-                "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
-                "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAbob,SEARCH_SRP,DEFAULT)",
-                "trackingUrn": "urn:li:member:ACoAAAbob",
-                "title": {
-                  "text": "Bob Bright"
+            "image": null,
+            "quickFilterActions": [],
+            "clusterRenderType": "LIST",
+            "dismissable": false,
+            "totalResultCount": null,
+            "controlName": null,
+            "description": null,
+            "title": null,
+            "$recipeTypes": [
+              "com.linkedin.5c853aba2154c55483e72bf6cdfaaf3e"
+            ],
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "actionTypeName": null,
+            "navigationText": null,
+            "feature": null,
+            "navigationCardAction": null,
+            "position": 2,
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0035FIXTUREPROFILE0035xxxx,SEARCH_SRP,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
                 },
-                "primarySubtitle": {
-                  "text": "CTO at Beta Systems"
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx,SEARCH_SRP,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
                 },
-                "secondarySubtitle": {
-                  "text": "Manchester, United Kingdom"
-                },
-                "summary": {
-                  "text": "Current: CTO at Beta Systems"
-                },
-                "navigationUrl": "https://www.linkedin.com/in/bobbright?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAAbob",
-                "image": {
-                  "attributes": [
-                    {
-                      "detailData": {
-                        "nonEntityProfilePicture": {
-                          "vectorImage": {
-                            "rootUrl": "https://media.licdn.com/dms/image/",
-                            "artifacts": [
-                              {
-                                "fileIdentifyingUrlPathSegment": "C4E03AQ/profile-displayphoto-shrink_400_400/0/1"
-                              }
-                            ]
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
               }
-            }
+            ],
+            "results": [],
+            "trackingId": "\fvMØ\u0019{GS§ûJbáR"
           }
-        ]
-      }
-    ],
-    "paging": {
-      "start": 0,
-      "count": 10,
-      "total": 240
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+      ],
+      "$type": "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+    },
+    "extensions": {
+      "webMetadata": {}
     }
   },
-  "included": []
+  "included": [
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0009FIXTUREPROFILE0009xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0005FIXTUREPROFILE0005xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "actorNavigationContext": null,
+      "trackingUrn": "urn:li:member:910000",
+      "controlName": null,
+      "interstitialComponent": null,
+      "entityCustomTrackingInfo": {
+        "memberDistance": "DISTANCE_2",
+        "$recipeTypes": [
+          "com.linkedin.4caf791202c7b71e3874d4551f078f32"
+        ],
+        "nameMatch": false,
+        "$type": "com.linkedin.voyager.dash.search.EntityCustomTrackingInfo"
+      },
+      "badgeData": null,
+      "title": {
+        "textDirection": "FIRST_STRONG",
+        "text": "Ada Lovelace",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": "View Ada Lovelace's profile",
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "searchActionType": null,
+      "badgeIcon": null,
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0035FIXTUREPROFILE0035xxxx,SEARCH_SRP,DEFAULT)",
+      "showAdditionalCluster": false,
+      "ringStatus": null,
+      "primarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "Chief Analyst at Analytical Engines",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "badgeText": {
+        "textDirection": "USER_LOCALE",
+        "text": "• 2nd",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": "2nd degree connection",
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "trackingId": "WYmvS7DeQDyhNpYAjYEqng==",
+      "addEntityToSearchHistory": true,
+      "actorNavigationUrl": null,
+      "image": {
+        "attributes": [
+          {
+            "scalingType": null,
+            "detailData": {
+              "profilePictureWithoutFrame": null,
+              "profilePictureWithRingStatus": null,
+              "companyLogo": null,
+              "icon": null,
+              "systemImage": null,
+              "nonEntityGroupLogo": null,
+              "vectorImage": null,
+              "nonEntityProfessionalEventLogo": null,
+              "profilePicture": null,
+              "imageUrl": null,
+              "professionalEventLogo": null,
+              "nonEntityCompanyLogo": null,
+              "nonEntitySchoolLogo": null,
+              "groupLogo": null,
+              "schoolLogo": null,
+              "ghostImage": null,
+              "nonEntityProfilePicture": {
+                "*profile": "urn:li:fsd_profile:ACoAAA0006FIXTUREPROFILE0006xxxx",
+                "ringStatus": null,
+                "$recipeTypes": [
+                  "com.linkedin.4b009c1d6ea192a94bda77fb9ace3a7d"
+                ],
+                "vectorImage": null,
+                "$type": "com.linkedin.voyager.dash.common.image.NonEntityProfilePicture"
+              }
+            },
+            "tintColor": null,
+            "$recipeTypes": [
+              "com.linkedin.eb94fbb1518f790c4545aafdf571c64e"
+            ],
+            "tapTargets": [],
+            "displayAspectRatio": null,
+            "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+          }
+        ],
+        "editableAccessibilityText": false,
+        "actionTarget": null,
+        "accessibilityTextAttributes": [],
+        "totalCount": null,
+        "accessibilityText": "Ada Lovelace",
+        "$recipeTypes": [
+          "com.linkedin.fe5b8a3ac5a4a165c17f53b7eae4209b"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
+      },
+      "secondarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "London, United Kingdom",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "navigationUrl": "https://www.linkedin.com/in/adalovelace?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0035FIXTUREPROFILE0035xxxx",
+      "entityEmbeddedObject": null,
+      "$recipeTypes": [
+        "com.linkedin.cf4b25c18907ea8eafe915c8bfa24109"
+      ],
+      "target": null,
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "actorTrackingUrn": null,
+      "navigationContext": {
+        "openExternally": false,
+        "$recipeTypes": [
+          "com.linkedin.55ee9afd4182671fe7e271f615659525"
+        ],
+        "url": "https://www.linkedin.com/in/adalovelace?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0035FIXTUREPROFILE0035xxxx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "actorNavigationContext": null,
+      "trackingUrn": "urn:li:member:910001",
+      "controlName": null,
+      "interstitialComponent": null,
+      "entityCustomTrackingInfo": {
+        "memberDistance": "DISTANCE_1",
+        "$recipeTypes": [
+          "com.linkedin.4caf791202c7b71e3874d4551f078f32"
+        ],
+        "nameMatch": false,
+        "$type": "com.linkedin.voyager.dash.search.EntityCustomTrackingInfo"
+      },
+      "badgeData": null,
+      "title": {
+        "textDirection": "FIRST_STRONG",
+        "text": "Bob Bright",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": "View Bob Bright's profile",
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "searchActionType": null,
+      "badgeIcon": null,
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0036FIXTUREPROFILE0036xxxx,SEARCH_SRP,DEFAULT)",
+      "showAdditionalCluster": false,
+      "ringStatus": null,
+      "primarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "Head of Platform at Difference Engine Co",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "badgeText": {
+        "textDirection": "USER_LOCALE",
+        "text": "• 2nd",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": "2nd degree connection",
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "trackingId": "RQEslVNeQVWhyrgeC12YuA==",
+      "addEntityToSearchHistory": true,
+      "actorNavigationUrl": null,
+      "image": {
+        "attributes": [
+          {
+            "scalingType": null,
+            "detailData": {
+              "profilePictureWithoutFrame": null,
+              "profilePictureWithRingStatus": null,
+              "companyLogo": null,
+              "icon": null,
+              "systemImage": null,
+              "nonEntityGroupLogo": null,
+              "vectorImage": null,
+              "nonEntityProfessionalEventLogo": null,
+              "profilePicture": null,
+              "imageUrl": null,
+              "professionalEventLogo": null,
+              "nonEntityCompanyLogo": null,
+              "nonEntitySchoolLogo": null,
+              "groupLogo": null,
+              "schoolLogo": null,
+              "ghostImage": null,
+              "nonEntityProfilePicture": {
+                "*profile": "urn:li:fsd_profile:ACoAAA0013FIXTUREPROFILE0013xxxx",
+                "ringStatus": null,
+                "$recipeTypes": [
+                  "com.linkedin.4b009c1d6ea192a94bda77fb9ace3a7d"
+                ],
+                "vectorImage": null,
+                "$type": "com.linkedin.voyager.dash.common.image.NonEntityProfilePicture"
+              }
+            },
+            "tintColor": null,
+            "$recipeTypes": [
+              "com.linkedin.eb94fbb1518f790c4545aafdf571c64e"
+            ],
+            "tapTargets": [],
+            "displayAspectRatio": null,
+            "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+          }
+        ],
+        "editableAccessibilityText": false,
+        "actionTarget": null,
+        "accessibilityTextAttributes": [],
+        "totalCount": null,
+        "accessibilityText": "Bob Bright",
+        "$recipeTypes": [
+          "com.linkedin.fe5b8a3ac5a4a165c17f53b7eae4209b"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
+      },
+      "secondarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "Manchester, United Kingdom",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "navigationUrl": "https://www.linkedin.com/in/bobbright?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0036FIXTUREPROFILE0036xxxx",
+      "entityEmbeddedObject": null,
+      "$recipeTypes": [
+        "com.linkedin.cf4b25c18907ea8eafe915c8bfa24109"
+      ],
+      "target": null,
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "actorTrackingUrn": null,
+      "navigationContext": {
+        "openExternally": false,
+        "$recipeTypes": [
+          "com.linkedin.55ee9afd4182671fe7e271f615659525"
+        ],
+        "url": "https://www.linkedin.com/in/bobbright?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0036FIXTUREPROFILE0036xxxx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    }
+  ]
 }

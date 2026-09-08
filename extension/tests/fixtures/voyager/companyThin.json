@@ -1,0 +1,32 @@
+{
+  "data": {
+    "data": {
+      "organizationDashCompaniesByUniversalName": {
+        "*elements": [
+          "urn:li:fsd_company:1035"
+        ],
+        "$recipeTypes": [
+          "com.linkedin.8bbcb1773e9c0aa30f47c9226d216fcb"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.e1fd656dbb6f9905fa99c94ecdb09f7d"
+      ],
+      "$type": "com.linkedin.e1fd656dbb6f9905fa99c94ecdb09f7d"
+    },
+    "extensions": {
+      "webMetadata": {}
+    }
+  },
+  "included": [
+    {
+      "guideFetcher": null,
+      "entityUrn": "urn:li:fsd_company:1035",
+      "$recipeTypes": [
+        "com.linkedin.6c284ecfaf751026e34c274f17c70119"
+      ],
+      "$type": "com.linkedin.voyager.dash.organization.Company"
+    }
+  ]
+}

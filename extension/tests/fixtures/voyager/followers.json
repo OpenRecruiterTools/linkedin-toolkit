@@ -1,19 +1,561 @@
 {
-  "elements": [
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "entityResultAttributes": null,
+          "bserpPaginationContext": null,
+          "totalResultCount": 1042,
+          "searchAlert": null,
+          "blockedQueryError": null,
+          "secondaryFilterCluster": null,
+          "$recipeTypes": [
+            "com.linkedin.dfce49e2c6bb412fb4161cbbc7190d0d"
+          ],
+          "lazyRightRail": null,
+          "queryType": null,
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata",
+          "paginationToken": null,
+          "primaryResultType": null,
+          "primaryFilterCluster": null,
+          "blockedQuery": false,
+          "entityActionButtonStyle": null,
+          "searchId": "3d965a85-928a-4fad-97ca-7f51766ffd3b",
+          "filterAppliedCount": 0,
+          "clusterTitleFontSize": null,
+          "simpleInsightAttributes": null,
+          "desktopNavigationPanelTrackingId": null,
+          "knowledgeCardRightRail": null
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 1000,
+          "$recipeTypes": [
+            "com.linkedin.81b214c2cdd4f02cdb7d827958d2f3a1"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "$recipeTypes": [
+          "com.linkedin.5f1d22f924ecb6a031ee124b8b767900"
+        ],
+        "elements": [
+          {
+            "image": null,
+            "quickFilterActions": [],
+            "clusterRenderType": "LIST",
+            "dismissable": false,
+            "totalResultCount": null,
+            "controlName": null,
+            "description": null,
+            "title": null,
+            "$recipeTypes": [
+              "com.linkedin.5c853aba2154c55483e72bf6cdfaaf3e"
+            ],
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "actionTypeName": null,
+            "navigationText": null,
+            "feature": null,
+            "navigationCardAction": null,
+            "position": null,
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0100FIXTUREPROFILE0100xxxx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0101FIXTUREPROFILE0101xxxx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              }
+            ],
+            "results": [],
+            "trackingId": null
+          }
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+      ],
+      "$type": "com.linkedin.c293aa010e51bae32433eeb13b1682fa"
+    },
+    "errors": [
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          1,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          2,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          3,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          4,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          5,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          6,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          7,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          8,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      },
+      {
+        "path": [
+          "searchDashClustersByAll",
+          "elements",
+          0,
+          "items",
+          9,
+          "item",
+          "entityResult",
+          "insightsResolutionResults",
+          0,
+          "relationshipsInsight"
+        ],
+        "locations": [],
+        "extensions": {
+          "classification": "DataFetchingException"
+        },
+        "message": "Unexpected error looking up data in BATCH_GET response."
+      }
+    ]
+  },
+  "included": [
     {
-      "$type": "com.linkedin.voyager.dash.identity.profile.ProfileFollower",
-      "followerProfile": {
-        "firstName": "Dana",
-        "lastName": "Dupont",
-        "publicIdentifier": "danadupont",
-        "headline": "Investor",
-        "entityUrn": "urn:li:fsd_profile:ACoAAAdan"
+      "profilePicture": {
+        "displayImageReferenceResolutionResult": {
+          "url": null,
+          "vectorImage": {
+            "digitalmediaAsset": "urn:li:digitalmediaAsset:D4E03AQEcmuoromerVA",
+            "attribution": null,
+            "isStandardDynamicRangeEnforced": false,
+            "c2paManifestData": null,
+            "$recipeTypes": [
+              "com.linkedin.28db8575bcf1c65bdc4bc15948d50ee9"
+            ],
+            "artifacts": [
+              {
+                "width": 400,
+                "$recipeTypes": [
+                  "com.linkedin.f0f435b4425ee2990eba8f0a4d614944"
+                ],
+                "fileIdentifyingUrlPathSegment": "scale_400_400/B4EZnqITPpJ0Ag-/0/1760569670733?e=1790208000&v=beta&t=7zfO5mWFo_RxVVu35GKSx0zxzXuHVnue98ziqSGlEuw",
+                "expiresAt": 1790208000000,
+                "height": 400,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 100,
+                "$recipeTypes": [
+                  "com.linkedin.f0f435b4425ee2990eba8f0a4d614944"
+                ],
+                "fileIdentifyingUrlPathSegment": "scale_100_100/B4EZnqITPpJ0Ac-/0/1760569670733?e=1790208000&v=beta&t=-DGYuwpI_OR1H9JgAqYVw0NuAQYkFtyFK_DIlwYBrJ4",
+                "expiresAt": 1790208000000,
+                "height": 100,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 200,
+                "$recipeTypes": [
+                  "com.linkedin.f0f435b4425ee2990eba8f0a4d614944"
+                ],
+                "fileIdentifyingUrlPathSegment": "scale_200_200/B4EZnqITPpJ0AY-/0/1760569670733?e=1790208000&v=beta&t=Vq4VHiv-JBYLBTs4aySmVHAWhMZlDa8ubmfzmQLWEAM",
+                "expiresAt": 1790208000000,
+                "height": 200,
+                "$type": "com.linkedin.common.VectorArtifact"
+              },
+              {
+                "width": 800,
+                "$recipeTypes": [
+                  "com.linkedin.f0f435b4425ee2990eba8f0a4d614944"
+                ],
+                "fileIdentifyingUrlPathSegment": "crop_800_800/B4EZnqITPpJ0AI-/0/1760569670650?e=1790208000&v=beta&t=ofdobVEGe1W3qsChMKJU8bQmtxvOfDf6lJMsAWtBOkA",
+                "expiresAt": 1790208000000,
+                "height": 800,
+                "$type": "com.linkedin.common.VectorArtifact"
+              }
+            ],
+            "rootUrl": "https://media.licdn.com/dms/image/v2/D4E03AQEcmuoromerVA/profile-displayphoto-",
+            "$type": "com.linkedin.common.VectorImage"
+          }
+        },
+        "originalImageUrn": null,
+        "displayImageWithFrameReference": null,
+        "a11yText": "Abdulmalik Abdullahi Shinkafi",
+        "frameType": null,
+        "$recipeTypes": [
+          "com.linkedin.ab57de991a452be4a5e752f1671b1e62"
+        ],
+        "displayImageUrn": "urn:li:digitalmediaAsset:D4E03AQEcmuoromerVA",
+        "isGeneratedOrModifiedByAi": false,
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0081FIXTUREPROFILE0081xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "profilePicture": {
+        "displayImageReferenceResolutionResult": null,
+        "originalImageUrn": null,
+        "displayImageWithFrameReference": null,
+        "a11yText": "Piyush N.",
+        "frameType": null,
+        "$recipeTypes": [
+          "com.linkedin.ab57de991a452be4a5e752f1671b1e62"
+        ],
+        "displayImageUrn": null,
+        "isGeneratedOrModifiedByAi": false,
+        "$type": "com.linkedin.voyager.dash.identity.profile.PhotoFilterPicture"
+      },
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0082FIXTUREPROFILE0082xxxx",
+      "$recipeTypes": [
+        "com.linkedin.e0372afc4a18480b00ca7e4906904fd7"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "actorNavigationContext": null,
+      "trackingUrn": "urn:li:member:910000",
+      "controlName": null,
+      "interstitialComponent": null,
+      "entityCustomTrackingInfo": null,
+      "badgeData": null,
+      "title": {
+        "textDirection": "USER_LOCALE",
+        "text": "Dana Dupont",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "searchActionType": null,
+      "badgeIcon": null,
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0100FIXTUREPROFILE0100xxxx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "showAdditionalCluster": false,
+      "ringStatus": null,
+      "primarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "Talent Partner at Loom Recruiting",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "badgeText": null,
+      "trackingId": "RheUIjQYR6O7zrdSstDh9g==",
+      "actorNavigationUrl": null,
+      "addEntityToSearchHistory": false,
+      "image": {
+        "attributes": [
+          {
+            "scalingType": null,
+            "detailData": {
+              "profilePictureWithoutFrame": null,
+              "profilePictureWithRingStatus": null,
+              "companyLogo": null,
+              "icon": null,
+              "systemImage": null,
+              "nonEntityGroupLogo": null,
+              "vectorImage": null,
+              "nonEntityProfessionalEventLogo": null,
+              "imageUrl": null,
+              "professionalEventLogo": null,
+              "nonEntityCompanyLogo": null,
+              "nonEntitySchoolLogo": null,
+              "*profilePicture": "urn:li:fsd_profile:ACoAAA0078FIXTUREPROFILE0078xxxx",
+              "groupLogo": null,
+              "schoolLogo": null,
+              "ghostImage": null,
+              "nonEntityProfilePicture": null
+            },
+            "tintColor": null,
+            "$recipeTypes": [
+              "com.linkedin.eb94fbb1518f790c4545aafdf571c64e"
+            ],
+            "tapTargets": [],
+            "displayAspectRatio": null,
+            "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+          }
+        ],
+        "editableAccessibilityText": false,
+        "actionTarget": null,
+        "accessibilityTextAttributes": [],
+        "totalCount": null,
+        "accessibilityText": "Dana Dupont",
+        "$recipeTypes": [
+          "com.linkedin.fe5b8a3ac5a4a165c17f53b7eae4209b"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
+      },
+      "lazyLoadedActions": null,
+      "secondarySubtitle": null,
+      "navigationUrl": "https://www.linkedin.com/in/danadupont?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0100FIXTUREPROFILE0100xxxx",
+      "entityEmbeddedObject": null,
+      "$recipeTypes": [
+        "com.linkedin.cf4b25c18907ea8eafe915c8bfa24109"
+      ],
+      "target": null,
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "actorTrackingUrn": null,
+      "navigationContext": {
+        "openExternally": false,
+        "$recipeTypes": [
+          "com.linkedin.55ee9afd4182671fe7e271f615659525"
+        ],
+        "url": "https://www.linkedin.com/in/danadupont?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0100FIXTUREPROFILE0100xxxx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "actorNavigationContext": null,
+      "trackingUrn": "urn:li:member:910001",
+      "controlName": null,
+      "interstitialComponent": null,
+      "entityCustomTrackingInfo": null,
+      "badgeData": null,
+      "title": {
+        "textDirection": "USER_LOCALE",
+        "text": "Erik Ericsson",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "searchActionType": null,
+      "badgeIcon": null,
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAA0101FIXTUREPROFILE0101xxxx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "showAdditionalCluster": false,
+      "ringStatus": null,
+      "primarySubtitle": {
+        "textDirection": "USER_LOCALE",
+        "text": "CTO at Punchcard Systems",
+        "attributesV2": [],
+        "accessibilityTextAttributesV2": [],
+        "accessibilityText": null,
+        "$recipeTypes": [
+          "com.linkedin.6a224ca38654a84754a1eb3e97c0f846"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "badgeText": null,
+      "trackingId": "xPTa4oweRC277PJPStIInQ==",
+      "actorNavigationUrl": null,
+      "addEntityToSearchHistory": false,
+      "image": {
+        "attributes": [
+          {
+            "scalingType": null,
+            "detailData": {
+              "profilePictureWithoutFrame": null,
+              "profilePictureWithRingStatus": null,
+              "companyLogo": null,
+              "icon": null,
+              "systemImage": null,
+              "nonEntityGroupLogo": null,
+              "vectorImage": null,
+              "nonEntityProfessionalEventLogo": null,
+              "imageUrl": null,
+              "professionalEventLogo": null,
+              "nonEntityCompanyLogo": null,
+              "nonEntitySchoolLogo": null,
+              "*profilePicture": "urn:li:fsd_profile:ACoAAA0079FIXTUREPROFILE0079xxxx",
+              "groupLogo": null,
+              "schoolLogo": null,
+              "ghostImage": null,
+              "nonEntityProfilePicture": null
+            },
+            "tintColor": null,
+            "$recipeTypes": [
+              "com.linkedin.eb94fbb1518f790c4545aafdf571c64e"
+            ],
+            "tapTargets": [],
+            "displayAspectRatio": null,
+            "$type": "com.linkedin.voyager.dash.common.image.ImageAttribute"
+          }
+        ],
+        "editableAccessibilityText": false,
+        "actionTarget": null,
+        "accessibilityTextAttributes": [],
+        "totalCount": null,
+        "accessibilityText": "Erik Ericsson",
+        "$recipeTypes": [
+          "com.linkedin.fe5b8a3ac5a4a165c17f53b7eae4209b"
+        ],
+        "$type": "com.linkedin.voyager.dash.common.image.ImageViewModel"
+      },
+      "lazyLoadedActions": null,
+      "secondarySubtitle": null,
+      "navigationUrl": "https://www.linkedin.com/in/erikericsson?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0101FIXTUREPROFILE0101xxxx",
+      "entityEmbeddedObject": null,
+      "$recipeTypes": [
+        "com.linkedin.cf4b25c18907ea8eafe915c8bfa24109"
+      ],
+      "target": null,
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "actorTrackingUrn": null,
+      "navigationContext": {
+        "openExternally": false,
+        "$recipeTypes": [
+          "com.linkedin.55ee9afd4182671fe7e271f615659525"
+        ],
+        "url": "https://www.linkedin.com/in/erikericsson?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAA0101FIXTUREPROFILE0101xxxx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
       }
     }
-  ],
-  "paging": {
-    "start": 0,
-    "count": 10,
-    "total": 1290
-  }
+  ]
 }

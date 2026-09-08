@@ -4,7 +4,7 @@ import { handle } from '../../src/background/engine.js';
 import { setConfig } from '../../src/lib/config.js';
 import * as events from '../../src/background/events.js';
 import * as inbox from '../../src/background/inbox.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import conversations from '../fixtures/voyager/conversations.json';
 import conversationEvents from '../fixtures/voyager/conversationEvents.json';
@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
   seen = [];
   events.setSink((f) => seen.push(f));
 });
@@ -28,23 +28,24 @@ afterEach(() => {
 
 const names = () => seen.map((f) => f.event);
 
+const conversationList = (payload) =>
+  payload.data.data.messengerConversationsByCategoryQuery.elements;
+const messageList = (payload) => payload.data.data.messengerMessagesByConversation.elements;
+
 /** The conversation list with one newer inbound message on thread 2-abc123. */
 function withNewReply(text, at = 1757900000000) {
   const clone = structuredClone(conversations);
-  clone.elements[0].lastActivityAt = at;
-  clone.elements[0].events[0].createdAt = at;
-  clone.elements[0].events[0].eventContent[
-    'com.linkedin.voyager.messaging.event.MessageEvent'
-  ].attributedBody.text = text;
+  const thread = conversationList(clone)[0];
+  thread.lastActivityAt = at;
+  thread.messages.elements[0].deliveredAt = at;
+  thread.messages.elements[0].body.text = text;
   return clone;
 }
 
 function eventsWith(text, at = 1757900000000) {
   const clone = structuredClone(conversationEvents);
-  clone.elements[0].createdAt = at;
-  clone.elements[0].eventContent[
-    'com.linkedin.voyager.messaging.event.MessageEvent'
-  ].attributedBody.text = text;
+  messageList(clone)[0].deliveredAt = at;
+  messageList(clone)[0].body.text = text;
   return clone;
 }
 

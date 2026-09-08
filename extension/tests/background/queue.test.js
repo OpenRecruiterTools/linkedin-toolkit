@@ -7,7 +7,7 @@ import * as quota from '../../src/background/quota.js';
 import * as queue from '../../src/background/queue.js';
 import * as storage from '../../src/lib/storage.js';
 import '../../src/background/outreach.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 
@@ -19,7 +19,7 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   quota.setSleepFn(() => Promise.resolve());
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
   seen = [];
   events.setSink((f) => seen.push(f));
 });
@@ -194,7 +194,7 @@ describe('the send path', () => {
 
     expect(res.ok).toBe(true);
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-    expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).toContain('fsd_profile');
+    expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).toContain('fsd_profile');
   });
 
   it('gives up rather than sending when no urn can be found at all', async () => {
@@ -222,7 +222,7 @@ describe('the send path', () => {
 
       expect(res.data.status).toBe('sent');
       expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-      expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).not.toContain('HANDED_IN');
+      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toContain('HANDED_IN');
     });
 
     it('strips recipientUrn from an agent message', async () => {
@@ -237,8 +237,8 @@ describe('the send path', () => {
       );
 
       expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-      const payload = net.calls[net.calls.length - 1].json.conversationCreate;
-      expect(payload.recipients[0]).not.toContain('HANDED_IN');
+      const payload = net.calls[net.calls.length - 1].json;
+      expect(payload.hostRecipientUrns[0]).not.toContain('HANDED_IN');
     });
 
     it('a malformed urn cannot reach voyager unmetered', async () => {
@@ -255,7 +255,7 @@ describe('the send path', () => {
       );
 
       expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
-      expect(net.calls[net.calls.length - 1].json.inviteeProfileUrn).not.toBe('not-a-urn');
+      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).not.toBe('not-a-urn');
     });
 
     it('never lands in the queue item either', async () => {
@@ -335,7 +335,7 @@ describe('queue.list / approve / reject', () => {
     });
 
     const body = net.calls[net.calls.length - 1].json;
-    expect(body.message).toBe('Edited note');
+    expect(body.customMessage).toBe('Edited note');
   });
 
   it('approve marks an item failed when the send throws, and keeps going', async () => {

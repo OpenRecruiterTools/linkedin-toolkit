@@ -1,0 +1,19 @@
+{
+  "data": {
+    "plainId": 900001,
+    "*miniProfile": "urn:li:fs_miniProfile:ACoAAASELF0000000000000000000000000000",
+    "$type": "com.linkedin.voyager.common.Me"
+  },
+  "included": [
+    {
+      "firstName": "Sam",
+      "lastName": "Seller",
+      "publicIdentifier": "samseller",
+      "occupation": "Founder at Loom Recruiting",
+      "objectUrn": "urn:li:member:900001",
+      "entityUrn": "urn:li:fs_miniProfile:ACoAAASELF0000000000000000000000000000",
+      "dashEntityUrn": "urn:li:fsd_profile:ACoAAASELF0000000000000000000000000000",
+      "$type": "com.linkedin.voyager.identity.shared.MiniProfile"
+    }
+  ]
+}

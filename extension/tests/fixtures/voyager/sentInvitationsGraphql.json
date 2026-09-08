@@ -1,0 +1,361 @@
+{
+  "data": {
+    "data": {
+      "$recipeTypes": [
+        "com.linkedin.7cb40711e3268b55ed34329f636dab0e"
+      ],
+      "relationshipsDashSentInvitationViewsByInvitationType": {
+        "metadata": {
+          "start": 0,
+          "count": 10,
+          "total": 0,
+          "$recipeTypes": [
+            "com.linkedin.d965931b13350ec5defbb85366dfe842"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "$recipeTypes": [
+          "com.linkedin.363ec5ae11e07e98d13a672df7e212a5"
+        ],
+        "elements": [
+          {
+            "cardActionTarget": "https://www.linkedin.com/in/adalovelace",
+            "sentTimeLabel": "Sent 1 week ago",
+            "subtitle": {
+              "textDirection": "USER_LOCALE",
+              "text": "Chief Analyst at Analytical Engines",
+              "attributesV2": [],
+              "accessibilityTextAttributesV2": [],
+              "accessibilityText": null,
+              "$recipeTypes": [
+                "com.linkedin.47a3552dee593d53f0a4b4e9c6da8e07"
+              ],
+              "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+            },
+            "*invitation": "urn:li:fsd_invitation:7499104897565487104",
+            "title": {
+              "textDirection": "USER_LOCALE",
+              "text": "Ada Lovelace",
+              "attributesV2": [
+                {
+                  "start": 0,
+                  "length": 18,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": null,
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": null,
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": "BOLD",
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                },
+                {
+                  "start": 0,
+                  "length": 18,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": null,
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": {
+                      "viewingBehavior": "DEFAULT",
+                      "controlName": null,
+                      "sponsoredUrlAttributes": null,
+                      "$recipeTypes": [
+                        "com.linkedin.9d89de25e9b270e8972444ea7037d736"
+                      ],
+                      "url": "https://www.linkedin.com/in/stevenkleinegesse",
+                      "$type": "com.linkedin.voyager.dash.common.text.TextLink"
+                    },
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": null,
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                },
+                {
+                  "start": 0,
+                  "length": 18,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": "https://www.linkedin.com/in/stevenkleinegesse",
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": null,
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": null,
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                }
+              ],
+              "accessibilityTextAttributesV2": [],
+              "accessibilityText": null,
+              "$recipeTypes": [
+                "com.linkedin.47a3552dee593d53f0a4b4e9c6da8e07"
+              ],
+              "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+            },
+            "$recipeTypes": [
+              "com.linkedin.9a6c299d907ea8408584e55cb10d2b2c"
+            ],
+            "$type": "com.linkedin.voyager.dash.relationships.invitation.SentInvitationView"
+          },
+          {
+            "cardActionTarget": "https://www.linkedin.com/in/bobbright",
+            "sentTimeLabel": "Sent 1 week ago",
+            "subtitle": {
+              "textDirection": "USER_LOCALE",
+              "text": "Head of Platform at Difference Engine Co",
+              "attributesV2": [],
+              "accessibilityTextAttributesV2": [],
+              "accessibilityText": null,
+              "$recipeTypes": [
+                "com.linkedin.47a3552dee593d53f0a4b4e9c6da8e07"
+              ],
+              "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+            },
+            "*invitation": "urn:li:fsd_invitation:7498509685579325440",
+            "title": {
+              "textDirection": "USER_LOCALE",
+              "text": "Bob Bright",
+              "attributesV2": [
+                {
+                  "start": 0,
+                  "length": 12,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": null,
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": null,
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": "BOLD",
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                },
+                {
+                  "start": 0,
+                  "length": 12,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": null,
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": {
+                      "viewingBehavior": "DEFAULT",
+                      "controlName": null,
+                      "sponsoredUrlAttributes": null,
+                      "$recipeTypes": [
+                        "com.linkedin.9d89de25e9b270e8972444ea7037d736"
+                      ],
+                      "url": "https://www.linkedin.com/in/mieke-de-wet-0983a8208",
+                      "$type": "com.linkedin.voyager.dash.common.text.TextLink"
+                    },
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": null,
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                },
+                {
+                  "start": 0,
+                  "length": 12,
+                  "detailData": {
+                    "jobPostingName": null,
+                    "hyperlink": "https://www.linkedin.com/in/mieke-de-wet-0983a8208",
+                    "profileFamiliarName": null,
+                    "color": null,
+                    "companyName": null,
+                    "icon": null,
+                    "epoch": null,
+                    "systemImage": null,
+                    "textLink": null,
+                    "listItemStyle": null,
+                    "groupName": null,
+                    "hyperlinkOpenExternally": null,
+                    "listStyle": null,
+                    "profileFullName": null,
+                    "stringFieldReference": null,
+                    "learningCourseName": null,
+                    "profileMention": null,
+                    "style": null,
+                    "schoolName": null,
+                    "hashtag": null
+                  },
+                  "$recipeTypes": [
+                    "com.linkedin.8ef85981990e3a0f86a2b95e1c98bda5"
+                  ],
+                  "$type": "com.linkedin.voyager.dash.common.text.TextAttribute"
+                }
+              ],
+              "accessibilityTextAttributesV2": [],
+              "accessibilityText": null,
+              "$recipeTypes": [
+                "com.linkedin.47a3552dee593d53f0a4b4e9c6da8e07"
+              ],
+              "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+            },
+            "$recipeTypes": [
+              "com.linkedin.9a6c299d907ea8408584e55cb10d2b2c"
+            ],
+            "$type": "com.linkedin.voyager.dash.relationships.invitation.SentInvitationView"
+          }
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$type": "com.linkedin.7cb40711e3268b55ed34329f636dab0e"
+    }
+  },
+  "included": [
+    {
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0109FIXTUREPROFILE0109xxxx",
+      "$recipeTypes": [
+        "com.linkedin.d2c8694ccce71e14eaf4f817213279b1"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "firstName": "Bob",
+      "lastName": "Bright",
+      "entityUrn": "urn:li:fsd_profile:ACoAAA0107FIXTUREPROFILE0107xxxx",
+      "$recipeTypes": [
+        "com.linkedin.d2c8694ccce71e14eaf4f817213279b1"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "inviterFollowingInvitee": false,
+      "*inviteeMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0107FIXTUREPROFILE0107xxxx",
+      "genericInvitationType": "CONNECTION",
+      "invitationState": "PENDING",
+      "invitationId": 7498509685579325000,
+      "message": null,
+      "$recipeTypes": [
+        "com.linkedin.b39b4ab6b0f9b15757fa25c19ca31bf9"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.invitation.Invitation",
+      "genericInviter": {
+        "contentSeries": null,
+        "marketplaceProviderUrn": null,
+        "eventUrn": null,
+        "*memberProfileUrn": "urn:li:fsd_profile:ACoAAA0002FIXTUREPROFILE0002xxxx",
+        "organizationUrn": null,
+        "group": null
+      },
+      "preAcceptExtensionUseCase": null,
+      "invitationType": "SENT",
+      "entityUrn": "urn:li:fsd_invitation:7498509685579325440",
+      "sharedSecret": "sharedSecret",
+      "unseen": null,
+      "trackingId": null
+    },
+    {
+      "inviterFollowingInvitee": false,
+      "*inviteeMemberResolutionResult": "urn:li:fsd_profile:ACoAAA0108FIXTUREPROFILE0108xxxx",
+      "genericInvitationType": "CONNECTION",
+      "invitationState": "PENDING",
+      "invitationId": 7499104897565487000,
+      "message": null,
+      "$recipeTypes": [
+        "com.linkedin.b39b4ab6b0f9b15757fa25c19ca31bf9"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.invitation.Invitation",
+      "genericInviter": {
+        "contentSeries": null,
+        "marketplaceProviderUrn": null,
+        "eventUrn": null,
+        "*memberProfileUrn": "urn:li:fsd_profile:ACoAAA0002FIXTUREPROFILE0002xxxx",
+        "organizationUrn": null,
+        "group": null
+      },
+      "preAcceptExtensionUseCase": null,
+      "invitationType": "SENT",
+      "entityUrn": "urn:li:fsd_invitation:7499104897565487104",
+      "sharedSecret": "sharedSecret",
+      "unseen": null,
+      "trackingId": null
+    }
+  ]
+}

@@ -7,6 +7,9 @@
  */
 import { vi } from 'vitest';
 
+import me from '../fixtures/voyager/me.json';
+import profileExperience from '../fixtures/voyager/profileExperience.json';
+
 export function seedSession(value = 'ajax:1234567890') {
   chrome.__mock.cookies.set('JSESSIONID', { name: 'JSESSIONID', value: `"${value}"` });
   chrome.__mock.cookies.set('li_at', { name: 'li_at', value: 'AQED-token' });
@@ -80,4 +83,19 @@ export function stubFetch(responses = []) {
 /** `{ __status, body }` marker for a non-200 reply. */
 export function status(code, body = {}) {
   return { __status: code, body };
+}
+
+/**
+ * Answer the two calls the engine now makes around a headline action, so a
+ * test can keep queueing only the response it actually cares about.
+ *
+ * `/me` backs every messaging call (the mailbox is us) and the profile
+ * components query backs every profile read (LinkedIn serves no positions on
+ * the profile decorations any more). Both are routes rather than queued
+ * replies, so they never shift the queue a test set up.
+ */
+export function routeBackground(net) {
+  net.route('/voyager/api/me', me);
+  net.route('voyagerIdentityDashProfileComponents', profileExperience);
+  return net;
 }

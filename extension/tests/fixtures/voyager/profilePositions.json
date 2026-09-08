@@ -1,0 +1,83 @@
+{
+  "data": {
+    "data": {
+      "identityDashProfilePositionsByViewee": {
+        "paging": {
+          "count": 20,
+          "start": 0,
+          "total": 3,
+          "$recipeTypes": [
+            "com.linkedin.d7182e129d2be3f8dd09fc11950ed6fe"
+          ],
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "*elements": [
+          "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,392598211)",
+          "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,1836104012)",
+          "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,392599749)"
+        ],
+        "$recipeTypes": [
+          "com.linkedin.a726370f944d9036f5eec2b1bc8e2b4a"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.ccff8c5adfd360e8ca9a8e02cd9a7a5c"
+      ],
+      "$type": "com.linkedin.ccff8c5adfd360e8ca9a8e02cd9a7a5c"
+    }
+  },
+  "included": [
+    {
+      "*company": "urn:li:fsd_company:8736",
+      "entityUrn": "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,392598211)",
+      "$recipeTypes": [
+        "com.linkedin.13273003f5be844a9088c067417b6980"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Position"
+    },
+    {
+      "*company": "urn:li:fsd_company:19141006",
+      "entityUrn": "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,1836104012)",
+      "$recipeTypes": [
+        "com.linkedin.13273003f5be844a9088c067417b6980"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Position"
+    },
+    {
+      "*company": "urn:li:fsd_company:1035",
+      "entityUrn": "urn:li:fsd_profilePosition:(ACoAAA0001FIXTUREPROFILE0001xxxx,392599749)",
+      "$recipeTypes": [
+        "com.linkedin.13273003f5be844a9088c067417b6980"
+      ],
+      "$type": "com.linkedin.voyager.dash.identity.profile.Position"
+    },
+    {
+      "pageType": "COMPANY",
+      "entityUrn": "urn:li:fsd_company:8736",
+      "universalName": "gates-foundation",
+      "$recipeTypes": [
+        "com.linkedin.3412c30da418a2f9d4d187b0b3d12aff"
+      ],
+      "$type": "com.linkedin.voyager.dash.organization.Company"
+    },
+    {
+      "pageType": "COMPANY",
+      "entityUrn": "urn:li:fsd_company:19141006",
+      "universalName": "breakthrough-energy",
+      "$recipeTypes": [
+        "com.linkedin.3412c30da418a2f9d4d187b0b3d12aff"
+      ],
+      "$type": "com.linkedin.voyager.dash.organization.Company"
+    },
+    {
+      "pageType": "COMPANY",
+      "entityUrn": "urn:li:fsd_company:1035",
+      "universalName": "microsoft",
+      "$recipeTypes": [
+        "com.linkedin.3412c30da418a2f9d4d187b0b3d12aff"
+      ],
+      "$type": "com.linkedin.voyager.dash.organization.Company"
+    }
+  ]
+}

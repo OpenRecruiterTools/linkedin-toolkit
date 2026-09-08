@@ -5,7 +5,7 @@ import * as capture from '../../src/background/capture.js';
 import * as quota from '../../src/background/quota.js';
 import { setConfig } from '../../src/lib/config.js';
 import * as storage from '../../src/lib/storage.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 
@@ -21,7 +21,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   seedSession();
-  net = stubFetch();
+  net = routeBackground(stubFetch());
   capture.setSleepFn(() => Promise.resolve());
   // profile.get reserves a visit and paces itself; keep the tests instant.
   quota.setSleepFn(() => Promise.resolve());

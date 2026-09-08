@@ -6,7 +6,7 @@ import * as quota from '../../src/background/quota.js';
 import * as queue from '../../src/background/queue.js';
 import * as storage from '../../src/lib/storage.js';
 import '../../src/background/outreach.js';
-import { seedSession, stubFetch } from '../helpers/net.js';
+import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 
@@ -17,8 +17,8 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(2026, 8, 9, 11, 0, 0));
   quota.setSleepFn(() => Promise.resolve());
   seedSession();
-  net = stubFetch();
-  net.route('/identity/profiles/', profileView);
+  net = routeBackground(stubFetch());
+  net.route('/identity/dash/profiles', profileView);
   await setConfig({ accountPreset: 'recruiter', businessHoursOnly: false, hourlyCap: 50 });
 });
 
@@ -137,7 +137,7 @@ describe('quota.reserve is atomic', () => {
     expect(envelopes.filter((e) => e.ok)).toHaveLength(1);
     expect(envelopes.find((e) => !e.ok).error.code).toBe(ERROR.QUOTA_EXCEEDED);
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
-    expect(net.calls.filter((c) => c.url.includes('normInvitations'))).toHaveLength(1);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(1);
   });
 });
 
@@ -166,7 +166,7 @@ describe('the queue survives concurrent writes', () => {
     ]);
 
     expect(first.data.approved + second.data.approved).toBe(1);
-    expect(net.calls.filter((c) => c.url.includes('normInvitations'))).toHaveLength(1);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(1);
     expect((await queue.list())[0].status).toBe('sent');
   });
 });

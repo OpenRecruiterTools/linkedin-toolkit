@@ -1,30 +1,61 @@
 {
-  "elements": [
+  "data": {
+    "data": {
+      "organizationDashCompaniesByUniversalName": {
+        "*elements": [
+          "urn:li:fsd_company:9001"
+        ],
+        "$recipeTypes": [
+          "com.linkedin.8bbcb1773e9c0aa30f47c9226d216fcb"
+        ],
+        "$type": "com.linkedin.restli.common.CollectionResponse"
+      },
+      "$recipeTypes": [
+        "com.linkedin.e1fd656dbb6f9905fa99c94ecdb09f7d"
+      ],
+      "$type": "com.linkedin.e1fd656dbb6f9905fa99c94ecdb09f7d"
+    },
+    "extensions": {
+      "webMetadata": {}
+    }
+  },
+  "included": [
     {
-      "$type": "com.linkedin.voyager.organization.Company",
-      "entityUrn": "urn:li:fs_normalized_company:9001",
-      "name": "Analytical Engines",
+      "entityUrn": "urn:li:fsd_company:9001",
       "universalName": "analytical-engines",
-      "description": "We build difference engines for the modern era.",
-      "staffCount": 420,
+      "name": "Analytical Engines",
+      "tagline": "Difference engines, on time",
+      "description": "We build analytical engines for the modern enterprise.",
+      "websiteUrl": "https://analytical-engines.example",
+      "staffCount": 340,
       "staffCountRange": {
         "start": 201,
-        "end": 500
+        "end": 500,
+        "$type": "com.linkedin.common.StaffCountRange"
       },
-      "companyIndustries": [
-        {
-          "localizedName": "Software Development"
-        }
-      ],
       "headquarter": {
         "city": "London",
         "geographicArea": "England",
-        "country": "GB"
+        "country": "GB",
+        "$type": "com.linkedin.voyager.dash.organization.CompanyAddress"
       },
-      "companyPageUrl": "https://analytical-engines.example",
-      "followingInfo": {
-        "followerCount": 18400
-      }
+      "followingState": {
+        "followerCount": 18400,
+        "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+      },
+      "*industry": "urn:li:fsd_industry:4",
+      "$recipeTypes": [
+        "com.linkedin.6c284ecfaf751026e34c274f17c70119"
+      ],
+      "$type": "com.linkedin.voyager.dash.organization.Company"
+    },
+    {
+      "entityUrn": "urn:li:fsd_industry:4",
+      "name": "Software Development",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.common.Industry"
+      ],
+      "$type": "com.linkedin.voyager.dash.common.Industry"
     }
   ]
 }
