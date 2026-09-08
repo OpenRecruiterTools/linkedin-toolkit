@@ -166,7 +166,7 @@ export function pairingInstructions(config: ServerConfig, options: { http?: bool
     '',
     'Pair the extension:',
     '  1. Open the LinkedIn Toolkit popup in Chrome.',
-    '  2. Settings > Bridge.',
+    '  2. Settings → Local bridge.',
     '  3. Paste the pairing token above and enable the bridge.',
     '',
     'The token is stored in the config file; it never leaves this machine.',

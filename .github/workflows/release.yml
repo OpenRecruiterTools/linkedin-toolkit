@@ -47,15 +47,12 @@ jobs:
       # The extension has no build step, so the zip is the source folder. Users load it
       # unpacked via chrome://extensions — deliberately not the Chrome Web Store, whose policy
       # forbids extensions facilitating third-party ToS violations.
+      #
+      # One script builds it, here and on a maintainer's laptop: it adds the README.txt a
+      # person who downloaded a zip actually needs, and it fails the build if a test folder or
+      # node_modules leaks in. A hand-written `zip -r` here could do neither.
       - name: Package the extension
-        run: |
-          TAG="${{ steps.tag.outputs.value }}"
-          ZIP="linkedin-toolkit-extension-${TAG}.zip"
-          cd extension
-          zip -r "../${ZIP}" . -x '*.DS_Store' -x 'tests/*' -x 'node_modules/*'
-          cd ..
-          echo "Built ${ZIP} ($(du -h "${ZIP}" | cut -f1))"
-          unzip -l "${ZIP}" | tail -5
+        run: npm ci && node scripts/zip-extension.mjs
 
       - name: Build the MCP server
         run: npm run build -w mcp-server
@@ -68,16 +65,16 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.value, '-') }}
-          files: linkedin-toolkit-extension-${{ steps.tag.outputs.value }}.zip
+          files: dist/*.zip
           body: |
             ## Install
 
-            **Extension** — download `linkedin-toolkit-extension-${{ steps.tag.outputs.value }}.zip`
-            below, unzip it, then open `chrome://extensions`, turn on **Developer mode**, click
-            **Load unpacked**, and pick the unzipped folder.
+            **Extension** — download the `linkedin-toolkit-extension-*.zip` below, unzip it, then
+            open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and
+            pick the unzipped folder.
 
             **Server** — `npx linkedin-toolkit-mcp`. The first run prints a pairing token; paste it
-            into the extension popup → Settings → Connect.
+            into the extension popup → Settings → Local bridge.
 
             Full setup, including the config block for your agent:
             [docs/agents](https://github.com/FormatixAI/linkedin-toolkit/blob/main/docs/agents/README.md)

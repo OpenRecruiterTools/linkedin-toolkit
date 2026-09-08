@@ -19,7 +19,7 @@ import type { ErrorCode, EventName, RequestOrigin } from './contract.js';
 export const SERVER_VERSION = '2.0.0';
 
 export const OFFLINE_HOW_TO_FIX =
-  'Install the extension from GitHub Releases, open the popup > Settings > Bridge, ' +
+  'Install the extension from GitHub Releases, open the popup → Settings → Local bridge, ' +
   'paste the pairing token printed by `lit serve`, and enable the bridge.';
 
 export class BridgeError extends Error {

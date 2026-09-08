@@ -14,7 +14,9 @@
   "files": [
     "dist",
     "openapi.json",
-    "tools.json"
+    "tools.json",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

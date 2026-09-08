@@ -44,7 +44,7 @@ packages = ["linkedin_toolkit"]
 "linkedin_toolkit/tools.json" = "linkedin_toolkit/tools.json"
 
 [tool.hatch.build.targets.sdist]
-include = ["linkedin_toolkit", "tests", "scripts", "README.md"]
+include = ["linkedin_toolkit", "tests", "scripts", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

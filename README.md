@@ -34,7 +34,7 @@ all. No headless browser, no proxies, no cloud session, no telemetry, no subscri
 #    then chrome://extensions → Developer mode → Load unpacked → pick the folder
 # 2. Start the server (it prints a pairing token)
 npx linkedin-toolkit-mcp
-# 3. Paste the token into the extension popup → Settings → Connect
+# 3. Paste the token into the extension popup → Settings → Local bridge
 ```
 
 Then point your agent at it. Claude Code, `.mcp.json` in your project root:

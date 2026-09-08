@@ -119,7 +119,7 @@ describe('pairingInstructions', () => {
     expect(text).toContain(config.token);
     expect(text).toContain(`ws://127.0.0.1:${config.bridgePort}`);
     expect(text).toContain(`http://127.0.0.1:${config.httpPort}`);
-    expect(text).toContain('Settings > Bridge');
+    expect(text).toContain('Settings → Local bridge');
     expect(text).toContain('never leaves this machine');
   });
 

@@ -54,7 +54,7 @@ The minimum that has to work before anything else is worth checking.
 | --- | --- | --- | --- | --- |
 | R1 | `chrome://extensions` → Developer mode → **Load unpacked** → pick `extension/` | Loads as "LinkedIn Toolkit" 2.0.0, no errors | | |
 | R2 | `npx linkedin-toolkit-mcp` — or `node mcp-server/dist/cli.js serve --http` | Prints the pairing block: bridge port, HTTP port, db path, config path, token, three pairing steps | | |
-| R3 | Popup → Settings → Bridge → paste the token → enable → save | The bridge badge goes from "bridge off" to "connected" within a few seconds | | |
+| R3 | Popup → Settings → Local bridge → paste the token → enable → save | The bridge badge goes from "bridge off" to "connected" within a few seconds | | |
 | R4 | `lit status` | `Server: running`, `Extension: connected (v2.0.0)`, `LinkedIn: logged in`, `Mode: Copilot`, four quota rows | | |
 | R5 | `lit status --json` | Valid JSON with `connected`, `extensionVersion`, `loggedIn`, `autopilot`, `businessHours`, `quotas.{invite,message,visit,search}`, `queue.pending`, `campaigns.{active,paused}` | | |
 | R6 | `lit search "CTO fintech London" --count 10 --json` | `{ profiles: [...], total }`; each profile has `publicId`, `fullName`, `url`, `headline`, `location`, `connectionDegree`, `capturedAt`, `source` | | |

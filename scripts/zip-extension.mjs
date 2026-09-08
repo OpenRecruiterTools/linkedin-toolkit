@@ -6,9 +6,10 @@
  * is a copy with the test and tooling files left out, plus a README.txt that a
  * person who downloaded a zip from a GitHub release can actually follow.
  *
- * The release workflow builds the same artefact with `zip -r` on Ubuntu. This
- * script exists so the zip can be produced and inspected locally, on any OS,
- * before the tag is pushed.
+ * The release workflow runs this same script, so what a maintainer inspects
+ * locally on any OS is byte-for-byte what a release ships — and the checks at
+ * the bottom (README.txt present, no tests, no node_modules) fail the release
+ * build too rather than only a laptop.
  *
  *   node scripts/zip-extension.mjs
  *   → dist/linkedin-toolkit-extension-v<version>.zip
@@ -78,7 +79,8 @@ The extension is the engine; the MCP server is how an agent reaches it.
   npx linkedin-toolkit-mcp
 
 The first run prints a pairing token. Paste it into the popup:
-Settings > Bridge > paste token > enable. The badge turns to "connected".
+Settings → Local bridge → paste the token → enable. The badge turns to
+"connected".
 
 Full setup for Claude Code, the OpenAI Agents SDK, LangChain, n8n and the rest:
 https://github.com/FormatixAI/linkedin-toolkit/tree/main/docs/agents

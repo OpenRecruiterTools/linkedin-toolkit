@@ -205,7 +205,7 @@ describe('lit token rotate', () => {
     expect(after).not.toBe(before);
     expect(stdout()).toContain('Pairing token rotated');
     expect(stdout()).toContain(after);
-    expect(stdout()).toContain('Settings > Bridge');
+    expect(stdout()).toContain('Settings → Local bridge');
     expect(stdout()).toContain('Re-pair the extension');
   });
 

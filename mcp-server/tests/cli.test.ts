@@ -196,7 +196,7 @@ describe('status', () => {
     await new Promise((r) => setTimeout(r, 30));
     await run(['status'], io);
     expect(stdout()).toContain('Extension: NOT CONNECTED');
-    expect(stdout()).toContain('Settings > Bridge');
+    expect(stdout()).toContain('Settings → Local bridge');
   });
 });
 
@@ -456,7 +456,7 @@ describe('serve --http', () => {
     try {
       const config = JSON.parse(readFileSync(join(home, 'config.json'), 'utf8'));
       expect(stdout()).toContain(config.token);
-      expect(stdout()).toContain('Settings > Bridge');
+      expect(stdout()).toContain('Settings → Local bridge');
       expect(stdout()).toContain('Ctrl-C to stop');
 
       const response = await fetch(`${handles.http!.url}/health`);

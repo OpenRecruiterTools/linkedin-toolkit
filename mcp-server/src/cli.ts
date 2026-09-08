@@ -454,7 +454,7 @@ export function buildProgram(io: Io = defaultIo): Command {
         io.out('Server:    running');
         io.out('Extension: NOT CONNECTED');
         io.out('');
-        io.out('Open the toolkit popup in Chrome, go to Settings > Bridge, paste the pairing');
+        io.out('Open the toolkit popup in Chrome, go to Settings → Local bridge, paste the pairing');
         io.out('token from ~/.linkedin-toolkit/config.json and enable the bridge.');
         return;
       }
@@ -819,7 +819,7 @@ export function buildProgram(io: Io = defaultIo): Command {
           ),
           '',
           options.reveal
-            ? 'Pair the extension with the token above: popup > Settings > Bridge.'
+            ? 'Pair the extension with the token above: popup → Settings → Local bridge.'
             : 'The token is masked. Show it with: lit config get token --reveal',
         ].join('\n'),
       );
