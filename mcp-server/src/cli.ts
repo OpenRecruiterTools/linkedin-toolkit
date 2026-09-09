@@ -645,31 +645,59 @@ export function buildProgram(io: Io = defaultIo): Command {
       print(io, options.json, data, () => table(threads, columns));
     });
 
+  const QUEUE_STATUSES = ['pending', 'approved', 'rejected', 'sent', 'failed'];
+
   program
     .command('queue')
     .argument('[action]', 'approve | reject | list', 'list')
     .argument('[ids...]', 'queue item ids')
     .description('Show the approval queue, or approve or reject items.')
+    .option(
+      '--status <status>',
+      `filter the list: ${QUEUE_STATUSES.join(' | ')} (default pending)`,
+    )
     .option('--json', 'print raw JSON')
     .action(async (action, ids: string[], options) => {
       const api = client();
       if (action === 'approve' || action === 'reject') {
         if (ids.length === 0) throw new CliError(`Give at least one id: lit queue ${action} <id>`);
         const data = await api.action(`queue.${action}`, { ids });
-        io.out(`${action === 'approve' ? 'Approved' : 'Rejected'} ${data.approved ?? data.rejected}.`);
+        if (action === 'reject') {
+          io.out(`Rejected ${data.rejected}.`);
+          return;
+        }
+        // Approving no longer waits for the sends: the extension paces them and
+        // marks each item as it goes, so say where to look rather than implying
+        // they have already gone out.
+        io.out(
+          `Approved ${data.approved}. Sending in the background — check with: lit queue list --status sent`,
+        );
         return;
       }
       if (action !== 'list') throw new CliError(`Unknown queue action "${action}".`);
-      const data = await api.action('queue.list', { status: 'pending' });
+
+      const status = options.status ?? 'pending';
+      if (!QUEUE_STATUSES.includes(status)) {
+        throw new CliError(
+          `Unknown queue status "${status}". Use one of: ${QUEUE_STATUSES.join(', ')}.`,
+        );
+      }
+
+      const data = await api.action('queue.list', { status });
       const items = (data.items ?? []).map((item: any) => ({
         id: item.id,
         action: item.action,
         who: item.profile?.fullName ?? item.params?.publicId ?? '',
         origin: item.origin,
-        preview: String(item.params?.note ?? item.params?.body ?? '').slice(0, 60),
+        status: item.status,
+        // A failed item's whole value is why it failed, so that is what the
+        // preview column shows instead of the note nobody received.
+        preview: String(
+          item.result?.error?.message ?? item.params?.note ?? item.params?.body ?? '',
+        ).slice(0, 60),
       }));
       print(io, options.json, data, () =>
-        table(items, ['id', 'action', 'who', 'origin', 'preview']),
+        table(items, ['id', 'action', 'who', 'origin', 'status', 'preview']),
       );
     });
 
