@@ -237,12 +237,17 @@ class ActionMethods:
         """
         return self._invoke("network.unfollowCount", {})
 
-    def network_unfollow_all(self) -> Any:
+    def network_unfollow_all(self, *, limit: Optional[int] = None, dryRun: Optional[bool] = None) -> Any:
         """``network.unfollowAll``.
 
         Run the `network.unfollowAll` action on the connected extension.
+
+        Args:
+            limit (int): (min 1; max 5000) Optional.
+            dryRun (bool): Optional.
         """
-        return self._invoke("network.unfollowAll", {})
+        params = {"limit": limit, "dryRun": dryRun}
+        return self._invoke("network.unfollowAll", {k: v for k, v in params.items() if v is not None})
 
     def outreach_view(self, *, publicId: str, dry_run: Optional[bool] = None) -> Any:
         """``outreach.view``.

@@ -164,6 +164,21 @@ describe('validateParams', () => {
     expect(validateParams('network.unfollowCount', {})).toEqual({ ok: true });
   });
 
+  it('holds the mass-unfollow limit between 1 and 5000, or leaves it out', () => {
+    // The floor matters as much as the ceiling: `limit: 0` would silently mean
+    // "no limit" if it slipped through, which is the opposite of the intent.
+    expect(validateParams('network.unfollowAll', {})).toEqual({ ok: true });
+    expect(validateParams('network.unfollowAll', { limit: 1, dryRun: true })).toEqual({ ok: true });
+    expect(validateParams('network.unfollowAll', { limit: 5000 })).toEqual({ ok: true });
+
+    const low = validateParams('network.unfollowAll', { limit: 0 });
+    expect(low.ok).toBe(false);
+    expect(low.howToFix).toMatch(/between 1 and 5000/);
+    expect(validateParams('network.unfollowAll', { limit: 5001 }).ok).toBe(false);
+    expect(validateParams('network.unfollowAll', { limit: '25' }).ok).toBe(false);
+    expect(validateParams('network.unfollowAll', { dryRun: 'yes' }).ok).toBe(false);
+  });
+
   it('requires arrays where the contract says arrays', () => {
     expect(validateParams('profile.export', { urls: 'https://x' }).ok).toBe(false);
     expect(validateParams('profile.export', { urls: ['https://x'] }).ok).toBe(true);

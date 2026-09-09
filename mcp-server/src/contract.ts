@@ -486,7 +486,13 @@ export const PARAMS = {
   'network.followers': z.object({ ...Pagination }),
   'network.status': z.object({ publicIds: z.array(z.string()) }),
   'network.unfollowCount': Empty,
-  'network.unfollowAll': Empty,
+  // Popup-only, and irreversible, so the params are the safety rails: `limit`
+  // caps a run at N successful unfollows, `dryRun` walks the same list and
+  // clicks nothing. See docs/actions.md.
+  'network.unfollowAll': z.object({
+    limit: z.number().int().min(1).max(5000).optional(),
+    dryRun: z.boolean().optional(),
+  }),
 
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
@@ -609,8 +615,14 @@ export const RESULTS: Record<ActionName, z.ZodTypeAny> = {
   'network.status': z.object({
     statuses: z.record(z.string(), z.enum(['connected', 'pending', 'none'])),
   }),
-  'network.unfollowCount': z.object({ count: z.number() }),
-  'network.unfollowAll': z.object({ unfollowed: z.number() }),
+  'network.unfollowCount': z.object({ count: z.number(), sample: z.array(z.string()).optional() }),
+  'network.unfollowAll': z.object({
+    unfollowed: z.number(),
+    attempted: z.number(),
+    names: z.array(z.string()),
+    stopped: z.enum(['limit', 'end', 'error']).optional(),
+    error: z.string().optional(),
+  }),
   'outreach.view': WriteResultSchema,
   'outreach.follow': WriteResultSchema,
   'outreach.invite': WriteResultSchema,

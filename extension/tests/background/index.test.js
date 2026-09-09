@@ -131,15 +131,53 @@ describe('config', () => {
 });
 
 describe('network.unfollowCount', () => {
-  it('counts unfollow buttons in the active tab', async () => {
+  it('reads the count and a sample of names from the active tab', async () => {
     await chrome.tabs.create({
       url: 'https://www.linkedin.com/mynetwork/network-manager/people-follow/following/',
       active: true,
     });
-    mock().executeScriptResult = [{ result: 7 }];
+    mock().executeScriptResult = [
+      { result: { count: 785, loaded: 20, total: 785, labels: ['Click to stop following Ada'] } },
+    ];
 
-    expect(await call(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({ count: 7 });
+    expect(await call(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({
+      count: 785,
+      sample: ['Ada'],
+    });
     expect(chrome.tabs.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('network.unfollowAll params', () => {
+  it('refuses a limit outside 1-5000 before it touches the tab', async () => {
+    for (const limit of [0, -1, 5001]) {
+      const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_ALL, params: { limit } });
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe('INVALID_PARAMS');
+      expect(res.error.howToFix).toMatch(/leave it out to walk the whole list/);
+    }
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
+  it('refuses a limit that is not a number', async () => {
+    const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_ALL, params: { limit: '25' } });
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('INVALID_PARAMS');
+  });
+
+  it('carries limit and dryRun through to the page', async () => {
+    await chrome.tabs.create({
+      url: 'https://www.linkedin.com/mynetwork/network-manager/people-follow/following/',
+      active: true,
+    });
+    mock().executeScriptResult = [
+      { result: { unfollowed: 0, attempted: 0, labels: ['Unfollow Ada'], hasMore: false } },
+    ];
+
+    const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, { limit: 2, dryRun: true });
+
+    expect(data).toEqual({ unfollowed: 0, attempted: 0, names: ['Ada'], stopped: 'end' });
+    expect(mock().executeScriptCalls[0].args[0]).toMatchObject({ limit: 2, dryRun: true });
   });
 });
 
@@ -166,7 +204,7 @@ describe('mass unfollow is popup-only', () => {
 
     const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_COUNT, params: {} });
     expect(res.ok).toBe(true);
-    expect(res.data).toEqual({ count: 3 });
+    expect(res.data).toEqual({ count: 3, sample: [] });
   });
 });
 

@@ -144,6 +144,32 @@ export const INVITE_NOTE_MAX = 200;
 /** The one sentence every layer says when a note is too long. */
 export const INVITE_NOTE_FIX = 'LinkedIn limits invitation notes to 200 characters.';
 
+/* ------------------------------------------------------------------ */
+/*  Mass unfollow                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * How many accounts one `network.unfollowAll` run may touch.
+ *
+ * The floor is 1 because the whole point of the limit is that you can try the
+ * thing on one person before you trust it with your whole list. The ceiling is
+ * a sanity bound, not a safety one: a run of 5,000 already takes most of a day
+ * at human pace, and anything larger is a typo rather than an intention.
+ */
+export const UNFOLLOW_LIMIT_MIN = 1;
+export const UNFOLLOW_LIMIT_MAX = 5000;
+
+/** What the popup puts in the box before you touch it. */
+export const UNFOLLOW_LIMIT_DEFAULT = 25;
+
+/** The one sentence every layer says when the limit is out of range. */
+export const UNFOLLOW_LIMIT_FIX =
+  `limit must be between ${UNFOLLOW_LIMIT_MIN} and ${UNFOLLOW_LIMIT_MAX}; ` +
+  'leave it out to walk the whole list.';
+
+/** How many names `network.unfollowCount` returns as a sample. */
+export const UNFOLLOW_SAMPLE_MAX = 10;
+
 /** Floors and ceilings that are not part of HARD_CAPS but are still enforced. */
 const MIN_DELAY_MS = 3000;
 const MAX_HOURLY_CAP = 50;
@@ -212,6 +238,7 @@ export function err(id, code, message, extra) {
  *   required : { field: 'string'|'number'|'boolean'|'array'|'object' }
  *   optional : same shape
  *   enums    : { field: [allowed, …] }
+ *   min      : { field: floor }    (numeric, inclusive)
  *   max      : { field: ceiling }  (numeric, inclusive)
  *   maxLength: { field: ceiling }  (string length, inclusive)
  *   fix      : { field: howToFix } (advice attached when that field is refused)
@@ -278,7 +305,15 @@ const PARAM_SPECS = {
   [ACTIONS.NETWORK_FOLLOWERS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_STATUS]: { required: { publicIds: 'array' } },
   [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {},
-  [ACTIONS.NETWORK_UNFOLLOW_ALL]: {},
+  // `limit` is the safety rail: run it on one person first, then five, and
+  // only then trust it with everything. `dryRun` walks the same list and
+  // clicks nothing, so the names can be read before anything is undoable.
+  [ACTIONS.NETWORK_UNFOLLOW_ALL]: {
+    optional: { limit: 'number', dryRun: 'boolean' },
+    min: { limit: UNFOLLOW_LIMIT_MIN },
+    max: { limit: UNFOLLOW_LIMIT_MAX },
+    fix: { limit: UNFOLLOW_LIMIT_FIX },
+  },
 
   [ACTIONS.OUTREACH_VIEW]: { required: { publicId: 'string' } },
   [ACTIONS.OUTREACH_FOLLOW]: { required: { publicId: 'string' } },
@@ -413,6 +448,7 @@ export function validateParams(action, params = {}) {
   const required = spec.required || {};
   const optional = spec.optional || {};
   const enums = spec.enums || {};
+  const min = spec.min || {};
   const max = spec.max || {};
   const maxLength = spec.maxLength || {};
   const fix = spec.fix || {};
@@ -442,6 +478,13 @@ export function validateParams(action, params = {}) {
     if (p[field] === undefined || p[field] === null) continue;
     if (!allowed.includes(p[field])) {
       return { ok: false, message: `${field} must be one of: ${allowed.join(', ')}` };
+    }
+  }
+
+  for (const [field, floor] of Object.entries(min)) {
+    if (p[field] === undefined || p[field] === null) continue;
+    if (p[field] < floor) {
+      return refuse(field, `${field} must be ${floor} or more`);
     }
   }
 

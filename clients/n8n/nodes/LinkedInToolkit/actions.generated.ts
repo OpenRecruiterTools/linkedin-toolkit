@@ -822,7 +822,26 @@ export const ACTIONS: ActionSpec[] = [
     "description": "Run the `network.unfollowAll` action on the connected extension.",
     "write": false,
     "required": [],
-    "optional": []
+    "optional": [
+      {
+        "name": "network_unfollowAll_limit",
+        "key": "limit",
+        "displayName": "Limit",
+        "required": false,
+        "description": "minimum 1; maximum 5000.",
+        "type": "number",
+        "default": 0
+      },
+      {
+        "name": "network_unfollowAll_dryRun",
+        "key": "dryRun",
+        "displayName": "Dry Run",
+        "required": false,
+        "description": "The Dry Run parameter.",
+        "type": "boolean",
+        "default": false
+      }
+    ]
   },
   {
     "action": "outreach.view",

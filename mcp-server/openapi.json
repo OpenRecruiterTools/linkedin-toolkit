@@ -2702,6 +2702,12 @@
                           "properties": {
                             "count": {
                               "type": "number"
+                            },
+                            "sample": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
                             }
                           },
                           "required": [
@@ -2754,7 +2760,16 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000
+                  },
+                  "dryRun": {
+                    "type": "boolean"
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -2786,10 +2801,32 @@
                           "properties": {
                             "unfollowed": {
                               "type": "number"
+                            },
+                            "attempted": {
+                              "type": "number"
+                            },
+                            "names": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "stopped": {
+                              "type": "string",
+                              "enum": [
+                                "limit",
+                                "end",
+                                "error"
+                              ]
+                            },
+                            "error": {
+                              "type": "string"
                             }
                           },
                           "required": [
-                            "unfollowed"
+                            "unfollowed",
+                            "attempted",
+                            "names"
                           ],
                           "additionalProperties": false
                         },

@@ -360,5 +360,5 @@ register(ACTIONS.NETWORK_STATUS, async ({ publicIds }) => {
 });
 
 /* ================================================================== */
-/*  Unfollow helpers stay in index.js (they drive the user's own tab)  */
+/*  Unfollow lives in unfollow.js (it drives the user's own tab)       */
 /* ================================================================== */

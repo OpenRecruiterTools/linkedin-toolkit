@@ -179,8 +179,13 @@ export function defaultHandlers(): Handlers {
     'network.status': (params: any) => ({
       statuses: Object.fromEntries((params?.publicIds ?? []).map((id: string) => [id, 'none'])),
     }),
-    'network.unfollowCount': () => ({ count: 3 }),
-    'network.unfollowAll': () => ({ unfollowed: 3 }),
+    'network.unfollowCount': () => ({ count: 3, sample: ['Ada Lovelace'] }),
+    'network.unfollowAll': () => ({
+      unfollowed: 3,
+      attempted: 3,
+      names: ['Ada Lovelace', 'Grace Hopper', 'Alan Turing'],
+      stopped: 'end',
+    }),
     'outreach.view': () => ({ status: 'sent', sentAt: 1_700_000_500_000 }),
     'outreach.follow': () => ({ status: 'sent', sentAt: 1_700_000_500_000 }),
     'outreach.invite': (params: any) =>

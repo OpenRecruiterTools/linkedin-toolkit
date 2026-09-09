@@ -111,6 +111,9 @@ function makeProfile(seed: Seed, index: number) {
 
 export const FAKE_PROFILES = SEEDS.map(makeProfile);
 
+/** Who the fake account "follows" — the names mass unfollow reports on. */
+export const FAKE_FOLLOWING = SEEDS.slice(0, 7).map(([first, last]) => `${first} ${last}`);
+
 const COMPANY_NAMES = [...new Set(SEEDS.map((seed) => seed[3]))];
 
 export const FAKE_COMPANIES = COMPANY_NAMES.map((name, index) => ({
@@ -621,8 +624,14 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
         }),
       ),
     }),
-    'network.unfollowCount': () => ({ count: 7 }),
-    'network.unfollowAll': () => ({ unfollowed: 7 }),
+    'network.unfollowCount': () => ({ count: 7, sample: FAKE_FOLLOWING.slice(0, 7) }),
+    'network.unfollowAll': (params: any) => {
+      const limit = Math.min(Number(params?.limit) || FAKE_FOLLOWING.length, FAKE_FOLLOWING.length);
+      const names = FAKE_FOLLOWING.slice(0, limit);
+      return params?.dryRun
+        ? { unfollowed: 0, attempted: 0, names, stopped: 'end' }
+        : { unfollowed: names.length, attempted: names.length, names, stopped: 'end' };
+    },
 
     'outreach.view': (params: any) =>
       params?.dry_run ? { status: 'dryRun', wouldSend: params } : enqueue('outreach.view', params),
