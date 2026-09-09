@@ -29,7 +29,7 @@ report API version `2.0.0`, and no extension code moved.
   [@addielaruee](https://github.com/addielaruee))
 - A CommonJS entry point for the Node client, so `require('linkedin-toolkit')` works alongside the
   ESM import. ([#18](https://github.com/OpenRecruiterTools/linkedin-toolkit/pull/18), thanks
-  [@1cbyc](https://github.com/1cbyc)) (pending)
+  [@1cbyc](https://github.com/1cbyc))
 
 ### Fixed
 
