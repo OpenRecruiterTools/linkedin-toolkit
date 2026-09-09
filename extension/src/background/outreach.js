@@ -12,7 +12,7 @@
  * `contactedBefore`, campaign stats and `sync.pull` read.
  */
 
-import { ACTIONS } from '../lib/actions.js';
+import { ACTIONS, ERROR } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { getStoredProfile, logAction, putProfile } from '../lib/storage.js';
 import { register, setRateLimitProvider } from './engine.js';
@@ -73,7 +73,13 @@ const SENDERS = {
 };
 
 /**
- * Actually send. Used directly by the popup path and by `queue.approve`.
+ * Actually send. Used directly by the popup path and by the queue's sender.
+ *
+ * A reserved unit stays spent when LinkedIn refuses — the request was made,
+ * and LinkedIn may well have counted it. The single exception is a send we
+ * refused ourselves, on our own validation, before anything was sent: nothing
+ * reached LinkedIn, so the reservation goes back.
+ *
  * @returns {Promise<{status: 'sent', sentAt: number}>}
  */
 export async function send(action, params, origin = 'approved', context = {}) {
@@ -83,7 +89,12 @@ export async function send(action, params, origin = 'approved', context = {}) {
   await quota.reserve(kind);
   await quota.humanDelay();
 
-  await SENDERS[action](params);
+  try {
+    await SENDERS[action](params);
+  } catch (e) {
+    if (e && e.code === ERROR.INVALID_PARAMS) await quota.release(kind);
+    throw e;
+  }
 
   const result = { status: 'sent', sentAt: Date.now() };
   await logAction({

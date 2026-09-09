@@ -314,6 +314,30 @@ export async function record(kind, n = 1) {
   return withKeyLock(K.QUOTA, () => bump(kind, n));
 }
 
+/**
+ * Hand a reservation back.
+ *
+ * The standing rule is that a reserved unit stays spent whether or not
+ * LinkedIn answers — over-counting is safe, under-counting is not, and a
+ * refused write may well have been seen by LinkedIn anyway. This is the one
+ * exception: when *we* refused the send ourselves, before a single byte left
+ * the browser, LinkedIn never saw it and there is nothing to be careful about.
+ *
+ * Only `send()` in outreach.js calls this, and only for its own INVALID_PARAMS.
+ */
+export async function release(kind, n = 1) {
+  assertKind(kind);
+  return withKeyLock(K.QUOTA, async () => {
+    const units = Math.max(0, Math.round(n));
+    if (!units) return (await readState()).daily[kind];
+    const state = await readState();
+    state.daily[kind] = Math.max(0, state.daily[kind] - units);
+    state.hourly[kind] = Math.max(0, state.hourly[kind] - units);
+    await writeState(state);
+    return state.daily[kind];
+  });
+}
+
 /** The counter increment itself. Callers must already hold the quota lock. */
 async function bump(kind, n) {
   const units = Math.max(0, Math.round(n));
