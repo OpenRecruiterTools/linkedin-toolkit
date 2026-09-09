@@ -25,6 +25,8 @@ import {
   FOLLOWING_URL,
   TOTAL_RE,
   UNFOLLOW_API_PACING,
+  UNFOLLOW_FAST_PACING,
+  UNFOLLOW_SCAN_PACING,
   UNFOLLOW_SELECTOR,
   nameFromLabel,
   setSleepFn,
@@ -40,6 +42,8 @@ import { EVENTS, UNFOLLOW_LIMIT_MAX } from '../../src/lib/actions.js';
 import { FOLLOWING_NAMES, mountFollowingPage } from '../fixtures/following-page.js';
 import followingPage1 from '../fixtures/voyager/following.json';
 import followingPage2 from '../fixtures/voyager/followingPage2.json';
+import followersPage1 from '../fixtures/voyager/followersFollowing.json';
+import followersPage2 from '../fixtures/voyager/followersFollowingPage2.json';
 import { seedSession, status, stubFetch } from '../helpers/net.js';
 import { setActiveTab } from '../setup.js';
 
@@ -893,5 +897,531 @@ describe('API mode — progress events', () => {
 
     const progress = mock().messages.filter((m) => m.event === EVENTS.UNFOLLOW_PROGRESS);
     expect(progress.map((m) => m.payload)).toEqual([{ done: 10, total: 12 }]);
+  });
+});
+
+/* ================================================================== */
+/*  scope: 'everyone' — the followers list                             */
+/* ================================================================== */
+/*                                                                    */
+/*  LinkedIn's Following list does not include connections. The only   */
+/*  place their follow state is visible is the followers list, one     */
+/*  `FollowingState` per row — so a run that means "everyone" has two  */
+/*  sources, and everything below is about the two behaving as one:    */
+/*  one limit, one seen set, one Stop, one failure counter.            */
+/*                                                                    */
+/*  Every follower below is invented, and comes out of the two         */
+/*  fixtures rather than being typed twice.                            */
+/*                                                                    */
+/* ================================================================== */
+
+/** One follower as the fixtures carry them: view model, state and profile. */
+function followerRows(page) {
+  const rows = [];
+  for (const entity of page.included) {
+    if (!String(entity.$type).endsWith('search.EntityResultViewModel')) continue;
+    const urn = entity.entityUrn.match(/urn:li:fsd_profile:[^,)]+/)[0];
+    const state = page.included.find((e) => e.entityUrn === `urn:li:fsd_followingState:${urn}`);
+    const profile = page.included.find((e) => e.entityUrn === urn);
+    rows.push({
+      urn,
+      name: entity.title.text,
+      following: state.following,
+      included: [entity, state, profile],
+    });
+  }
+  return rows;
+}
+
+const FOLLOWERS = [...followerRows(followersPage1), ...followerRows(followersPage2)];
+const STILL_FOLLOWED = FOLLOWERS.filter((row) => row.following).map((row) => row.name);
+
+/**
+ * The same follower, cloned onto somebody the Following list already covered.
+ *
+ * This is the overlap the `seen` set exists for: a person you follow who also
+ * follows you back turns up in both sources, and must be unfollowed once.
+ */
+function alias(row, urn, name) {
+  const included = JSON.parse(JSON.stringify(row.included).split(row.urn).join(urn));
+  included[0].title.text = name;
+  return { urn, name, following: true, included };
+}
+
+/**
+ * A followers list behind the stub.
+ *
+ * It does *not* shrink as the run works through it — unfollowing somebody does
+ * not stop them following you — so the cursor has to page forward, and this is
+ * what proves it does. Six a page, because LinkedIn answers with what it likes
+ * rather than with the fifty it was asked for.
+ */
+function followersWorld(net, rows = FOLLOWERS, onRead = null) {
+  const world = { rows: rows.map((row) => ({ ...row })), reads: [] };
+  const PAGE_CAP = 6;
+
+  const clusters = (start, count) => {
+    const slice = world.rows.slice(start, start + Math.min(count, PAGE_CAP));
+    return {
+      data: {
+        data: {
+          searchDashClustersByAll: {
+            metadata: { totalResultCount: world.rows.length },
+            paging: { start, count, total: world.rows.length },
+            elements: [
+              {
+                items: slice.map((row, i) => ({
+                  item: { '*entityResult': row.included[0].entityUrn },
+                  position: i + 1,
+                })),
+              },
+            ],
+          },
+        },
+        errors: [],
+      },
+      included: slice.flatMap((row) => [
+        row.included[0],
+        { ...row.included[1], following: row.following },
+        row.included[2],
+      ]),
+    };
+  };
+
+  net.route(
+    (url) => url.includes('voyagerSearchDashClusters') && url.includes('List(FOLLOWERS)'),
+    (url) => {
+      const decoded = decodeURIComponent(url);
+      const start = Number((decoded.match(/start:(\d+)/) || [])[1] || 0);
+      const count = Number((decoded.match(/count:(\d+)/) || [])[1] || 50);
+      world.reads.push({ start, count });
+      const failure = onRead ? onRead(world.reads.length, world) : null;
+      if (failure) return status(failure, {});
+      return clusters(start, count);
+    },
+  );
+
+  return world;
+}
+
+/** Both sources at once, followers registered last so its route wins. */
+function everyoneWorld(net, { onPost = null, rows = FOLLOWERS, onRead = null } = {}) {
+  const following = followingWorld(net, onPost);
+  const followers = followersWorld(net, rows, onRead);
+  // LinkedIn does stop reporting somebody as followed once you unfollow them.
+  const post = (urn) => {
+    const row = followers.rows.find((r) => r.urn === urn);
+    if (row) row.following = false;
+  };
+  return { following, followers, post };
+}
+
+describe('API mode — scope: everyone', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('works the Following list first and the followers list second', async () => {
+    const world = everyoneWorld(net);
+
+    const result = await unfollowAll({ scope: 'everyone' });
+
+    // Twelve off the Following list, then the six followers whose own state
+    // still says we follow them — the connections that list never mentions.
+    expect(result.unfollowed).toBe(18);
+    expect(result.attempted).toBe(18);
+    expect(result.stopped).toBe('end');
+    expect(result.names.slice(0, 12)).toEqual(FOLLOWING);
+    expect(result.names.slice(12)).toEqual(STILL_FOLLOWED);
+    expect(world.following.posts).toHaveLength(18);
+  });
+
+  it('leaves the followers it is not following alone', async () => {
+    const world = everyoneWorld(net);
+
+    await unfollowAll({ scope: 'everyone' });
+
+    const untouched = FOLLOWERS.filter((row) => !row.following);
+    expect(untouched).toHaveLength(4);
+    for (const row of untouched) expect(world.following.posts).not.toContain(row.urn);
+  });
+
+  it('reads the followers list page by page, always forwards', async () => {
+    // The list does not shrink underneath the cursor, so a cursor that stayed
+    // put would read the same six people for ever.
+    const world = everyoneWorld(net);
+
+    await unfollowAll({ scope: 'everyone' });
+
+    expect(world.followers.reads.map((r) => r.start)).toEqual([0, 6]);
+    expect(world.followers.reads.every((r) => r.count === 50)).toBe(true);
+  });
+
+  it('never touches the same person twice when they are on both lists', async () => {
+    const overlap = alias(FOLLOWERS[0], URNS[0], FOLLOWING[0]);
+    const world = everyoneWorld(net, { rows: [overlap, ...FOLLOWERS] });
+
+    const result = await unfollowAll({ scope: 'everyone' });
+
+    expect(new Set(world.following.posts).size).toBe(world.following.posts.length);
+    expect(world.following.posts.filter((urn) => urn === URNS[0])).toHaveLength(1);
+    expect(result.unfollowed).toBe(18);
+  });
+
+  it('spends one limit across both sources, not one each', async () => {
+    const world = everyoneWorld(net);
+
+    const result = await unfollowAll({ scope: 'everyone', limit: 15 });
+
+    expect(result.unfollowed).toBe(15);
+    expect(result.stopped).toBe('limit');
+    // Twelve from the Following list and three from the followers scan.
+    expect(world.following.posts).toHaveLength(15);
+    expect(result.names.slice(12)).toEqual(STILL_FOLLOWED.slice(0, 3));
+  });
+
+  it('does not scan the followers list at all when the first source stops', async () => {
+    const world = everyoneWorld(net);
+
+    const result = await unfollowAll({ scope: 'everyone', limit: 5 });
+
+    expect(result.stopped).toBe('limit');
+    expect(world.followers.reads).toEqual([]);
+  });
+
+  it('stops mid-scan when Stop is pressed, and keeps what it did', async () => {
+    const world = everyoneWorld(net, {
+      onPost: (n) => {
+        if (n === 14) unfollowStop();
+        return null;
+      },
+    });
+
+    const result = await unfollowAll({ scope: 'everyone' });
+
+    expect(result.unfollowed).toBe(14);
+    expect(result.stopped).toBe('cancelled');
+    expect(result.error).toBeUndefined();
+    expect(world.following.posts).toHaveLength(14);
+  });
+
+  it('stops dead on a 429 while the scan is reading', async () => {
+    const world = everyoneWorld(net, { onRead: (n) => (n === 2 ? 429 : null) });
+
+    const result = await unfollowAll({ scope: 'everyone' });
+
+    // Twelve off the Following list plus the four still-followed people on the
+    // first followers page; the second page is where LinkedIn said stop.
+    expect(result.unfollowed).toBe(16);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/rate limited/i);
+    expect(world.followers.reads).toHaveLength(2);
+  });
+
+  it('announces the scan as a scan, not as unfollows', async () => {
+    everyoneWorld(net);
+
+    await unfollowAll({ scope: 'everyone' });
+
+    const scanning = mock()
+      .messages.filter((m) => m.event === EVENTS.UNFOLLOW_PROGRESS)
+      .map((m) => m.payload)
+      .filter((p) => p.phase === 'scanning');
+    expect(scanning).toEqual([
+      { done: 6, total: 10, phase: 'scanning' },
+      { done: 10, total: 10, phase: 'scanning' },
+    ]);
+  });
+
+  it('says where the scan has got to while it is scanning', async () => {
+    const seen = [];
+    everyoneWorld(net, {
+      onPost: (n) => {
+        if (n > 12) seen.push(unfollowStatus());
+        return null;
+      },
+    });
+
+    await unfollowAll({ scope: 'everyone' });
+
+    expect(seen[0]).toMatchObject({ running: true, phase: 'scanning', scanned: 6, scannedTotal: 10 });
+    // `total` is what is left to do, not what was there to begin with: the
+    // Following list reads zero by now, and the first followers page turned up
+    // four more people.
+    expect(seen[0].total).toBe(4);
+    // And nothing about a scan leaks into a run that never had one.
+    expect(unfollowStatus().phase).toBeUndefined();
+  });
+
+  it('paces the followers reads at 0.4-0.8 s, half the gap between writes', async () => {
+    everyoneWorld(net);
+    const waits = [];
+    setSleepFn((ms) => {
+      waits.push(ms);
+      return Promise.resolve();
+    });
+
+    await unfollowAll({ scope: 'everyone' });
+
+    const reads = waits.filter((ms) => ms < UNFOLLOW_API_PACING.minDelayMs);
+    // One gap for the second followers page; the first is read straight away.
+    expect(reads).toHaveLength(1);
+    for (const ms of reads) {
+      expect(ms).toBeGreaterThanOrEqual(UNFOLLOW_SCAN_PACING.minDelayMs);
+      expect(ms).toBeLessThanOrEqual(UNFOLLOW_SCAN_PACING.maxDelayMs);
+    }
+  });
+
+  it('previews both sources without writing anything', async () => {
+    const world = everyoneWorld(net);
+
+    const result = await unfollowAll({ scope: 'everyone', dryRun: true });
+
+    expect(result.unfollowed).toBe(0);
+    expect(result.attempted).toBe(0);
+    expect(result.names).toEqual([...FOLLOWING, ...STILL_FOLLOWED]);
+    expect(world.following.posts).toEqual([]);
+    expect(net.calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('is the Following list only when the scope is left off', async () => {
+    const world = everyoneWorld(net);
+
+    const result = await unfollowAll({});
+
+    expect(result.unfollowed).toBe(12);
+    expect(world.followers.reads).toEqual([]);
+  });
+});
+
+/* ================================================================== */
+/*  speed: 'fast' — three streams                                     */
+/* ================================================================== */
+
+/** Let every pending microtask run, without waiting on a real timer. */
+async function tick(times = 30) {
+  for (let i = 0; i < times; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await Promise.resolve();
+  }
+}
+
+/**
+ * A sleep that parks every stream until the test lets it go.
+ *
+ * This is what makes three streams observable: with nobody released, the only
+ * requests that can have been sent are the ones three streams sent at once.
+ */
+function parkingSleep() {
+  const parked = [];
+  const waits = [];
+  setSleepFn((ms) => {
+    waits.push(ms);
+    return new Promise((resolve) => parked.push(resolve));
+  });
+  return {
+    parked,
+    waits,
+    /** Drive a run to completion, releasing whoever is waiting. */
+    async settle(promise) {
+      let done = false;
+      const settled = promise.then((value) => {
+        done = true;
+        return value;
+      });
+      for (let i = 0; i < 500 && !done; i += 1) {
+        parked.splice(0).forEach((resolve) => resolve());
+        // eslint-disable-next-line no-await-in-loop
+        await tick(10);
+      }
+      return settled;
+    },
+  };
+}
+
+describe('API mode — speed: fast', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('has three requests in flight at once, where careful has one', async () => {
+    const world = followingWorld(net);
+    const clock = parkingSleep();
+
+    const running = unfollowAll({ speed: 'fast' });
+    await tick(60);
+
+    // Three streams, three people, three parked gaps — and nothing else moves
+    // until the gaps are let go.
+    expect(world.posts).toHaveLength(3);
+    expect(clock.parked).toHaveLength(3);
+
+    const result = await clock.settle(running);
+    expect(result.unfollowed).toBe(12);
+    expect(result.stopped).toBe('end');
+    // Everybody, once each, however many streams did the work.
+    expect(new Set(world.posts).size).toBe(12);
+  });
+
+  it('reads the page once, not once per stream', async () => {
+    const world = followingWorld(net);
+    const clock = parkingSleep();
+
+    const running = unfollowAll({ speed: 'fast' });
+    await tick(60);
+
+    expect(world.reads).toHaveLength(1);
+    await clock.settle(running);
+  });
+
+  it('gaps each stream by 0.5-0.9 s rather than by the careful 0.8-1.6', async () => {
+    followingWorld(net);
+    const clock = parkingSleep();
+
+    await clock.settle(unfollowAll({ speed: 'fast' }));
+
+    expect(clock.waits.length).toBeGreaterThan(3);
+    for (const ms of clock.waits) {
+      expect(ms).toBeGreaterThanOrEqual(UNFOLLOW_FAST_PACING.minDelayMs);
+      expect(ms).toBeLessThanOrEqual(UNFOLLOW_FAST_PACING.maxDelayMs);
+    }
+  });
+
+  it('a 429 on any one stream ends all three', async () => {
+    const world = followingWorld(net, (n) => (n === 2 ? 429 : null));
+    const clock = parkingSleep();
+
+    const result = await clock.settle(unfollowAll({ speed: 'fast' }));
+
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/rate limited/i);
+    // Only what was already in flight when LinkedIn said stop.
+    expect(world.posts.length).toBeLessThanOrEqual(3);
+  });
+
+  it('never overshoots the limit, however many streams are racing for it', async () => {
+    const world = followingWorld(net);
+    const clock = parkingSleep();
+
+    const result = await clock.settle(unfollowAll({ speed: 'fast', limit: 4 }));
+
+    expect(result.unfollowed).toBe(4);
+    expect(result.attempted).toBe(4);
+    expect(world.posts).toHaveLength(4);
+    expect(result.stopped).toBe('limit');
+  });
+
+  it('holds to a limit of one, which is the run to try first', async () => {
+    const world = followingWorld(net);
+    const clock = parkingSleep();
+
+    const result = await clock.settle(unfollowAll({ speed: 'fast', limit: 1 }));
+
+    expect(world.posts).toEqual([URNS[0]]);
+    expect(result.unfollowed).toBe(1);
+  });
+
+  it('shares one limit and one seen set across both sources', async () => {
+    const world = everyoneWorld(net);
+    const clock = parkingSleep();
+
+    const result = await clock.settle(unfollowAll({ scope: 'everyone', speed: 'fast', limit: 16 }));
+
+    expect(result.unfollowed).toBe(16);
+    expect(result.stopped).toBe('limit');
+    expect(new Set(world.following.posts).size).toBe(16);
+  });
+
+  it('runs a preview on one stream, because a preview sends nothing', async () => {
+    const world = followingWorld(net);
+
+    const result = await unfollowAll({ speed: 'fast', dryRun: true });
+
+    expect(result.names).toEqual(FOLLOWING);
+    expect(world.posts).toEqual([]);
+  });
+});
+
+/* ================================================================== */
+/*  unfollowCount with scope: everyone                                */
+/* ================================================================== */
+
+describe('API mode — counting everyone', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('adds the followers you still follow to the Following list total', async () => {
+    const world = everyoneWorld(net);
+
+    const data = await unfollowCount({ scope: 'everyone' });
+
+    expect(data.count).toBe(18);
+    expect(data.followers).toEqual({ total: 10, stillFollowing: 6 });
+    // Nothing was unfollowed to find that out.
+    expect(world.following.posts).toEqual([]);
+    expect(net.calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('reads the whole followers list, page by page', async () => {
+    const world = everyoneWorld(net);
+
+    await unfollowCount({ scope: 'everyone' });
+
+    expect(world.followers.reads.map((r) => r.start)).toEqual([0, 6]);
+  });
+
+  it('tops the sample up from the connections the Following list never shows', async () => {
+    everyoneWorld(net, { rows: FOLLOWERS });
+    // Nobody on the Following list, so every name in the sample is a follower.
+    net.route(
+      (url) => url.includes('voyagerSearchDashClusters') && url.includes('List(PEOPLE_FOLLOW)'),
+      {
+        data: {
+          data: {
+            searchDashClustersByAll: { metadata: { totalResultCount: 0 }, elements: [] },
+          },
+          errors: [],
+        },
+        included: [],
+      },
+    );
+
+    const data = await unfollowCount({ scope: 'everyone' });
+
+    expect(data.count).toBe(6);
+    expect(data.sample).toEqual(STILL_FOLLOWED);
+  });
+
+  it('announces the scan while it counts', async () => {
+    everyoneWorld(net);
+
+    await unfollowCount({ scope: 'everyone' });
+
+    const scanning = mock()
+      .messages.filter((m) => m.event === EVENTS.UNFOLLOW_PROGRESS)
+      .map((m) => m.payload);
+    expect(scanning).toEqual([
+      { done: 6, total: 10, phase: 'scanning' },
+      { done: 10, total: 10, phase: 'scanning' },
+    ]);
+  });
+
+  it('is one request and no scan when the scope is left off', async () => {
+    const world = everyoneWorld(net);
+
+    const data = await unfollowCount({});
+
+    expect(data).toEqual({ count: 12, sample: FOLLOWING.slice(0, 10) });
+    expect(world.followers.reads).toEqual([]);
   });
 });

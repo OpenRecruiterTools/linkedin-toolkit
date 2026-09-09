@@ -191,6 +191,44 @@ export const UNFOLLOW_MODES = Object.freeze(['api', 'dom']);
 export const UNFOLLOW_MODE_DEFAULT = 'api';
 
 /**
+ * Which list a run works through.
+ *
+ * `following` is LinkedIn's own Following list, and it is the default because
+ * it is what every earlier build did. `everyone` adds a second pass over your
+ * *followers*, because connections are followed automatically when you connect
+ * and never appear on the Following list at all — so a list that reads zero
+ * can still leave a feed full of posts. The followers list is the only read
+ * that carries each person's follow state, which is why it takes a scan rather
+ * than a count.
+ *
+ * It is API-only: there is no followers page with an Unfollow button on it to
+ * click, so `mode: 'dom'` answers for the Following list whatever the scope
+ * says.
+ */
+export const UNFOLLOW_SCOPES = Object.freeze(['following', 'everyone']);
+export const UNFOLLOW_SCOPE_DEFAULT = 'following';
+
+/**
+ * How hard a run pushes.
+ *
+ * `careful` is one request at a time with a 0.8–1.6 s gap — the default, and
+ * the one to use. `fast` runs three streams over the same list at 0.5–0.9 s
+ * each, so about four unfollows a second: several times quicker, and several
+ * times more likely to be the thing LinkedIn rate-limits.
+ */
+export const UNFOLLOW_SPEEDS = Object.freeze(['careful', 'fast']);
+export const UNFOLLOW_SPEED_DEFAULT = 'careful';
+
+/**
+ * The one phase an `unfollow_progress` event ever names.
+ *
+ * With it, `done` and `total` are followers read out of followers there are;
+ * without it, they are people unfollowed out of people to unfollow. A reader
+ * that ignores `phase` would show a scan of 9,479 as an unfollow of 9,479.
+ */
+export const UNFOLLOW_PHASE_SCANNING = 'scanning';
+
+/**
  * Why a run ended.
  *
  * `cancelled` is `network.unfollowStop` — the person pressed Stop — and is
@@ -334,15 +372,23 @@ const PARAM_SPECS = {
   [ACTIONS.NETWORK_FOLLOWERS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_STATUS]: { required: { publicIds: 'array' } },
   [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
-    optional: { mode: 'string' },
-    enums: { mode: UNFOLLOW_MODES },
+    optional: { mode: 'string', scope: 'string' },
+    enums: { mode: UNFOLLOW_MODES, scope: UNFOLLOW_SCOPES },
   },
   // `limit` is the safety rail: run it on one person first, then five, and
   // only then trust it with everything. `dryRun` walks the same list and
   // unfollows nobody, so the names can be read before anything is undoable.
+  // `scope` adds the followers list as a second source; `speed` trades the
+  // one-at-a-time pace for three streams.
   [ACTIONS.NETWORK_UNFOLLOW_ALL]: {
-    optional: { limit: 'number', dryRun: 'boolean', mode: 'string' },
-    enums: { mode: UNFOLLOW_MODES },
+    optional: {
+      limit: 'number',
+      dryRun: 'boolean',
+      mode: 'string',
+      scope: 'string',
+      speed: 'string',
+    },
+    enums: { mode: UNFOLLOW_MODES, scope: UNFOLLOW_SCOPES, speed: UNFOLLOW_SPEEDS },
     min: { limit: UNFOLLOW_LIMIT_MIN },
     max: { limit: UNFOLLOW_LIMIT_MAX },
     fix: { limit: UNFOLLOW_LIMIT_FIX },

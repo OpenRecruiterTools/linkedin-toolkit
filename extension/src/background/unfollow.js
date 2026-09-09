@@ -33,6 +33,21 @@
  *   4. **You can stop it.** `network.unfollowStop` sets a flag both loops
  *      check between people, and the names already done are still reported.
  *
+ * **Two lists, not one.** LinkedIn's Following list does not include your
+ * connections: you are made to follow everybody you connect with, and you go
+ * on following them after that list has been emptied to zero, which is why a
+ * feed that should be silent is still full of posts. `scope: 'everyone'` adds
+ * a second source — a page-by-page scan of your *followers*, the only read
+ * that says whether you still follow somebody — and the limit, the Stop flag,
+ * the seen set, the failure counter and the challenge latch all carry across
+ * both of them.
+ *
+ * **One stream or three.** `speed: 'careful'` (the default) is one request at
+ * a time. `speed: 'fast'` is three streams over the same queue and the same
+ * limit slots, each with its own 0.5–0.9 s gap — about four unfollows a
+ * second, and correspondingly more likely to be the thing LinkedIn notices. A
+ * stand-down answer on any one stream ends all three.
+ *
  * No quota bucket is charged for an unfollow. The four buckets meter the
  * things LinkedIn restricts accounts over — invitations, messages, profile
  * views, searches — and unfollowing is none of them: it is you removing your
@@ -58,10 +73,16 @@ import {
   EVENTS,
   UNFOLLOW_LIMIT_MAX,
   UNFOLLOW_MODE_DEFAULT,
+  UNFOLLOW_PHASE_SCANNING,
   UNFOLLOW_SAMPLE_MAX,
 } from '../lib/actions.js';
 import { emit } from './events.js';
-import { getFollowing, unfollowProfile } from './voyager.js';
+import {
+  FOLLOWERS_PAGE_SIZE,
+  getFollowersFollowing,
+  getFollowing,
+  unfollowProfile,
+} from './voyager.js';
 
 /* ================================================================== */
 /*  Page facts                                                        */
@@ -145,6 +166,34 @@ export const UNFOLLOW_PACING = Object.freeze({
 export const UNFOLLOW_API_PACING = Object.freeze({
   minDelayMs: 800,
   maxDelayMs: 1600,
+});
+
+/**
+ * One POST every 0.5–0.9 seconds *per stream*, in `speed: 'fast'`.
+ *
+ * Three streams at that gap is roughly four unfollows a second — several times
+ * quicker than the careful path, and several times more likely to be the thing
+ * LinkedIn rate-limits. It is still randomised and still gapped; it is simply
+ * far less patient, which is why the popup makes you tick a box that says so.
+ */
+export const UNFOLLOW_FAST_PACING = Object.freeze({
+  minDelayMs: 500,
+  maxDelayMs: 900,
+});
+
+/** How many streams `speed: 'fast'` runs. Three, and not a knob. */
+export const UNFOLLOW_FAST_STREAMS = 3;
+
+/**
+ * One followers page every 0.4–0.8 seconds, randomised.
+ *
+ * Reading is cheaper than writing and the followers list is the long one —
+ * 9,479 followers is 190 pages — so the gap between reads is half the gap
+ * between unfollows. It is still a gap: the scan never bursts.
+ */
+export const UNFOLLOW_SCAN_PACING = Object.freeze({
+  minDelayMs: 400,
+  maxDelayMs: 800,
 });
 
 /**
@@ -711,6 +760,7 @@ function isStandDown(e) {
 /** Two failures in a row means something is wrong with us, not with them. */
 const CONSECUTIVE_FAILURES_MAX = 2;
 
+
 /**
  * A list read cannot be trusted to shrink the list forever. 200 pages of 50 is
  * 10,000 people — twice the contract ceiling — so hitting this means the page
@@ -719,12 +769,21 @@ const CONSECUTIVE_FAILURES_MAX = 2;
 const MAX_API_PAGES = 200;
 
 /**
+ * Followers pages read before we accept that list has ended.
+ *
+ * Fifty a page, so this is 50,000 followers — well past any account this was
+ * built for, and a hard stop rather than a scan that could run all day.
+ */
+const MAX_SCAN_PAGES = 1000;
+
+/**
  * The live state of the one run that may be in flight.
  *
  * Mass unfollow is popup-only and there is one popup, so a second run is a
- * mistake rather than a use case; the flag exists so `network.unfollowStatus`
+ * mistake rather than a use case; `running` exists so `network.unfollowStatus`
  * can answer "is anything happening" and so `network.unfollowStop` has
- * something to set.
+ * something to set. Everything below it is the bookkeeping the streams share —
+ * one bag, because one run at a time is the invariant this module is built on.
  */
 const run = {
   running: false,
@@ -732,16 +791,59 @@ const run = {
   total: 0,
   lastName: '',
   stopRequested: false,
+
+  /* ---- what the streams share ------------------------------------- */
+
+  limit: UNFOLLOW_LIMIT_MAX,
+  dryRun: false,
+  names: [],
+  /** Profile urns already claimed, so nobody is handled twice. */
+  seen: new Set(),
+  unfollowed: 0,
+  attempted: 0,
+  /** What a preview has walked past; `names` stops at NAME_CAP, this does not. */
+  previewed: 0,
+  /** Slots taken out of `limit`, held from before a POST until it fails. */
+  claimed: 0,
+  /** Set by a stream that found the run's slots gone; read by `drain`. */
+  limitReached: false,
+  failures: 0,
+  followingTotal: null,
+  ending: false,
+  stopped: 'end',
+  error: null,
+
+  /* ---- the followers scan ----------------------------------------- */
+
+  /** `'scanning'` while the followers list is being read, `''` otherwise. */
+  phase: '',
+  scanned: 0,
+  scannedTotal: 0,
+  /** Followers turned up so far whose own state still says we follow them. */
+  stillFollowing: 0,
 };
 
-/** `network.unfollowStatus` — what a progress line needs, and nothing else. */
+/**
+ * `network.unfollowStatus` — what a progress line needs, and nothing else.
+ *
+ * The last three appear only while the followers list is being read, which is
+ * the one thing `done` cannot say: a scan can read a thousand followers and
+ * unfollow none of them. A run that never scans answers exactly what it always
+ * answered.
+ */
 export function unfollowStatus() {
-  return {
+  const status = {
     running: run.running,
     done: run.done,
     total: run.total,
     lastName: run.lastName,
   };
+  if (run.phase === UNFOLLOW_PHASE_SCANNING) {
+    status.phase = run.phase;
+    status.scanned = run.scanned;
+    status.scannedTotal = run.scannedTotal;
+  }
+  return status;
 }
 
 /**
@@ -764,17 +866,43 @@ function beginRun(total = 0) {
   run.total = total;
   run.lastName = '';
   run.stopRequested = false;
+
+  run.limit = UNFOLLOW_LIMIT_MAX;
+  run.dryRun = false;
+  run.names = [];
+  run.seen = new Set();
+  run.unfollowed = 0;
+  run.attempted = 0;
+  run.previewed = 0;
+  run.claimed = 0;
+  run.limitReached = false;
+  run.failures = 0;
+  run.followingTotal = null;
+  run.ending = false;
+  run.stopped = 'end';
+  run.error = null;
+
+  run.phase = '';
+  run.scanned = 0;
+  run.scannedTotal = 0;
+  run.stillFollowing = 0;
 }
 
 function endRun() {
   run.running = false;
   run.stopRequested = false;
+  run.phase = '';
 }
 
-/** The randomised gap between two unfollows. */
-function apiPauseMs() {
-  const { minDelayMs, maxDelayMs } = UNFOLLOW_API_PACING;
+/** The randomised gap between two unfollows on one stream. */
+function apiPauseMs(pacing = UNFOLLOW_API_PACING) {
+  const { minDelayMs, maxDelayMs } = pacing;
   return minDelayMs + Math.random() * Math.max(0, maxDelayMs - minDelayMs);
+}
+
+/** The randomised gap between two followers pages. */
+function scanPauseMs() {
+  return apiPauseMs(UNFOLLOW_SCAN_PACING);
 }
 
 /** A number a caller can act on, or the ceiling when they asked for nothing. */
@@ -789,7 +917,17 @@ function nameOf(profile) {
   return name || 'Unknown';
 }
 
-/** Progress is announced every ten, and never for a preview. */
+/**
+ * How many people the run is working towards: the Following list's own total,
+ * plus every still-followed follower the scan has turned up. It grows during
+ * the scan, because until a followers page has been read nobody knows what is
+ * on it.
+ */
+function totalOf() {
+  return (run.followingTotal || 0) + run.stillFollowing;
+}
+
+/** Progress is announced every ten unfollows, and never for a preview. */
 async function announce(done, total) {
   if (done <= 0 || done % UNFOLLOW_PROGRESS_EVERY !== 0) return;
   try {
@@ -800,162 +938,457 @@ async function announce(done, total) {
 }
 
 /**
- * `network.unfollowCount` in API mode — no tab, one request.
+ * Progress for the scan, which is a different question: not "how many have
+ * been unfollowed" but "how far through your followers are we". It carries
+ * `phase: 'scanning'` so a reader cannot mistake one for the other, and it is
+ * sent once per page rather than once per ten people, because a page of fifty
+ * followers can contain nobody to unfollow at all.
+ */
+async function announceScan() {
+  try {
+    await emit(EVENTS.UNFOLLOW_PROGRESS, {
+      done: run.scanned,
+      total: run.scannedTotal,
+      phase: UNFOLLOW_PHASE_SCANNING,
+    });
+  } catch {
+    /* as above */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  The bookkeeping every stream shares                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * End the run, once.
+ *
+ * The first reason wins: a 429 on one stream is what the run reports, even
+ * though the two streams beside it notice a moment later that the run is
+ * ending. `run.ending` is what every stream and every queue watches, and it is
+ * separate from the Stop flag so that finishing one source cleanly does not
+ * look like somebody pressed Stop.
+ */
+function stopWith(how, error) {
+  if (run.ending) return;
+  run.ending = true;
+  run.stopped = how;
+  if (error) run.error = error;
+}
+
+/**
+ * Take one of the run's `limit` slots, or refuse.
+ *
+ * A stream claims its slot *before* it sends anything, which is what keeps
+ * three streams from between them overshooting a limit of five. The slot is
+ * handed back when the attempt does not land, because the limit counts
+ * unfollows, not attempts.
+ */
+function claimSlot() {
+  if (run.claimed >= run.limit) return false;
+  run.claimed += 1;
+  return true;
+}
+
+function releaseSlot() {
+  run.claimed -= 1;
+}
+
+/**
+ * The people on this page the run has not already claimed, marked as claimed.
+ *
+ * One `seen` set for the whole run: no two streams get the same person, and
+ * nobody the Following list already covered is touched again when the
+ * followers scan turns them up.
+ */
+function claimUnseen(profiles) {
+  const fresh = [];
+  for (const profile of profiles) {
+    const urn = String(profile.urn || '');
+    if (!urn || run.seen.has(urn)) continue;
+    run.seen.add(urn);
+    fresh.push({ urn, name: nameOf(profile), following: profile.following });
+  }
+  return fresh;
+}
+
+/* ------------------------------------------------------------------ */
+/*  The queue the streams pull from                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A queue of people, shared by every stream in the run, that refills itself
+ * one page at a time.
+ *
+ * `readPage(start)` does the list-specific part — fetch, claim, decide where
+ * the next page starts — and the queue does the paging, the end-of-list
+ * bookkeeping and the mutual exclusion that stops three streams fetching the
+ * same page three times: whoever finds the buffer empty fetches, and the
+ * others wait on that same request.
+ *
+ * `maxPages` is the backstop: however a list misbehaves, a run reads a bounded
+ * number of pages rather than going round for ever.
+ *
+ * @param {(start: number) => Promise<{people?: object[], nextStart?: number,
+ *   ended?: boolean, stop?: boolean}>} readPage
+ * @param {number} maxPages
+ */
+function pageQueue(readPage, maxPages) {
+  const buffer = [];
+  let start = 0;
+  let pages = 0;
+  let ended = false;
+  let filling = null;
+
+  const fill = () => {
+    if (!filling) {
+      pages += 1;
+      if (pages > maxPages) {
+        ended = true;
+        return Promise.resolve();
+      }
+      filling = readPage(start)
+        .then((page) => {
+          if (page.stop) {
+            ended = true;
+            return;
+          }
+          buffer.push(...(page.people || []));
+          if (page.nextStart !== undefined) start = page.nextStart;
+          if (page.ended) ended = true;
+        })
+        .finally(() => {
+          filling = null;
+        });
+    }
+    return filling;
+  };
+
+  return {
+    /** The next person, or `null` when there is no next person. */
+    async next() {
+      for (;;) {
+        if (run.ending) return null;
+        if (buffer.length) return buffer.shift();
+        if (ended) return null;
+        // eslint-disable-next-line no-await-in-loop
+        await fill();
+      }
+    },
+  };
+}
+
+/**
+ * Source one: LinkedIn's own Following list.
+ *
+ * **Paging while the list shrinks.** Every successful unfollow removes a row
+ * from the list the *next* read is offset into, so a cursor that advanced by a
+ * full page would step over exactly as many people as were unfollowed. It
+ * therefore stays where it is while people are still being found, and only
+ * moves on for a preview (which removes nobody) or for a page that turned up
+ * nobody new — which is also what stops a page of failed unfollows being read
+ * round and round. The `seen` set catches whatever that still overlaps.
+ */
+function followingQueue() {
+  return pageQueue(async (start) => {
+    let batch;
+    try {
+      batch = await getFollowing({ start, count: UNFOLLOW_PAGE_SIZE });
+    } catch (e) {
+      stopWith('error', (e && e.message) || 'Could not read your following list.');
+      return { stop: true };
+    }
+
+    const profiles = batch.profiles || [];
+    if (Number.isFinite(batch.total)) {
+      run.followingTotal = batch.total;
+      run.total = totalOf();
+    }
+    if (!profiles.length) return { ended: true };
+
+    const people = claimUnseen(profiles);
+    // Advance by what actually came back, never by what was asked for:
+    // LinkedIn is under no obligation to answer with a full page.
+    const nextStart = run.dryRun || !people.length ? start + profiles.length : start;
+    return {
+      people,
+      nextStart,
+      ended: run.followingTotal !== null && nextStart >= run.followingTotal,
+    };
+  }, MAX_API_PAGES);
+}
+
+/**
+ * Source two: our followers, which is where our connections are.
+ *
+ * It always pages forward — unfollowing somebody does not stop them following
+ * us, so nothing is removed underneath the cursor — and hands on only the rows
+ * whose own `FollowingState` still says we follow them. Reading is what takes
+ * the time here (9,479 followers is 190 pages), so each page waits its own
+ * 0.4–0.8 s and then says how far the scan has got.
+ */
+function followersQueue() {
+  let read = 0;
+  return pageQueue(async (start) => {
+    // Every page but the first waits first: a scan that bursts through 190
+    // reads looks exactly like the thing LinkedIn restricts accounts for.
+    if (read) await sleep(scanPauseMs());
+    read += 1;
+
+    let batch;
+    try {
+      batch = await getFollowersFollowing({ start, count: FOLLOWERS_PAGE_SIZE });
+    } catch (e) {
+      stopWith('error', (e && e.message) || 'Could not read your followers list.');
+      return { stop: true };
+    }
+
+    const profiles = batch.profiles || [];
+    if (Number.isFinite(batch.total)) run.scannedTotal = batch.total;
+    if (!profiles.length) return { ended: true };
+
+    run.scanned += profiles.length;
+    const people = claimUnseen(profiles).filter((person) => person.following === true);
+    run.stillFollowing += people.length;
+    run.total = totalOf();
+    await announceScan();
+
+    const nextStart = start + profiles.length;
+    return {
+      people,
+      nextStart,
+      ended: run.scannedTotal > 0 && nextStart >= run.scannedTotal,
+    };
+  }, MAX_SCAN_PAGES);
+}
+
+/* ------------------------------------------------------------------ */
+/*  One stream                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One POST, and every reason it could end the run.
+ *
+ * @returns {Promise<boolean>} false when this stream must stop
+ */
+async function unfollowOne(person) {
+  run.attempted += 1;
+  try {
+    await unfollowProfile({ profileUrn: person.urn });
+  } catch (e) {
+    if (isStandDown(e)) {
+      stopWith('error', (e && e.message) || 'LinkedIn asked us to stop — stopped there.');
+      return false;
+    }
+    // It did not land, so it does not spend one of the run's slots.
+    releaseSlot();
+    run.failures += 1;
+    if (run.failures >= CONSECUTIVE_FAILURES_MAX) {
+      stopWith(
+        'error',
+        `LinkedIn refused two unfollows in a row — stopped there. ${(e && e.message) || ''}`.trim(),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  run.failures = 0;
+  run.unfollowed += 1;
+  if (run.names.length < NAME_CAP) run.names.push(person.name);
+  run.done = run.unfollowed;
+  run.lastName = person.name;
+  // Announced only on a success, or a failure straight after the tenth would
+  // announce the same ten twice.
+  await announce(run.unfollowed, run.total);
+  return true;
+}
+
+/**
+ * One stream: claim a slot, take the next person, unfollow, pause, repeat.
+ *
+ * A careful run is one of these. A fast run is three of them over the same
+ * queue and the same slots, so the limit, the stop flag, the `seen` set and
+ * the failure counter are shared rather than multiplied by three.
+ */
+async function stream(queue, pacing) {
+  for (;;) {
+    if (run.ending) return;
+    if (run.stopRequested) {
+      stopWith('cancelled');
+      return;
+    }
+    if (!claimSlot()) {
+      // Not `stopWith('limit')`: with three streams the two that find the
+      // slots gone would end the run before the one holding the last slot had
+      // sent anything. Whether the limit is the reason the run ended is a
+      // question only `drain` can answer, once every stream has come back.
+      run.limitReached = true;
+      return;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    const person = await queue.next();
+    if (!person) {
+      releaseSlot();
+      stopWith('end');
+      return;
+    }
+    if (run.stopRequested) {
+      releaseSlot();
+      stopWith('cancelled');
+      return;
+    }
+
+    if (run.dryRun) {
+      run.previewed += 1;
+      if (run.names.length < NAME_CAP) run.names.push(person.name);
+      run.done = run.previewed;
+      run.lastName = person.name;
+      continue;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    const carryOn = await unfollowOne(person);
+    if (!carryOn) return;
+
+    if (run.claimed < run.limit) {
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(apiPauseMs(pacing));
+    }
+  }
+}
+
+/** Work one source dry with `streams` streams, then come back. */
+async function drain(queue, streams, pacing) {
+  run.ending = false;
+  run.limitReached = false;
+  await Promise.all(Array.from({ length: streams }, () => stream(queue, pacing)));
+  // Every other way out of a stream ends the run as it goes, so an unended run
+  // here means every stream stopped for want of a slot.
+  if (!run.ending && run.limitReached) stopWith('limit');
+}
+
+/* ------------------------------------------------------------------ */
+/*  The two actions                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `network.unfollowCount` in API mode — no tab, and usually one request.
  *
  * `totalResultCount` on the list read is the number LinkedIn's own header
  * prints, so this is the same answer the DOM mode goes and reads a page for,
  * without opening anything. The page it asks for is ten people wide because
  * the sample the popup shows is ten, so the names come free.
+ *
+ * With `scope: 'everyone'` it also reads the whole followers list, fifty at a
+ * time, to count the people you follow who are *not* on the Following list —
+ * your connections. That is one read per fifty followers (190 of them for
+ * 9,479) rather than a single request, so it announces `phase: 'scanning'` as
+ * it goes and takes a couple of minutes. Nothing is unfollowed either way.
  */
-export async function unfollowCountApi() {
+export async function unfollowCountApi(params = {}) {
   const page = await getFollowing({ start: 0, count: UNFOLLOW_SAMPLE_MAX });
   const profiles = page.profiles || [];
-  const count = Number.isFinite(page.total) ? page.total : profiles.length;
-  return { count, sample: profiles.slice(0, UNFOLLOW_SAMPLE_MAX).map(nameOf) };
+  const following = Number.isFinite(page.total) ? page.total : profiles.length;
+  const sample = profiles.slice(0, UNFOLLOW_SAMPLE_MAX).map(nameOf);
+
+  if (!isEveryone(params)) return { count: following, sample };
+
+  run.scanned = 0;
+  run.scannedTotal = 0;
+  let stillFollowing = 0;
+  let start = 0;
+
+  for (let page2 = 0; page2 < MAX_SCAN_PAGES; page2 += 1) {
+    if (page2) {
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(scanPauseMs());
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const batch = await getFollowersFollowing({ start, count: FOLLOWERS_PAGE_SIZE });
+    const rows = batch.profiles || [];
+    if (Number.isFinite(batch.total)) run.scannedTotal = batch.total;
+    if (!rows.length) break;
+
+    run.scanned += rows.length;
+    for (const row of rows) {
+      if (row.following !== true) continue;
+      stillFollowing += 1;
+      if (sample.length < UNFOLLOW_SAMPLE_MAX) sample.push(nameOf(row));
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await announceScan();
+
+    start += rows.length;
+    if (run.scannedTotal > 0 && start >= run.scannedTotal) break;
+  }
+
+  return {
+    // An upper bound, and deliberately so: the two lists can overlap (somebody
+    // you follow who also follows you back, and is not a connection), and the
+    // run itself dedupes by urn, so it can do a handful fewer than this says.
+    count: following + stillFollowing,
+    sample,
+    followers: { total: run.scannedTotal, stillFollowing },
+  };
 }
 
 /**
  * `network.unfollowAll` in API mode.
  *
- * Read a page of the following list, unfollow the people on it one at a time
- * with a randomised pause, then read the next page. Two details are worth
- * spelling out:
+ * One source by default: LinkedIn's own Following list. Two with
+ * `scope: 'everyone'`, and then the limit, the Stop flag, the `seen` set, the
+ * failure counter and the challenge latch all carry across both of them — the
+ * second being a page-by-page scan of the followers list, because connections
+ * are followed automatically on connect and never appear on the Following list
+ * at all (see `UNFOLLOW_CAPTURED` in `voyager.js`).
  *
- * **Paging while the list shrinks.** Every successful unfollow removes a row
- * from the list the *next* read is offset into, so advancing `start` by a full
- * page would step over exactly as many people as were unfollowed. The cursor
- * therefore advances by what stayed — `page length − unfollowed on that page`
- * — and a `seen` set of urns catches whatever that arithmetic still overlaps,
- * so nobody is asked twice and nobody is skipped.
+ * `speed: 'fast'` runs three streams over that same queue instead of one, each
+ * with its own randomised 0.5–0.9 s gap — about four unfollows a second. It is
+ * several times quicker and several times more likely to be the thing LinkedIn
+ * rate-limits, which is why the popup makes you tick a box that says so, and
+ * why a stand-down answer on *any* stream ends all three.
  *
  * **Failures.** A stand-down answer (401/403/429/451) ends the run on the
  * spot; anything else is allowed one retry's worth of doubt and ends the run
  * on the second in a row. A single failure in the middle of 700 is a person
  * whose state LinkedIn would not change, not a reason to abandon the rest.
  *
- * @param {{limit?: number, dryRun?: boolean}} params
+ * @param {{limit?: number, dryRun?: boolean, scope?: string, speed?: string}} params
  * @returns {Promise<{unfollowed: number, attempted: number, names: string[],
  *   stopped: 'limit'|'end'|'error'|'cancelled', error?: string}>}
  */
 export async function unfollowAllApi(params = {}) {
-  const limit = clampLimit(params.limit);
   const dryRun = !!params.dryRun;
-
-  const names = [];
-  const seen = new Set();
-  let unfollowed = 0;
-  let attempted = 0;
-  // What a preview has walked past, counted separately from `names`: the name
-  // list stops at NAME_CAP and the limit must not stop with it.
-  let previewed = 0;
-  let stopped = 'end';
-  let error = null;
-  let failures = 0;
-  let start = 0;
-  let total = 0;
+  const everyone = isEveryone(params);
+  // A preview sends nothing, so there is nothing for three streams to do.
+  const fast = params.speed === 'fast' && !dryRun;
 
   beginRun(0);
+  run.limit = clampLimit(params.limit);
+  run.dryRun = dryRun;
+
+  const streams = fast ? UNFOLLOW_FAST_STREAMS : 1;
+  const pacing = fast ? UNFOLLOW_FAST_PACING : UNFOLLOW_API_PACING;
 
   try {
-    pages: for (let page = 0; page < MAX_API_PAGES; page += 1) {
-      let batch;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        batch = await getFollowing({ start, count: UNFOLLOW_PAGE_SIZE });
-      } catch (e) {
-        stopped = 'error';
-        error = e && e.message ? e.message : 'Could not read your following list.';
-        break;
-      }
-
-      const profiles = batch.profiles || [];
-      if (Number.isFinite(batch.total)) {
-        total = batch.total;
-        run.total = total;
-      }
-      if (!profiles.length) {
-        stopped = 'end';
-        break;
-      }
-
-      let unfollowedHere = 0;
-
-      for (const profile of profiles) {
-        if (run.stopRequested) {
-          stopped = 'cancelled';
-          break pages;
-        }
-
-        const urn = String(profile.urn || '');
-        if (!urn || seen.has(urn)) continue;
-        seen.add(urn);
-
-        const name = nameOf(profile);
-
-        if (dryRun) {
-          previewed += 1;
-          if (names.length < NAME_CAP) names.push(name);
-          run.done = previewed;
-          run.lastName = name;
-          if (previewed >= limit) {
-            stopped = 'limit';
-            break pages;
-          }
-          continue;
-        }
-
-        attempted += 1;
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          await unfollowProfile({ profileUrn: urn });
-          unfollowed += 1;
-          unfollowedHere += 1;
-          failures = 0;
-          if (names.length < NAME_CAP) names.push(name);
-          run.done = unfollowed;
-          run.lastName = name;
-          // Announced only on a success, or a failure straight after the tenth
-          // would announce the same ten twice.
-          // eslint-disable-next-line no-await-in-loop
-          await announce(unfollowed, total);
-        } catch (e) {
-          if (isStandDown(e)) {
-            stopped = 'error';
-            error = e && e.message ? e.message : 'LinkedIn asked us to stop — stopped there.';
-            break pages;
-          }
-          failures += 1;
-          if (failures >= CONSECUTIVE_FAILURES_MAX) {
-            stopped = 'error';
-            error = `LinkedIn refused two unfollows in a row — stopped there. ${
-              (e && e.message) || ''
-            }`.trim();
-            break pages;
-          }
-        }
-
-        if (unfollowed >= limit) {
-          stopped = 'limit';
-          break pages;
-        }
-
-        // eslint-disable-next-line no-await-in-loop
-        await sleep(apiPauseMs());
-      }
-
-      // What is left of this page after the unfollowed rows fell out of it.
-      start += Math.max(0, profiles.length - unfollowedHere);
-      if (total && start >= total) {
-        stopped = 'end';
-        break;
-      }
+    await drain(followingQueue(), streams, pacing);
+    if (everyone && run.stopped === 'end') {
+      run.phase = UNFOLLOW_PHASE_SCANNING;
+      await drain(followersQueue(), streams, pacing);
     }
   } finally {
     endRun();
   }
 
-  const out = { unfollowed, attempted, names, stopped };
-  if (error) out.error = error;
+  const out = {
+    unfollowed: run.unfollowed,
+    attempted: run.attempted,
+    names: run.names,
+    stopped: run.stopped,
+  };
+  if (run.error) out.error = run.error;
   return out;
 }
 
@@ -965,9 +1398,18 @@ export async function unfollowAllApi(params = {}) {
 
 const isDom = (params) => (params && params.mode ? params.mode : UNFOLLOW_MODE_DEFAULT) === 'dom';
 
-/** `network.unfollowCount` — API unless the caller asked for `mode: 'dom'`. */
+/** Did the caller ask for the followers list as well? */
+const isEveryone = (params) => (params ? params.scope : '') === 'everyone';
+
+/**
+ * `network.unfollowCount` — API unless the caller asked for `mode: 'dom'`.
+ *
+ * `scope` is API-only. The DOM route reads the Following page's own header,
+ * and there is no followers page with an Unfollow button on it to click, so a
+ * `dom` count answers for the Following list whatever the scope says.
+ */
 export async function unfollowCount(params = {}) {
-  return isDom(params) ? unfollowCountDom() : unfollowCountApi();
+  return isDom(params) ? unfollowCountDom() : unfollowCountApi(params);
 }
 
 /** `network.unfollowAll` — API unless the caller asked for `mode: 'dom'`. */
