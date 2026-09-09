@@ -10,7 +10,12 @@
 
 import { el, render, fmtNumber } from '../../ui/dom.js';
 import { call } from '../../ui/api.js';
-import { ACTIONS } from '../../lib/actions.js';
+import {
+  ACTIONS,
+  UNFOLLOW_LIMIT_DEFAULT,
+  UNFOLLOW_LIMIT_MAX,
+  UNFOLLOW_LIMIT_MIN,
+} from '../../lib/actions.js';
 import {
   card,
   field,
@@ -512,25 +517,84 @@ function extractionCard(spec, shared) {
 /* ================================================================== */
 
 /**
- * Mass unfollow is not an extraction — it returns counts, not rows — so it is
- * not in `CARDS` and has no results panel. It lives here because it is the
- * only other thing you do to your own network, and because the engine will
- * only run it from the popup: it drives the tab you are looking at.
+ * Mass unfollow is not an extraction — it returns counts and names, not rows —
+ * so it is not in `CARDS`. It lives here because it is the only other thing
+ * you do to your own network, and because the engine will only run it from the
+ * popup: it drives the tab you are looking at.
+ *
+ * The card is built around not being surprised. "Unfollow up to" is filled in
+ * with 25 so the first run is small — set it to 1 and watch what happens to
+ * one person before you trust it with 800. "Preview" runs the identical walk
+ * with `dryRun`, clicking nothing, and lists the names. Only then does the
+ * red button, which says out loud how many it is about to unfollow.
  */
 export const UNFOLLOW_WARNING =
   'Runs in your active LinkedIn tab, clicking Unfollow one person at a time with 2–5 second ' +
   'gaps. There is no undo.';
 
+const accounts = (n) => `${fmtNumber(n)} account${n === 1 ? '' : 's'}`;
+
+/** A plain list of names with a heading, or an empty state. */
+function nameList(names, heading) {
+  if (!names.length) return empty('Nobody to unfollow.');
+  return el(
+    'div',
+    { class: 'itemlist', 'data-testid': 'unfollow-names' },
+    el('p', { class: 'status' }, heading),
+    el(
+      'ul',
+      { class: 'namelist' },
+      names.map((name) => el('li', null, name)),
+    ),
+  );
+}
+
 export function unfollowCard() {
   const err = errorLine();
   const status = statusLine();
+  const results = el('div');
+
+  const limitInput = input({
+    type: 'number',
+    min: UNFOLLOW_LIMIT_MIN,
+    max: UNFOLLOW_LIMIT_MAX,
+    step: 1,
+    value: String(UNFOLLOW_LIMIT_DEFAULT),
+    placeholder: 'All',
+    class: 'input input--num',
+    'data-testid': 'unfollow-limit',
+    'aria-label': 'Unfollow up to how many accounts',
+  });
+
+  /** `null` means "no limit" — the box was left empty on purpose. */
+  const readLimit = () => {
+    const raw = String(limitInput.value == null ? '' : limitInput.value).trim();
+    if (!raw) return null;
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n) || n < UNFOLLOW_LIMIT_MIN) {
+      throw new Error(
+        `Enter ${UNFOLLOW_LIMIT_MIN} or more, or clear the box to work through everyone.`,
+      );
+    }
+    if (n > UNFOLLOW_LIMIT_MAX) {
+      throw new Error(`One run does at most ${fmtNumber(UNFOLLOW_LIMIT_MAX)}.`);
+    }
+    return n;
+  };
+
+  const paramsFor = (extra) => {
+    const limit = readLimit();
+    return limit === null ? { ...extra } : { limit, ...extra };
+  };
 
   const countBtn = busyButton(
     'Check count',
     async () => {
       const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, {});
       const count = Number(data.count) || 0;
-      status.set(`${fmtNumber(count)} account${count === 1 ? '' : 's'} you can unfollow.`);
+      const sample = Array.isArray(data.sample) ? data.sample : [];
+      status.set(`${accounts(count)} you can unfollow.`);
+      render(results, sample.length ? nameList(sample, 'First few:') : null);
     },
     {
       variant: 'ghost',
@@ -539,24 +603,58 @@ export function unfollowCard() {
     },
   );
 
+  const previewBtn = busyButton(
+    'Preview',
+    async () => {
+      const params = paramsFor({ dryRun: true });
+      status.set('Reading your following list — nothing is being unfollowed…');
+      const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, params);
+      const names = Array.isArray(data.names) ? data.names : [];
+      status.set(
+        names.length
+          ? `Preview only — nothing was unfollowed. ${accounts(names.length)} would be:`
+          : 'Preview only — found nobody to unfollow.',
+      );
+      render(results, nameList(names, 'Would unfollow:'));
+    },
+    {
+      variant: 'ghost',
+      error: err,
+      ariaLabel: 'Preview who would be unfollowed, without unfollowing anyone',
+    },
+  );
+
   const unfollowBtn = busyButton(
     'Unfollow all',
     async () => {
+      const params = paramsFor({});
+      const limit = params.limit === undefined ? null : params.limit;
+      const target = limit === null ? 'everyone you follow' : accounts(limit);
+
       const sure = await confirmDialog({
-        title: 'Unfollow everyone?',
-        message: UNFOLLOW_WARNING,
-        confirmLabel: 'Unfollow all',
+        title: limit === null ? 'Unfollow everyone?' : `Unfollow up to ${fmtNumber(limit)}?`,
+        message: `This will unfollow ${target}. ${UNFOLLOW_WARNING}`,
+        confirmLabel: limit === null ? 'Unfollow all' : `Unfollow ${fmtNumber(limit)}`,
         danger: true,
       });
       if (!sure) {
         status.set('Cancelled — nothing was unfollowed.');
         return;
       }
-      status.set('Unfollowing in your LinkedIn tab…');
+
+      status.set(`Unfollowing ${target} in your LinkedIn tab…`);
       try {
-        const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, {});
+        const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, params);
         const count = Number(data.unfollowed) || 0;
-        status.set(`Unfollowed ${fmtNumber(count)} account${count === 1 ? '' : 's'}.`);
+        const names = Array.isArray(data.names) ? data.names : [];
+        const tail =
+          data.stopped === 'limit'
+            ? ' Stopped at your limit.'
+            : data.error
+              ? ` Stopped early: ${data.error}`
+              : '';
+        status.set(`Unfollowed ${accounts(count)}.${tail}`);
+        render(results, nameList(names, 'Unfollowed:'));
       } catch (e) {
         status.clear();
         throw e;
@@ -572,9 +670,11 @@ export function unfollowCard() {
   return card(
     'Mass unfollow',
     { hint: UNFOLLOW_WARNING, class: 'extract-unfollow' },
-    row(countBtn, unfollowBtn),
+    field('Unfollow up to', limitInput, 'Leave empty to work through everyone.'),
+    row(countBtn, previewBtn, unfollowBtn),
     status,
     err,
+    results,
   );
 }
 

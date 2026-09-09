@@ -690,6 +690,25 @@ a {
   border-radius: var(--radius-sm);
 }
 
+/* Plain names, one per line — the mass-unfollow preview and its results. */
+.namelist {
+  max-height: 220px;
+  margin: 0;
+  padding: 6px 10px 6px 24px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.namelist li {
+  padding: 1px 0;
+}
+
+/* A count, not a sentence: keep the box narrow so it reads as one. */
+.input--num {
+  max-width: 8ch;
+}
+
 .item.is-selected {
   border-color: var(--accent);
 }
