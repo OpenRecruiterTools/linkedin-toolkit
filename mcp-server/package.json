@@ -1,6 +1,7 @@
 {
   "name": "linkedin-toolkit-mcp",
-  "version": "2.0.0",
+  "version": "2.0.1",
+  "mcpName": "io.github.OpenRecruiterTools/linkedin-toolkit",
   "description": "MCP server, localhost bridge, HTTP action API, SQLite mirror and lit CLI for LinkedIn Toolkit.",
   "license": "MIT",
   "type": "module",
