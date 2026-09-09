@@ -21,7 +21,7 @@ returned. Queues them for human approval. Never sends silently.
 | `target` | yes | A `publicId`, a profile URL, or a `listId`. |
 | `goal` | yes | What the message is for: intro call, role pitch, partnership, advice, event invite. |
 | `tone` | no | `warm` (default), `direct`, `peer`, `formal`, `playful`. |
-| `channel` | no | `invite` (note, ≤ 300 chars), `message` (DM), `inmail` (subject + body). Default `invite`. |
+| `channel` | no | `invite` (note, ≤ 200 chars), `message` (DM), `inmail` (subject + body). Default `invite`. |
 | `sender_context` | no | Who the user is and why they are credible. Ask for it if missing — it is the difference between a good opener and a template. |
 
 ## Steps
@@ -34,7 +34,7 @@ returned. Queues them for human approval. Never sends silently.
 
 2. **Check connection state before choosing a channel.**
    `linkedin_get_connection_status` with `{ publicIds: ["..."] }`.
-   - `none` → `invite` (note ≤ 300 characters) or `inmail` if the account has credits.
+   - `none` → `invite` (note ≤ 200 characters) or `inmail` if the account has credits.
    - `pending` → do not write anything; the invite is already out.
    - `connected` → `message`.
 
@@ -49,7 +49,8 @@ returned. Queues them for human approval. Never sends silently.
    If none of these exist, say so and write a short, honest, non-personalised note. Do not invent
    a hook.
 
-4. **Draft.** Structure for a connection note (≤ 300 characters, hard limit):
+4. **Draft.** Structure for a connection note (**200 characters is LinkedIn's hard limit; aim for
+   180 or fewer** so a long name or job title cannot push it over):
    - Line 1: the hook, in their words not yours.
    - Line 2: why you specifically, one clause.
    - Line 3: a low-friction ask ("worth a chat?" not "book 30 minutes here").
@@ -94,7 +95,12 @@ For a list, the same block per person, then a summary: `12 drafts, 12 queued, 0 
 - **No flattery filler.** Ban list: "I was impressed by your profile", "your impressive
   background", "I hope this message finds you well", "I came across your profile", "quick
   question", "As an AI".
-- **Length is a hard limit, not a target.** 300 characters for an invite note — count them.
+- **Length is a hard limit, not a target.** **200 characters for an invite note** — count them, and
+  aim for 180. The engine refuses a longer note with `INVALID_PARAMS` before it spends any quota,
+  so an over-long draft is a wasted turn, not a sent message.
+- **A note is a scarce resource on a free account.** LinkedIn allows only a handful of personalised
+  (with-note) invitations a month; when they run out the invite is refused with `LINKEDIN_ERROR`.
+  Spend notes where the hook is genuinely specific, and offer a note-less invite otherwise.
 - **One ask per message.** No calendar links in a first touch unless the user insists.
 - **Copilot mode is the default.** Assume every write queues for human approval. Never tell the
   user something was sent unless the tool returned `status: "sent"`.

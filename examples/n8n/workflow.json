@@ -14,7 +14,7 @@
       "typeVersion": 2,
       "position": [-360, 0],
       "webhookId": "a1000000-0000-4000-8000-000000000001",
-      "notes": "Set webhookUrl in ~/.linkedin-toolkit/config.json (or `lit config set webhookUrl <url>`) to this production URL. The server POSTs { event, payload } for invite_accepted, reply_received, positive_reply, campaign_step_done, campaign_completed, quota_hit, challenge_detected, queue_item_added, queue_item_sent, research_progress, research_completed."
+      "notes": "Set webhookUrl in ~/.linkedin-toolkit/config.json (or `lit config set webhookUrl <url>`) to this production URL. The server POSTs { event, payload } for invite_accepted, reply_received, positive_reply, campaign_step_done, campaign_completed, quota_hit, challenge_detected, queue_item_added, queue_item_sent, campaign_note_truncated, research_progress, research_completed."
     },
     {
       "parameters": {

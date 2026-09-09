@@ -79,6 +79,19 @@ window, and the caps.
 | **451** security challenge | **Pauses every write immediately**, notifies you in the popup and by webhook, and stays paused | `CHALLENGE_DETECTED` |
 | A cap is spent | Refuses the action outright — never a silent partial | `QUOTA_EXCEEDED` with the cap |
 
+A cap unit is **reserved before the request and stays spent when LinkedIn refuses it**. A refused
+write may still have been counted at LinkedIn's end, and over-counting our own quota is safe where
+under-counting is not. The one exception is a send the engine refused itself, on its own
+validation, before anything left the browser — an invitation note over the 200-character limit,
+say: nothing reached LinkedIn, so the reservation is handed back.
+
+LinkedIn runs its own allowances underneath ours, and they are not visible through any API. On a
+free account the one that bites first is **personalised invitations**: only a handful with a note
+each month, after which the invitation is refused whatever your daily cap says. The engine reports
+that as `LINKEDIN_ERROR` with advice to send without a note or wait for the reset — it is not a bug
+and retrying will not help. Invitation notes themselves are capped at 200 characters by LinkedIn;
+aim for 180 or fewer so a rendered name and job title cannot push a template over.
+
 A challenge does not clear itself and the engine will not clear it for you. You go to Chrome,
 complete whatever LinkedIn asks, and resume manually. There is no retry loop, no "wait and try
 again", no alternate route. That is deliberate: automatic retry after a challenge is precisely how

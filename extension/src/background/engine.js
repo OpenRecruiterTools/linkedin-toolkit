@@ -117,7 +117,14 @@ export async function handle(action, params = {}, origin = 'popup') {
   const id = nextId();
 
   const check = validateParams(action, params);
-  if (!check.ok) return err(id, ERROR.INVALID_PARAMS, check.message);
+  if (!check.ok) {
+    return err(
+      id,
+      ERROR.INVALID_PARAMS,
+      check.message,
+      check.howToFix ? { howToFix: check.howToFix } : undefined,
+    );
+  }
 
   const fn = handlers.get(action);
   if (!fn) return err(id, ERROR.NOT_FOUND, `no handler registered for ${action}`);
