@@ -2670,7 +2670,22 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "dom"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "following",
+                      "everyone"
+                    ]
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -2702,6 +2717,28 @@
                           "properties": {
                             "count": {
                               "type": "number"
+                            },
+                            "sample": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "followers": {
+                              "type": "object",
+                              "properties": {
+                                "total": {
+                                  "type": "number"
+                                },
+                                "stillFollowing": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "total",
+                                "stillFollowing"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -2754,7 +2791,37 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000
+                  },
+                  "dryRun": {
+                    "type": "boolean"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "dom"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "following",
+                      "everyone"
+                    ]
+                  },
+                  "speed": {
+                    "type": "string",
+                    "enum": [
+                      "careful",
+                      "fast"
+                    ]
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -2786,10 +2853,223 @@
                           "properties": {
                             "unfollowed": {
                               "type": "number"
+                            },
+                            "attempted": {
+                              "type": "number"
+                            },
+                            "names": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "stopped": {
+                              "type": "string",
+                              "enum": [
+                                "limit",
+                                "end",
+                                "error",
+                                "cancelled"
+                              ]
+                            },
+                            "error": {
+                              "type": "string"
                             }
                           },
                           "required": [
-                            "unfollowed"
+                            "unfollowed",
+                            "attempted",
+                            "names"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rateLimit": {
+                          "$ref": "#/components/schemas/RateLimit"
+                        }
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/network.unfollowStop": {
+      "post": {
+        "operationId": "action_network_unfollowStop",
+        "summary": "network.unfollowStop",
+        "description": "Run the `network.unfollowStop` action on the connected extension.",
+        "tags": [
+          "network"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ok",
+                        "data"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "const": true
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "stopping": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "stopping"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rateLimit": {
+                          "$ref": "#/components/schemas/RateLimit"
+                        }
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/network.unfollowStatus": {
+      "post": {
+        "operationId": "action_network_unfollowStatus",
+        "summary": "network.unfollowStatus",
+        "description": "Run the `network.unfollowStatus` action on the connected extension.",
+        "tags": [
+          "network"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ok",
+                        "data"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "const": true
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "running": {
+                              "type": "boolean"
+                            },
+                            "done": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            },
+                            "phase": {
+                              "type": "string",
+                              "const": "scanning"
+                            },
+                            "scanned": {
+                              "type": "number"
+                            },
+                            "scannedTotal": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "running",
+                            "done",
+                            "total",
+                            "lastName"
                           ],
                           "additionalProperties": false
                         },

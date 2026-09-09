@@ -113,7 +113,7 @@ describe('dry_run parity with the server', () => {
 
     const offered = ACTIONS.filter((action) => signatureFor(methods, action).includes('dry_run')).sort();
     expect(offered).toEqual(actions);
-    expect(Object.keys(ACTION_METHODS)).toHaveLength(51);
+    expect(Object.keys(ACTION_METHODS)).toHaveLength(53);
   });
 
   it('does not offer dry_run on the writes that never reach LinkedIn', () => {

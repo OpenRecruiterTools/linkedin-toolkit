@@ -230,19 +230,46 @@ class ActionMethods:
         params = {"publicIds": publicIds}
         return self._invoke("network.status", {k: v for k, v in params.items() if v is not None})
 
-    def network_unfollow_count(self) -> Any:
+    def network_unfollow_count(self, *, mode: Optional[str] = None, scope: Optional[str] = None) -> Any:
         """``network.unfollowCount``.
 
         Run the `network.unfollowCount` action on the connected extension.
-        """
-        return self._invoke("network.unfollowCount", {})
 
-    def network_unfollow_all(self) -> Any:
+        Args:
+            mode (str): (one of "api", "dom") Optional.
+            scope (str): (one of "following", "everyone") Optional.
+        """
+        params = {"mode": mode, "scope": scope}
+        return self._invoke("network.unfollowCount", {k: v for k, v in params.items() if v is not None})
+
+    def network_unfollow_all(self, *, limit: Optional[int] = None, dryRun: Optional[bool] = None, mode: Optional[str] = None, scope: Optional[str] = None, speed: Optional[str] = None) -> Any:
         """``network.unfollowAll``.
 
         Run the `network.unfollowAll` action on the connected extension.
+
+        Args:
+            limit (int): (min 1; max 5000) Optional.
+            dryRun (bool): Optional.
+            mode (str): (one of "api", "dom") Optional.
+            scope (str): (one of "following", "everyone") Optional.
+            speed (str): (one of "careful", "fast") Optional.
         """
-        return self._invoke("network.unfollowAll", {})
+        params = {"limit": limit, "dryRun": dryRun, "mode": mode, "scope": scope, "speed": speed}
+        return self._invoke("network.unfollowAll", {k: v for k, v in params.items() if v is not None})
+
+    def network_unfollow_stop(self) -> Any:
+        """``network.unfollowStop``.
+
+        Run the `network.unfollowStop` action on the connected extension.
+        """
+        return self._invoke("network.unfollowStop", {})
+
+    def network_unfollow_status(self) -> Any:
+        """``network.unfollowStatus``.
+
+        Run the `network.unfollowStatus` action on the connected extension.
+        """
+        return self._invoke("network.unfollowStatus", {})
 
     def outreach_view(self, *, publicId: str, dry_run: Optional[bool] = None) -> Any:
         """``outreach.view``.
@@ -745,6 +772,8 @@ ACTION_METHODS: dict[str, str] = {
     "network.status": "network_status",
     "network.unfollowCount": "network_unfollow_count",
     "network.unfollowAll": "network_unfollow_all",
+    "network.unfollowStop": "network_unfollow_stop",
+    "network.unfollowStatus": "network_unfollow_status",
     "outreach.view": "outreach_view",
     "outreach.follow": "outreach_follow",
     "outreach.invite": "outreach_invite",

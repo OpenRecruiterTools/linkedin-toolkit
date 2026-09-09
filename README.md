@@ -30,12 +30,21 @@ all. No headless browser, no proxies, no cloud session, no telemetry, no subscri
 ## Install in 3 lines
 
 ```bash
-# 1. Get the extension: download linkedin-toolkit-extension-v2.0.0.zip from Releases, unzip it,
+# 1. Get the extension: download linkedin-toolkit-extension-v2.0.4.zip from Releases, unzip it,
 #    then chrome://extensions → Developer mode → Load unpacked → pick the folder
 # 2. Start the server (it prints a pairing token)
 npx linkedin-toolkit-mcp
 # 3. Paste the token into the extension popup → Settings → Local bridge
 ```
+
+Never installed an unpacked Chrome extension before, or only want the extension and not
+the agent half? [**docs/install.md**](docs/install.md) walks through it with screenshots,
+and shows how to clean up your feed with mass unfollow — Preview first, then a small
+number, then the rest. Read the "Connections are followed too" part before you decide
+the feature is broken: LinkedIn's Following list does not include your connections,
+who are followed automatically when you connect, so emptying that list to zero leaves
+a feed still full of posts. Ticking "Also unfollow my connections" scans your
+followers list instead, which is the only place that state is visible.
 
 Then point your agent at it. Claude Code, `.mcp.json` in your project root:
 

@@ -36,6 +36,8 @@ export const ACTIONS = Object.freeze({
   NETWORK_STATUS: 'network.status',
   NETWORK_UNFOLLOW_COUNT: 'network.unfollowCount',
   NETWORK_UNFOLLOW_ALL: 'network.unfollowAll',
+  NETWORK_UNFOLLOW_STOP: 'network.unfollowStop',
+  NETWORK_UNFOLLOW_STATUS: 'network.unfollowStatus',
 
   OUTREACH_VIEW: 'outreach.view',
   OUTREACH_FOLLOW: 'outreach.follow',
@@ -119,6 +121,7 @@ export const EVENTS = Object.freeze({
   CAMPAIGN_NOTE_TRUNCATED: 'campaign_note_truncated',
   RESEARCH_PROGRESS: 'research_progress',
   RESEARCH_COMPLETED: 'research_completed',
+  UNFOLLOW_PROGRESS: 'unfollow_progress',
 });
 
 /* ================================================================== */
@@ -143,6 +146,98 @@ export const INVITE_NOTE_MAX = 200;
 
 /** The one sentence every layer says when a note is too long. */
 export const INVITE_NOTE_FIX = 'LinkedIn limits invitation notes to 200 characters.';
+
+/* ------------------------------------------------------------------ */
+/*  Mass unfollow                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * How many accounts one `network.unfollowAll` run may touch.
+ *
+ * The floor is 1 because the whole point of the limit is that you can try the
+ * thing on one person before you trust it with your whole list. The ceiling is
+ * a sanity bound, not a safety one: a run of 5,000 already takes most of a day
+ * at human pace, and anything larger is a typo rather than an intention.
+ */
+export const UNFOLLOW_LIMIT_MIN = 1;
+export const UNFOLLOW_LIMIT_MAX = 5000;
+
+/** What the popup puts in the box before you touch it. */
+export const UNFOLLOW_LIMIT_DEFAULT = 25;
+
+/** The one sentence every layer says when the limit is out of range. */
+export const UNFOLLOW_LIMIT_FIX =
+  `limit must be between ${UNFOLLOW_LIMIT_MIN} and ${UNFOLLOW_LIMIT_MAX}; ` +
+  'leave it out to walk the whole list.';
+
+/** How many names `network.unfollowCount` returns as a sample. */
+export const UNFOLLOW_SAMPLE_MAX = 10;
+
+/**
+ * How a run reaches the following list.
+ *
+ * `api` reads the curation-hub search that LinkedIn's own Following manager
+ * reads (`resultType: PEOPLE_FOLLOW`) and unfollows with the same
+ * `followingStates` patch its buttons send. It needs no tab, it is roughly
+ * three times faster, and — because it never touches the DOM — it cannot be
+ * broken by a markup change.
+ *
+ * `dom` is the original: it drives the user's own visible tab, clicking the
+ * page the way a person would. It is kept as the fallback for the day LinkedIn
+ * changes the query id or the patch shape, because a page a human can click is
+ * the one thing that cannot go stale.
+ */
+export const UNFOLLOW_MODES = Object.freeze(['api', 'dom']);
+export const UNFOLLOW_MODE_DEFAULT = 'api';
+
+/**
+ * Which list a run works through.
+ *
+ * `following` is LinkedIn's own Following list, and it is the default because
+ * it is what every earlier build did. `everyone` adds a second pass over your
+ * *followers*, because connections are followed automatically when you connect
+ * and never appear on the Following list at all — so a list that reads zero
+ * can still leave a feed full of posts. The followers list is the only read
+ * that carries each person's follow state, which is why it takes a scan rather
+ * than a count.
+ *
+ * It is API-only: there is no followers page with an Unfollow button on it to
+ * click, so `mode: 'dom'` answers for the Following list whatever the scope
+ * says.
+ */
+export const UNFOLLOW_SCOPES = Object.freeze(['following', 'everyone']);
+export const UNFOLLOW_SCOPE_DEFAULT = 'following';
+export const UNFOLLOW_SCOPE_EVERYONE = 'everyone';
+
+/**
+ * How hard a run pushes.
+ *
+ * `careful` is one request at a time with a 0.8–1.6 s gap — the default, and
+ * the one to use. `fast` runs three streams over the same list at 0.5–0.9 s
+ * each, so about four unfollows a second: several times quicker, and several
+ * times more likely to be the thing LinkedIn rate-limits.
+ */
+export const UNFOLLOW_SPEEDS = Object.freeze(['careful', 'fast']);
+export const UNFOLLOW_SPEED_DEFAULT = 'careful';
+export const UNFOLLOW_SPEED_FAST = 'fast';
+
+/**
+ * The one phase an `unfollow_progress` event ever names.
+ *
+ * With it, `done` and `total` are followers read out of followers there are;
+ * without it, they are people unfollowed out of people to unfollow. A reader
+ * that ignores `phase` would show a scan of 9,479 as an unfollow of 9,479.
+ */
+export const UNFOLLOW_PHASE_SCANNING = 'scanning';
+
+/**
+ * Why a run ended.
+ *
+ * `cancelled` is `network.unfollowStop` — the person pressed Stop — and is
+ * deliberately distinct from `error`: nothing went wrong, and the names
+ * already unfollowed are still reported.
+ */
+export const UNFOLLOW_STOPPED = Object.freeze(['limit', 'end', 'error', 'cancelled']);
 
 /** Floors and ceilings that are not part of HARD_CAPS but are still enforced. */
 const MIN_DELAY_MS = 3000;
@@ -212,6 +307,7 @@ export function err(id, code, message, extra) {
  *   required : { field: 'string'|'number'|'boolean'|'array'|'object' }
  *   optional : same shape
  *   enums    : { field: [allowed, …] }
+ *   min      : { field: floor }    (numeric, inclusive)
  *   max      : { field: ceiling }  (numeric, inclusive)
  *   maxLength: { field: ceiling }  (string length, inclusive)
  *   fix      : { field: howToFix } (advice attached when that field is refused)
@@ -277,8 +373,30 @@ const PARAM_SPECS = {
   [ACTIONS.NETWORK_CONNECTIONS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_FOLLOWERS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_STATUS]: { required: { publicIds: 'array' } },
-  [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {},
-  [ACTIONS.NETWORK_UNFOLLOW_ALL]: {},
+  [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
+    optional: { mode: 'string', scope: 'string' },
+    enums: { mode: UNFOLLOW_MODES, scope: UNFOLLOW_SCOPES },
+  },
+  // `limit` is the safety rail: run it on one person first, then five, and
+  // only then trust it with everything. `dryRun` walks the same list and
+  // unfollows nobody, so the names can be read before anything is undoable.
+  // `scope` adds the followers list as a second source; `speed` trades the
+  // one-at-a-time pace for three streams.
+  [ACTIONS.NETWORK_UNFOLLOW_ALL]: {
+    optional: {
+      limit: 'number',
+      dryRun: 'boolean',
+      mode: 'string',
+      scope: 'string',
+      speed: 'string',
+    },
+    enums: { mode: UNFOLLOW_MODES, scope: UNFOLLOW_SCOPES, speed: UNFOLLOW_SPEEDS },
+    min: { limit: UNFOLLOW_LIMIT_MIN },
+    max: { limit: UNFOLLOW_LIMIT_MAX },
+    fix: { limit: UNFOLLOW_LIMIT_FIX },
+  },
+  [ACTIONS.NETWORK_UNFOLLOW_STOP]: {},
+  [ACTIONS.NETWORK_UNFOLLOW_STATUS]: {},
 
   [ACTIONS.OUTREACH_VIEW]: { required: { publicId: 'string' } },
   [ACTIONS.OUTREACH_FOLLOW]: { required: { publicId: 'string' } },
@@ -413,6 +531,7 @@ export function validateParams(action, params = {}) {
   const required = spec.required || {};
   const optional = spec.optional || {};
   const enums = spec.enums || {};
+  const min = spec.min || {};
   const max = spec.max || {};
   const maxLength = spec.maxLength || {};
   const fix = spec.fix || {};
@@ -442,6 +561,13 @@ export function validateParams(action, params = {}) {
     if (p[field] === undefined || p[field] === null) continue;
     if (!allowed.includes(p[field])) {
       return { ok: false, message: `${field} must be one of: ${allowed.join(', ')}` };
+    }
+  }
+
+  for (const [field, floor] of Object.entries(min)) {
+    if (p[field] === undefined || p[field] === null) continue;
+    if (p[field] < floor) {
+      return refuse(field, `${field} must be ${floor} or more`);
     }
   }
 

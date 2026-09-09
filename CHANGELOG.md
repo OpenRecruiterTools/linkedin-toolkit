@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] — 2026-09-09
+
+### Added
+- **Mass unfollow now talks to LinkedIn directly.** `network.unfollowAll` pages the Following list through the curation-hub search (`resultType: PEOPLE_FOLLOW`) and sends the `followingStates` patch its Unfollow button sends — both captured live from client 1.13.46516. It needs no tab, it cannot be broken by a markup change, and at a randomised 0.8–1.6 s per person it is about three times faster than clicking: a 735-person list is roughly fifteen minutes rather than an hour. `network.unfollowCount` answers from `totalResultCount` in one request.
+- `network.unfollowStop` and `network.unfollowStatus` (both popup-only): Stop ends a run between people and reports `stopped: 'cancelled'`, keeping everything already done; Status is `{ running, done, total, lastName }` for a progress line.
+- Event `unfollow_progress { done, total }`, emitted every 10 successful unfollows and never during a `dryRun`.
+- The unfollow card has a live progress line, a Stop button, and the mode behind an "Advanced" toggle.
+- **`scope: 'everyone'` — the connections LinkedIn never lists.** Verified on a real account: the Following list does *not* include your connections. LinkedIn follows everybody you connect with automatically, and you go on following them after that list has been emptied to zero — which is why a feed that should be silent is still full of posts. `network.unfollowAll { scope: 'everyone' }` adds a second source after the Following list: a page-by-page scan of your followers (the same curation-hub query with `resultType: FOLLOWERS`, fifty a page with a 0.4–0.8 s gap), unfollowing every row whose own `FollowingState` still says true. The limit, the Stop flag, the seen set, the failure counter and the challenge latch all carry across both sources, so a limit of 15 is 15 people rather than 15 each, and somebody on both lists is unfollowed once.
+- `network.unfollowCount { scope: 'everyone' }` does the same scan without unfollowing anybody and answers `{ count, sample, followers: { total, stillFollowing } }` — how many follow you, and how many of those you are still following. `count` is the two lists added together, an upper bound, because the run itself dedupes.
+- **`speed: 'fast'` — three streams instead of one.** Three unfollows in flight at a time over one shared queue and one set of limit slots, each stream with its own randomised 0.5–0.9 s gap: about four a second against one. Slots are claimed before a request is sent, so three streams cannot overshoot a limit of one, and a 401/403/429/451 on any stream ends all three. `careful` (one at a time, 0.8–1.6 s) remains the default, and a `dryRun` always runs on one stream because a preview sends nothing.
+- The followers-list read is in `ENDPOINTS.curationHub` as a verified entry alongside the Following list — same query id, same origin, one operand apart — with `getFollowersFollowing()` stamping each profile with the `FollowingState` LinkedIn sent for it, and `docs/voyager-endpoints.md` written up to match. Anything that is not literally `following: true` reads as false, so an unrecognised shape can only mean "leave this person alone".
+- Two checkboxes on the unfollow card: "Also unfollow my connections (scans your followers list; slower)" and "Fast (3 at a time — more likely to trip LinkedIn's rate limit)". The progress line reads `Scanning followers… 1,200 of 9,479` during the scan, and Check count reports what the scan found.
+- `unfollow_progress` gains an optional `phase: 'scanning'`, where `done`/`total` are followers *read* rather than people unfollowed, and `network.unfollowStatus` gains `phase`, `scanned` and `scannedTotal` while a scan is running.
+
+### Changed
+- `network.unfollowCount` and `network.unfollowAll` take `mode: 'api' | 'dom'`, defaulting to `api`. The old tab-clicking run is `mode: 'dom'` — slower and fragile, kept because a page a human can click is what still works the day LinkedIn rotates a query id.
+- No quota bucket is charged for unfollows: the four buckets meter what LinkedIn restricts accounts over, and removing your own subscriptions is not one of them. The challenge latch still applies, and a run stands down on 401/403/429/451 or on two failures in a row.
+- `scripts/zip-extension.mjs` names the zip from `GITHUB_REF_NAME` when it looks like a version, falling back to the manifest (#20). A tagged release can no longer ship under a stale manifest version.
+
 ## [2.0.3] — 2026-09-09
 
 ### Fixed

@@ -74,7 +74,7 @@ export const RESOURCES: Array<{ name: string; value: string; description: string
   {
     "name": "Network",
     "value": "network",
-    "description": "5 operation(s)."
+    "description": "7 operation(s)."
   },
   {
     "name": "Outreach",
@@ -811,7 +811,46 @@ export const ACTIONS: ActionSpec[] = [
     "description": "Run the `network.unfollowCount` action on the connected extension.",
     "write": false,
     "required": [],
-    "optional": []
+    "optional": [
+      {
+        "name": "network_unfollowCount_mode",
+        "key": "mode",
+        "displayName": "Mode",
+        "required": false,
+        "description": "One of api, dom.",
+        "type": "options",
+        "default": "api",
+        "options": [
+          {
+            "name": "API",
+            "value": "api"
+          },
+          {
+            "name": "Dom",
+            "value": "dom"
+          }
+        ]
+      },
+      {
+        "name": "network_unfollowCount_scope",
+        "key": "scope",
+        "displayName": "Scope",
+        "required": false,
+        "description": "One of following, everyone.",
+        "type": "options",
+        "default": "following",
+        "options": [
+          {
+            "name": "Following",
+            "value": "following"
+          },
+          {
+            "name": "Everyone",
+            "value": "everyone"
+          }
+        ]
+      }
+    ]
   },
   {
     "action": "network.unfollowAll",
@@ -820,6 +859,104 @@ export const ACTIONS: ActionSpec[] = [
     "operation": "unfollowAll",
     "displayName": "Unfollow All",
     "description": "Run the `network.unfollowAll` action on the connected extension.",
+    "write": false,
+    "required": [],
+    "optional": [
+      {
+        "name": "network_unfollowAll_limit",
+        "key": "limit",
+        "displayName": "Limit",
+        "required": false,
+        "description": "minimum 1; maximum 5000.",
+        "type": "number",
+        "default": 0
+      },
+      {
+        "name": "network_unfollowAll_dryRun",
+        "key": "dryRun",
+        "displayName": "Dry Run",
+        "required": false,
+        "description": "The Dry Run parameter.",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "name": "network_unfollowAll_mode",
+        "key": "mode",
+        "displayName": "Mode",
+        "required": false,
+        "description": "One of api, dom.",
+        "type": "options",
+        "default": "api",
+        "options": [
+          {
+            "name": "API",
+            "value": "api"
+          },
+          {
+            "name": "Dom",
+            "value": "dom"
+          }
+        ]
+      },
+      {
+        "name": "network_unfollowAll_scope",
+        "key": "scope",
+        "displayName": "Scope",
+        "required": false,
+        "description": "One of following, everyone.",
+        "type": "options",
+        "default": "following",
+        "options": [
+          {
+            "name": "Following",
+            "value": "following"
+          },
+          {
+            "name": "Everyone",
+            "value": "everyone"
+          }
+        ]
+      },
+      {
+        "name": "network_unfollowAll_speed",
+        "key": "speed",
+        "displayName": "Speed",
+        "required": false,
+        "description": "One of careful, fast.",
+        "type": "options",
+        "default": "careful",
+        "options": [
+          {
+            "name": "Careful",
+            "value": "careful"
+          },
+          {
+            "name": "Fast",
+            "value": "fast"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "action": "network.unfollowStop",
+    "key": "network_unfollowStop",
+    "resource": "network",
+    "operation": "unfollowStop",
+    "displayName": "Unfollow Stop",
+    "description": "Run the `network.unfollowStop` action on the connected extension.",
+    "write": false,
+    "required": [],
+    "optional": []
+  },
+  {
+    "action": "network.unfollowStatus",
+    "key": "network_unfollowStatus",
+    "resource": "network",
+    "operation": "unfollowStatus",
+    "displayName": "Unfollow Status",
+    "description": "Run the `network.unfollowStatus` action on the connected extension.",
     "write": false,
     "required": [],
     "optional": []

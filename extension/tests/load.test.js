@@ -69,7 +69,7 @@ const call = async (action, params = {}) => {
 describe('the service worker registers the documented contract', () => {
   it('has a handler for every action in docs/actions.md', () => {
     const documented = documentedActions();
-    expect(documented.length).toBe(51);
+    expect(documented.length).toBe(53);
     const registered = new Set(registeredActions());
     expect(documented.filter((action) => !registered.has(action))).toEqual([]);
   });

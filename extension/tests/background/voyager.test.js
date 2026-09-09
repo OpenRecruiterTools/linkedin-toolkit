@@ -16,6 +16,8 @@ import reactions from '../fixtures/voyager/reactions.json';
 import comments from '../fixtures/voyager/comments.json';
 import connections from '../fixtures/voyager/connections.json';
 import followers from '../fixtures/voyager/followers.json';
+import following from '../fixtures/voyager/following.json';
+import followersFollowing from '../fixtures/voyager/followersFollowing.json';
 import groupMembers from '../fixtures/voyager/groupMembers.json';
 import eventAttendees from '../fixtures/voyager/eventAttendees.json';
 import conversations from '../fixtures/voyager/conversations.json';
@@ -68,6 +70,14 @@ describe('endpoint catalogue', () => {
     expect(Object.keys(v.ENDPOINTS.unverified)).toContain('comments');
     expect(Object.keys(v.ENDPOINTS.unverified)).toContain('followingStates');
     expect(v.ENDPOINTS.comments).toBeUndefined();
+  });
+
+  it('separates the verified unfollow patch from the unverified toggle', () => {
+    // Same base path, two spellings, because only one of them has been watched
+    // working: the bare POST an unfollow sends, not `?action=toggleFollow`.
+    expect(v.ENDPOINTS.followingStates).toBe('/feed/dash/followingStates');
+    expect(v.ENDPOINTS.unverified.followingStates).toBe('/feed/dash/followingStates');
+    expect(v.UNFOLLOW_CAPTURED).toEqual({ at: '2026-09-09', clientVersion: '1.13.46516' });
   });
 
   it('the invitation write is verified, and records its own capture', () => {
@@ -546,6 +556,103 @@ describe('audiences', () => {
     expect(out.profiles[0].publicId).toBe('danadupont');
     // Followers carry no distance, so nothing may be claimed about it.
     expect('connectionDegree' in out.profiles[0]).toBe(false);
+  });
+
+  it('getFollowing reads the same surface with the PEOPLE_FOLLOW facet', async () => {
+    net.push(following);
+    const out = await v.getFollowing({ start: 0, count: 10 });
+    expect(net.calls[0].url).toContain(v.ENDPOINTS.queryIds.searchClusters);
+    expect(urlOf(0)).toContain('(key:resultType,value:List(PEOPLE_FOLLOW))');
+    expect(urlOf(0)).toContain('flagshipSearchIntent:MYNETWORK_CURATION_HUB');
+    // The total is the whole list, not the page — the reason no tab is needed.
+    expect(out.total).toBe(12);
+    expect(out.profiles).toHaveLength(10);
+    expect(out.profiles[0].fullName).toBe('Marlow Ashcombe');
+    expect(out.profiles[0].urn).toMatch(/^urn:li:fsd_profile:/);
+  });
+
+  it('getFollowersFollowing sends the followers facet fifty at a time', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(decodeURIComponent(urlOf(0))).toBe(
+      'https://www.linkedin.com/voyager/api/graphql?variables=' +
+        '(start:0,count:50,origin:CurationHub,query:(flagshipSearchIntent:MYNETWORK_CURATION_HUB,' +
+        'includeFiltersInResponse:true,queryParameters:List((key:resultType,value:List(FOLLOWERS)))))' +
+        '&queryId=voyagerSearchDashClusters.e438ab99259203e9c1cd3f358e217282',
+    );
+    // The same request as the Following list, one operand apart.
+    expect(urlOf(0)).toContain(v.ENDPOINTS.queryIds.searchClusters);
+    expect(out.total).toBe(10);
+    expect(out.profiles).toHaveLength(6);
+  });
+
+  it('stamps each follower with the FollowingState LinkedIn sent for them', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(out.profiles.map((p) => [p.fullName, p.following])).toEqual([
+      ['Aurelie Vasterling', true],
+      ['Bramwell Ostrander', false],
+      ['Corentin Ashby-Fell', true],
+      ['Delphine Marchetti', true],
+      ['Emeric Sandoval', false],
+      ['Fenella Quintrell', true],
+    ]);
+  });
+
+  it('reads a follower with no state of its own as not followed', async () => {
+    // A shape we do not recognise must mean "leave this person alone", never
+    // "unfollow somebody we know nothing about".
+    const stripped = {
+      ...followersFollowing,
+      included: followersFollowing.included.filter(
+        (e) => !String(e.$type).endsWith('feed.FollowingState'),
+      ),
+    };
+    net.push(stripped);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(out.profiles).toHaveLength(6);
+    expect(out.profiles.every((p) => p.following === false)).toBe(true);
+  });
+
+  it('never takes a name from the Profile rows, which do not carry one', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    // Six followers came back, not eighteen: the Profile and FollowingState
+    // rows in `included` are not people in their own right.
+    expect(out.profiles).toHaveLength(6);
+    expect(out.profiles.every((p) => p.fullName)).toBe(true);
+  });
+
+  it('unfollowProfile POSTs the captured patch to the percent-encoded urn', async () => {
+    net.push({});
+    await v.unfollowProfile({
+      profileUrn: 'urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWING000xx',
+    });
+
+    const call = net.last();
+    expect(call.method).toBe('POST');
+    expect(call.url).toBe(
+      'https://www.linkedin.com/voyager/api/feed/dash/followingStates/' +
+        'urn%3Ali%3Afsd_followingState%3Aurn%3Ali%3Afsd_profile%3AACoAAAF000FIXTUREFOLLOWING000xx',
+    );
+    // No `?action=` — the captured unfollow sends none.
+    expect(call.url).not.toContain('?');
+    expect(call.body).toBe('{"patch":{"$set":{"following":false}}}');
+    expect(call.headers['content-type']).toBe('application/json; charset=UTF-8');
+  });
+
+  it('unfollowProfile refuses a urn it cannot address', async () => {
+    const error = await v.unfollowProfile({ profileUrn: '' }).catch((e) => e);
+    expect(error.code).toBe(ERROR.INVALID_PARAMS);
+    expect(net.calls).toEqual([]);
   });
 
   it('group members and event attendees report themselves as unverified', async () => {

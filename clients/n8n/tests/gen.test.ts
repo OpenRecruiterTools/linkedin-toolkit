@@ -31,7 +31,7 @@ describe('npm run gen', () => {
       .map((path) => path.slice('/actions/'.length))
       .sort();
     expect(ACTIONS.map((action) => action.action).sort()).toEqual(served);
-    expect(ACTIONS).toHaveLength(51);
+    expect(ACTIONS).toHaveLength(53);
   });
 
   it('groups them into the contract namespaces', () => {

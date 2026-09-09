@@ -111,6 +111,18 @@ function makeProfile(seed: Seed, index: number) {
 
 export const FAKE_PROFILES = SEEDS.map(makeProfile);
 
+/** Who the fake account "follows" — the names mass unfollow reports on. */
+export const FAKE_FOLLOWING = SEEDS.slice(0, 7).map(([first, last]) => `${first} ${last}`);
+
+/**
+ * The people the demo account follows who are *not* on its Following list —
+ * connections, followed automatically on connect. Only a `scope: 'everyone'`
+ * run turns them up, which is the whole point of the option.
+ */
+export const FAKE_CONNECTIONS_FOLLOWED = SEEDS.slice(7, 10).map(
+  ([first, last]) => `${first} ${last}`,
+);
+
 const COMPANY_NAMES = [...new Set(SEEDS.map((seed) => seed[3]))];
 
 export const FAKE_COMPANIES = COMPANY_NAMES.map((name, index) => ({
@@ -621,8 +633,37 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
         }),
       ),
     }),
-    'network.unfollowCount': () => ({ count: 7 }),
-    'network.unfollowAll': () => ({ unfollowed: 7 }),
+    // `scope: 'everyone'` also reports the demo followers scan, because that is
+    // the shape a caller has to be ready for — three of the fake followers are
+    // "connections" the fake Following list never mentions.
+    'network.unfollowCount': (params: any) =>
+      params?.scope === 'everyone'
+        ? {
+            count: FAKE_FOLLOWING.length + FAKE_CONNECTIONS_FOLLOWED.length,
+            sample: [...FAKE_FOLLOWING, ...FAKE_CONNECTIONS_FOLLOWED].slice(0, 10),
+            followers: { total: 24, stillFollowing: FAKE_CONNECTIONS_FOLLOWED.length },
+          }
+        : { count: 7, sample: FAKE_FOLLOWING.slice(0, 7) },
+    'network.unfollowAll': (params: any) => {
+      const pool =
+        params?.scope === 'everyone'
+          ? [...FAKE_FOLLOWING, ...FAKE_CONNECTIONS_FOLLOWED]
+          : FAKE_FOLLOWING;
+      const limit = Math.min(Number(params?.limit) || pool.length, pool.length);
+      const names = pool.slice(0, limit);
+      return params?.dryRun
+        ? { unfollowed: 0, attempted: 0, names, stopped: 'end' }
+        : { unfollowed: names.length, attempted: names.length, names, stopped: 'end' };
+    },
+    // The demo run is synchronous, so there is never anything in flight to
+    // stop or to report on. Saying so is more honest than inventing a run.
+    'network.unfollowStop': () => ({ stopping: false }),
+    'network.unfollowStatus': () => ({
+      running: false,
+      done: 0,
+      total: FAKE_FOLLOWING.length,
+      lastName: '',
+    }),
 
     'outreach.view': (params: any) =>
       params?.dry_run ? { status: 'dryRun', wouldSend: params } : enqueue('outreach.view', params),

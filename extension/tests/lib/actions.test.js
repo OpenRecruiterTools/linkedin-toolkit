@@ -115,6 +115,7 @@ describe('EVENTS', () => {
     'campaign_note_truncated',
     'research_progress',
     'research_completed',
+    'unfollow_progress',
   ];
 
   it('contains every event name in the contract, and no others', () => {
@@ -162,6 +163,21 @@ describe('validateParams', () => {
     expect(validateParams('config.get')).toEqual({ ok: true });
     expect(validateParams('campaign.tick', {})).toEqual({ ok: true });
     expect(validateParams('network.unfollowCount', {})).toEqual({ ok: true });
+  });
+
+  it('holds the mass-unfollow limit between 1 and 5000, or leaves it out', () => {
+    // The floor matters as much as the ceiling: `limit: 0` would silently mean
+    // "no limit" if it slipped through, which is the opposite of the intent.
+    expect(validateParams('network.unfollowAll', {})).toEqual({ ok: true });
+    expect(validateParams('network.unfollowAll', { limit: 1, dryRun: true })).toEqual({ ok: true });
+    expect(validateParams('network.unfollowAll', { limit: 5000 })).toEqual({ ok: true });
+
+    const low = validateParams('network.unfollowAll', { limit: 0 });
+    expect(low.ok).toBe(false);
+    expect(low.howToFix).toMatch(/between 1 and 5000/);
+    expect(validateParams('network.unfollowAll', { limit: 5001 }).ok).toBe(false);
+    expect(validateParams('network.unfollowAll', { limit: '25' }).ok).toBe(false);
+    expect(validateParams('network.unfollowAll', { dryRun: 'yes' }).ok).toBe(false);
   });
 
   it('requires arrays where the contract says arrays', () => {

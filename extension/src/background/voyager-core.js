@@ -110,7 +110,15 @@ export async function voyagerFetch(path, options = {}) {
     if (resp.status === 429 || resp.status === 451 || resp.status === 999 || resp.status === 403) {
       await noteBackoff(resp.status);
     }
-    if (known) throw new EngineError(known[0], known[1]);
+    if (known) {
+      // The HTTP status rides along even for a status we already have a code
+      // for: a caller deciding whether to stand down (mass unfollow does)
+      // needs to tell a 403 from any other LINKEDIN_ERROR, and the code alone
+      // cannot say which.
+      const stood = new EngineError(known[0], known[1]);
+      stood.status = resp.status;
+      throw stood;
+    }
 
     let body = '';
     try {
