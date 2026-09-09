@@ -9,12 +9,14 @@
  */
 
 import { el, render, fmtNumber } from '../../ui/dom.js';
-import { call } from '../../ui/api.js';
+import { call, onEvent } from '../../ui/api.js';
 import {
   ACTIONS,
+  EVENTS,
   UNFOLLOW_LIMIT_DEFAULT,
   UNFOLLOW_LIMIT_MAX,
   UNFOLLOW_LIMIT_MIN,
+  UNFOLLOW_MODE_DEFAULT,
 } from '../../lib/actions.js';
 import {
   card,
@@ -525,12 +527,26 @@ function extractionCard(spec, shared) {
  * The card is built around not being surprised. "Unfollow up to" is filled in
  * with 25 so the first run is small — set it to 1 and watch what happens to
  * one person before you trust it with 800. "Preview" runs the identical walk
- * with `dryRun`, clicking nothing, and lists the names. Only then does the
- * red button, which says out loud how many it is about to unfollow.
+ * with `dryRun`, unfollowing nobody, and lists the names. Only then does the
+ * red button, which says out loud how many it is about to unfollow. While it
+ * runs, the progress line counts up and Stop ends it between people.
+ *
+ * The mode lives behind "Advanced" because the honest default — talk to
+ * LinkedIn directly, no tab, one person a second — is the one nearly everybody
+ * should use, and offering the slow one as an equal choice would only invite
+ * picking it by accident.
  */
 export const UNFOLLOW_WARNING =
-  'Runs in your active LinkedIn tab, clicking Unfollow one person at a time with 2–5 second ' +
-  'gaps. There is no undo.';
+  'Unfollows one person at a time, about one a second, and there is no undo. ' +
+  'You can stop it part-way and keep what it already did.';
+
+/** How often the running card asks the engine where it has got to. */
+export const UNFOLLOW_POLL_MS = 1000;
+
+const UNFOLLOW_MODES = [
+  { value: 'api', label: 'Fast (direct, no tab)' },
+  { value: 'dom', label: 'Browser tab (slower, clicks the page)' },
+];
 
 const accounts = (n) => `${fmtNumber(n)} account${n === 1 ? '' : 's'}`;
 
@@ -553,6 +569,28 @@ export function unfollowCard() {
   const err = errorLine();
   const status = statusLine();
   const results = el('div');
+
+  /** The live count, separate from `status` so a run's tail does not erase it. */
+  const progressLine = el('p', {
+    class: 'status',
+    'data-testid': 'unfollow-progress',
+    role: 'status',
+    'aria-live': 'polite',
+    hidden: true,
+  });
+
+  const showProgress = (done, total, lastName) => {
+    const of = total > 0 ? ` of ${fmtNumber(total)}` : '';
+    const who = lastName ? ` — last: ${lastName}` : '';
+    progressLine.textContent = `Unfollowed ${fmtNumber(done)}${of}${who}`;
+    progressLine.hidden = false;
+  };
+
+  const modeSelect = select(UNFOLLOW_MODES, {
+    value: UNFOLLOW_MODE_DEFAULT,
+    'data-testid': 'unfollow-mode',
+    'aria-label': 'How to unfollow',
+  });
 
   const limitInput = input({
     type: 'number',
@@ -582,15 +620,28 @@ export function unfollowCard() {
     return n;
   };
 
+  /**
+   * The mode only rides along when it is not the default, so the common call
+   * stays `{ limit }` and a reader of the engine log can see at a glance that
+   * somebody chose the slow path on purpose.
+   */
   const paramsFor = (extra) => {
     const limit = readLimit();
-    return limit === null ? { ...extra } : { limit, ...extra };
+    const params = limit === null ? { ...extra } : { limit, ...extra };
+    if (modeSelect.value && modeSelect.value !== UNFOLLOW_MODE_DEFAULT) {
+      params.mode = modeSelect.value;
+    }
+    return params;
   };
 
   const countBtn = busyButton(
     'Check count',
     async () => {
-      const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, {});
+      const params = {};
+      if (modeSelect.value && modeSelect.value !== UNFOLLOW_MODE_DEFAULT) {
+        params.mode = modeSelect.value;
+      }
+      const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, params);
       const count = Number(data.count) || 0;
       const sample = Array.isArray(data.sample) ? data.sample : [];
       status.set(`${accounts(count)} you can unfollow.`);
@@ -642,7 +693,9 @@ export function unfollowCard() {
         return;
       }
 
-      status.set(`Unfollowing ${target} in your LinkedIn tab…`);
+      status.set(`Unfollowing ${target}…`);
+      showProgress(0, limit === null ? 0 : limit, '');
+      startWatching(limit === null ? 0 : limit);
       try {
         const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, params);
         const count = Number(data.unfollowed) || 0;
@@ -650,14 +703,19 @@ export function unfollowCard() {
         const tail =
           data.stopped === 'limit'
             ? ' Stopped at your limit.'
-            : data.error
-              ? ` Stopped early: ${data.error}`
-              : '';
+            : data.stopped === 'cancelled'
+              ? ' Stopped at your request.'
+              : data.error
+                ? ` Stopped early: ${data.error}`
+                : '';
         status.set(`Unfollowed ${accounts(count)}.${tail}`);
         render(results, nameList(names, 'Unfollowed:'));
       } catch (e) {
         status.clear();
         throw e;
+      } finally {
+        stopWatching();
+        stopBtn.disabled = true;
       }
     },
     {
@@ -667,22 +725,114 @@ export function unfollowCard() {
     },
   );
 
-  return card(
+  /* ---- Stop, and the progress it needs to be worth pressing ---------- */
+
+  const stopBtn = button(
+    'Stop',
+    async () => {
+      stopBtn.disabled = true;
+      status.set('Stopping after the person in flight…');
+      try {
+        await call(ACTIONS.NETWORK_UNFOLLOW_STOP, {});
+      } catch (e) {
+        err.show(e);
+      }
+    },
+    { variant: 'ghost', disabled: true, title: 'Stop the run after the current person' },
+  );
+  stopBtn.setAttribute('aria-label', 'Stop the unfollow run');
+  stopBtn.setAttribute('data-testid', 'unfollow-stop');
+
+  /**
+   * While a run is live the card learns where it has got to two ways, because
+   * neither is sufficient alone: `unfollow_progress` arrives every ten people
+   * and is what makes a long run feel alive, and the poll fills in the ten in
+   * between and the last name — and still answers if the popup was opened
+   * after the run started.
+   */
+  let pollTimer = null;
+  let unsubscribe = null;
+
+  function stopWatching() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+    if (unsubscribe) unsubscribe();
+    unsubscribe = null;
+  }
+
+  function startWatching(expected) {
+    stopWatching();
+    stopBtn.disabled = false;
+
+    unsubscribe = onEvent((name, payload) => {
+      if (name !== EVENTS.UNFOLLOW_PROGRESS) return;
+      showProgress(Number(payload.done) || 0, Number(payload.total) || expected, '');
+    });
+
+    pollTimer = setInterval(async () => {
+      try {
+        const state = await call(ACTIONS.NETWORK_UNFOLLOW_STATUS, {});
+        showProgress(
+          Number(state.done) || 0,
+          Number(state.total) || expected,
+          state.lastName || '',
+        );
+        if (!state.running) {
+          stopWatching();
+          stopBtn.disabled = true;
+        }
+      } catch {
+        // A failed poll is not a failed run; the action's own answer decides.
+      }
+    }, UNFOLLOW_POLL_MS);
+  }
+
+  const node = card(
     'Mass unfollow',
     { hint: UNFOLLOW_WARNING, class: 'extract-unfollow' },
     field('Unfollow up to', limitInput, 'Leave empty to work through everyone.'),
-    row(countBtn, previewBtn, unfollowBtn),
+    row(countBtn, previewBtn, unfollowBtn, stopBtn),
+    progressLine,
     status,
     err,
+    el(
+      'details',
+      { class: 'advanced', 'data-testid': 'unfollow-advanced' },
+      el('summary', null, 'Advanced'),
+      field(
+        'How',
+        modeSelect,
+        'Fast talks to LinkedIn directly and needs no tab. Browser tab clicks your ' +
+          'Following page instead — slower, but it still works if LinkedIn changes ' +
+          'the API out from under us.',
+      ),
+    ),
     results,
   );
+
+  // The popup can be closed mid-run; the timer must not outlive the card.
+  node.unmount = stopWatching;
+  return node;
 }
 
 /* ================================================================== */
 /*  Tab                                                                */
 /* ================================================================== */
 
+/** The mounted unfollow card, so leaving the tab can stop its poll timer. */
+let mountedUnfollow = null;
+
+/** Called by the popup shell when this tab is replaced or the popup closes. */
+export function unmount() {
+  if (mountedUnfollow && typeof mountedUnfollow.unmount === 'function') {
+    mountedUnfollow.unmount();
+  }
+  mountedUnfollow = null;
+}
+
 export async function mount(container) {
+  unmount();
+
   const shared = { lists: [] };
   try {
     const data = await call(ACTIONS.LIST_GET_ALL, {});
@@ -691,8 +841,7 @@ export async function mount(container) {
     shared.lists = [];
   }
 
-  render(container, [
-    ...CARDS.map((spec) => extractionCard(spec, shared)),
-    unfollowCard(),
-  ]);
+  mountedUnfollow = unfollowCard();
+
+  render(container, [...CARDS.map((spec) => extractionCard(spec, shared)), mountedUnfollow]);
 }

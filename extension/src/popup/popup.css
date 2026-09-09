@@ -709,6 +709,33 @@ a {
   max-width: 8ch;
 }
 
+/*
+ * A folded-away block for the setting almost nobody should change — the mass
+ * unfollow mode. Closed it is one quiet word; open it is an ordinary field.
+ */
+.advanced {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.advanced > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  list-style-position: outside;
+}
+
+.advanced > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.advanced[open] > summary {
+  margin-bottom: 8px;
+}
+
 .item.is-selected {
   border-color: var(--accent);
 }

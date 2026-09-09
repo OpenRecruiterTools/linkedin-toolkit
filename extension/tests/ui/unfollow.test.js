@@ -6,10 +6,15 @@
  * "Unfollow all" must never fire without an explicit confirmation that says
  * how many people it is about to unfollow.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import * as extract from '../../src/popup/tabs/extract.js';
-import { ACTIONS, UNFOLLOW_LIMIT_DEFAULT } from '../../src/lib/actions.js';
+import {
+  ACTIONS,
+  EVENTS,
+  UNFOLLOW_LIMIT_DEFAULT,
+  UNFOLLOW_MODE_DEFAULT,
+} from '../../src/lib/actions.js';
 import { stubEngine, flush, mountPoint } from './helpers.js';
 
 const cardNode = (host) => host.querySelector('.extract-unfollow');
@@ -44,7 +49,7 @@ describe('Mass unfollow card', () => {
       'Unfollow everyone you follow',
     );
     expect(limitBox(host).getAttribute('aria-label')).toBe('Unfollow up to how many accounts');
-    expect(cardNode(host).textContent).toContain('There is no undo.');
+    expect(cardNode(host).textContent).toContain('there is no undo');
   });
 
   it('starts at a small number rather than at everyone', async () => {
@@ -132,7 +137,7 @@ describe('Unfollow all', () => {
     const dialog = document.querySelector('[data-testid="confirm-dialog"]');
     expect(dialog.textContent).toContain('Unfollow up to 5?');
     expect(dialog.textContent).toContain('This will unfollow 5 accounts.');
-    expect(dialog.textContent).toContain('2–5 second');
+    expect(dialog.textContent).toContain('there is no undo');
 
     dialogButton('confirm-cancel').click();
     await flush(6);
@@ -215,5 +220,201 @@ describe('Unfollow all', () => {
     const err = cardNode(host).querySelector('.err');
     expect(err.hidden).toBe(false);
     expect(err.textContent).toContain('UNAUTHORIZED');
+  });
+});
+
+/* ================================================================== */
+/*  Mode, progress and Stop                                            */
+/* ================================================================== */
+
+const progressNode = (host) => cardNode(host).querySelector('[data-testid="unfollow-progress"]');
+const modeBox = (host) => cardNode(host).querySelector('[data-testid="unfollow-mode"]');
+const stopBtn = (host) => cardNode(host).querySelector('[data-testid="unfollow-stop"]');
+
+/** Deliver one engine event to whatever the popup has subscribed. */
+function emitEvent(event, payload) {
+  for (const listener of chrome.__mock.listeners.onMessage) {
+    listener({ type: 'EVENT', event, payload }, {}, () => {});
+  }
+}
+
+describe('Mode', () => {
+  it('hides the choice behind Advanced and defaults to the fast one', async () => {
+    const { host } = await mount();
+
+    const advanced = cardNode(host).querySelector('[data-testid="unfollow-advanced"]');
+    expect(advanced.tagName).toBe('DETAILS');
+    expect(advanced.open).toBe(false);
+    expect(advanced.querySelector('summary').textContent).toBe('Advanced');
+    expect(advanced.contains(modeBox(host))).toBe(true);
+
+    expect(modeBox(host).value).toBe(UNFOLLOW_MODE_DEFAULT);
+    expect(modeBox(host).getAttribute('aria-label')).toBe('How to unfollow');
+  });
+
+  it('says nothing about the mode when it is the default one', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: { unfollowed: 0, attempted: 0, names: [], stopped: 'end' },
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: { count: 3, sample: [] },
+    });
+
+    buttonNamed(host, 'Check count').click();
+    await flush(8);
+    limitBox(host).value = '2';
+    buttonNamed(host, 'Preview').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({});
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({ limit: 2, dryRun: true });
+  });
+
+  it('carries the slow mode through to the engine when it is chosen', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: { unfollowed: 0, attempted: 0, names: [], stopped: 'end' },
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: { count: 3, sample: [] },
+    });
+
+    modeBox(host).value = 'dom';
+    buttonNamed(host, 'Check count').click();
+    await flush(8);
+    limitBox(host).value = '2';
+    buttonNamed(host, 'Preview').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({ mode: 'dom' });
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({
+      limit: 2,
+      dryRun: true,
+      mode: 'dom',
+    });
+  });
+});
+
+describe('Progress', () => {
+  it('is silent until a run starts', async () => {
+    const { host } = await mount();
+    expect(progressNode(host).hidden).toBe(true);
+  });
+
+  it('counts up from the unfollow_progress event', async () => {
+    const { host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: () =>
+        new Promise(() => {}), // never settles: the run is still going
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: true, done: 0, total: 0, lastName: '' },
+    });
+
+    limitBox(host).value = '50';
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+    dialogButton('confirm-ok').click();
+    await flush(6);
+
+    emitEvent(EVENTS.UNFOLLOW_PROGRESS, { done: 10, total: 735 });
+    await flush(2);
+
+    expect(progressNode(host).hidden).toBe(false);
+    expect(progressNode(host).textContent).toBe('Unfollowed 10 of 735');
+    // A live region, so a screen reader hears the run move.
+    expect(progressNode(host).getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('fills in the ten between events by polling unfollowStatus', async () => {
+    vi.useFakeTimers();
+    try {
+      const { engine, host } = await mount({
+        [ACTIONS.NETWORK_UNFOLLOW_ALL]: () => new Promise(() => {}),
+        [ACTIONS.NETWORK_UNFOLLOW_STATUS]: {
+          running: true,
+          done: 4,
+          total: 735,
+          lastName: 'Marlow Ashcombe',
+        },
+      });
+
+      limitBox(host).value = '50';
+      buttonNamed(host, 'Unfollow all').click();
+      await vi.advanceTimersByTimeAsync(5);
+      dialogButton('confirm-ok').click();
+      await vi.advanceTimersByTimeAsync(5);
+
+      await vi.advanceTimersByTimeAsync(extract.UNFOLLOW_POLL_MS + 5);
+
+      expect(engine.countOf(ACTIONS.NETWORK_UNFOLLOW_STATUS)).toBeGreaterThan(0);
+      expect(progressNode(host).textContent).toBe(
+        'Unfollowed 4 of 735 — last: Marlow Ashcombe',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('Stop', () => {
+  it('is disabled until there is something to stop', async () => {
+    const { host } = await mount();
+    expect(stopBtn(host).disabled).toBe(true);
+    expect(stopBtn(host).getAttribute('aria-label')).toBe('Stop the unfollow run');
+  });
+
+  it('asks the engine to stop, and the run reports it as cancelled', async () => {
+    let finish;
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: true, done: 2, total: 735, lastName: '' },
+      [ACTIONS.NETWORK_UNFOLLOW_STOP]: { stopping: true },
+    });
+
+    limitBox(host).value = '50';
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+    dialogButton('confirm-ok').click();
+    await flush(6);
+
+    expect(stopBtn(host).disabled).toBe(false);
+    stopBtn(host).click();
+    await flush(6);
+
+    expect(engine.countOf(ACTIONS.NETWORK_UNFOLLOW_STOP)).toBe(1);
+    expect(cardNode(host).textContent).toContain('Stopping after the person in flight');
+
+    finish({
+      unfollowed: 2,
+      attempted: 2,
+      names: ['Marlow Ashcombe', 'Perrin Oyelaran'],
+      stopped: 'cancelled',
+    });
+    await flush(10);
+
+    expect(cardNode(host).textContent).toContain('Unfollowed 2 accounts.');
+    expect(cardNode(host).textContent).toContain('Stopped at your request.');
+    expect(nameItems(host)).toEqual(['Marlow Ashcombe', 'Perrin Oyelaran']);
+    expect(stopBtn(host).disabled).toBe(true);
+  });
+
+  it('stops polling when the tab is left, so a closed popup leaves no timer', async () => {
+    vi.useFakeTimers();
+    try {
+      const { engine, host } = await mount({
+        [ACTIONS.NETWORK_UNFOLLOW_ALL]: () => new Promise(() => {}),
+        [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: true, done: 1, total: 5, lastName: '' },
+      });
+
+      buttonNamed(host, 'Unfollow all').click();
+      await vi.advanceTimersByTimeAsync(5);
+      dialogButton('confirm-ok').click();
+      await vi.advanceTimersByTimeAsync(extract.UNFOLLOW_POLL_MS + 5);
+      const polled = engine.countOf(ACTIONS.NETWORK_UNFOLLOW_STATUS);
+      expect(polled).toBeGreaterThan(0);
+
+      extract.unmount();
+      await vi.advanceTimersByTimeAsync(extract.UNFOLLOW_POLL_MS * 3);
+
+      expect(engine.countOf(ACTIONS.NETWORK_UNFOLLOW_STATUS)).toBe(polled);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
