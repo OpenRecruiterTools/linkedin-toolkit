@@ -1,0 +1,333 @@
+{
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "totalResultCount": 12,
+          "searchId": "fixture-following-0",
+          "filterAppliedCount": 0,
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata"
+        },
+        "paging": {
+          "count": 10,
+          "start": 0,
+          "total": 12,
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "elements": [
+          {
+            "clusterRenderType": "LIST",
+            "title": null,
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWING000xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWING001xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 2,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWING002xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 3,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWING003xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 4,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWING004xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 5,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWING005xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 6,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWING006xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 7,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWING007xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 8,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWING008xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 9,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWING009xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 10,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              }
+            ]
+          }
+        ],
+        "$type": "com.linkedin.voyager.dash.search.SearchClusterCollection"
+      }
+    },
+    "errors": []
+  },
+  "included": [
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920000",
+      "title": {
+        "text": "Marlow Ashcombe",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWING000xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of Talent at Vantage Rail",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/marlowashcombe?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF000FIXTUREFOLLOWING000xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/marlowashcombe?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF000FIXTUREFOLLOWING000xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920001",
+      "title": {
+        "text": "Perrin Oyelaran",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWING001xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Principal Engineer at Northwind Loom",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/perrinoyelaran?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF001FIXTUREFOLLOWING001xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/perrinoyelaran?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF001FIXTUREFOLLOWING001xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920002",
+      "title": {
+        "text": "Idony Halvard",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWING002xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Founder at Kestrel & Byrne",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/idonyhalvard?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF002FIXTUREFOLLOWING002xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/idonyhalvard?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF002FIXTUREFOLLOWING002xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920003",
+      "title": {
+        "text": "Casimir Tolbridge",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWING003xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Director of Ops at Halcyon Freight",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/casimirtolbridge?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF003FIXTUREFOLLOWING003xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/casimirtolbridge?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF003FIXTUREFOLLOWING003xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920004",
+      "title": {
+        "text": "Nerys Falkenrath",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWING004xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Data Lead at Umber Analytics",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/nerysfalkenrath?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF004FIXTUREFOLLOWING004xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/nerysfalkenrath?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF004FIXTUREFOLLOWING004xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920005",
+      "title": {
+        "text": "Ottoline Grebe",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWING005xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Partner at Saltmarsh Advisory",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ottolinegrebe?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF005FIXTUREFOLLOWING005xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ottolinegrebe?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF005FIXTUREFOLLOWING005xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920006",
+      "title": {
+        "text": "Ravindra Quillon",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWING006xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "CTO at Pallas Instruments",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ravindraquillon?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF006FIXTUREFOLLOWING006xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ravindraquillon?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF006FIXTUREFOLLOWING006xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920007",
+      "title": {
+        "text": "Sunniva Barrowman",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWING007xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Chief of Staff at Ferrow Group",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/sunnivabarrowman?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF007FIXTUREFOLLOWING007xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/sunnivabarrowman?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF007FIXTUREFOLLOWING007xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920008",
+      "title": {
+        "text": "Thaddeus Ilmarinen",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWING008xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Design Director at Corvid Studio",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/thaddeusilmarinen?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF008FIXTUREFOLLOWING008xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/thaddeusilmarinen?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF008FIXTUREFOLLOWING008xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920009",
+      "title": {
+        "text": "Wrenna Duquesne",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWING009xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "VP Marketing at Bramblewick",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/wrennaduquesne?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF009FIXTUREFOLLOWING009xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/wrennaduquesne?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF009FIXTUREFOLLOWING009xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    }
+  ]
+}

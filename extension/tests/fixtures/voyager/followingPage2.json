@@ -1,0 +1,93 @@
+{
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "totalResultCount": 12,
+          "searchId": "fixture-following-10",
+          "filterAppliedCount": 0,
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata"
+        },
+        "paging": {
+          "count": 10,
+          "start": 10,
+          "total": 12,
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "elements": [
+          {
+            "clusterRenderType": "LIST",
+            "title": null,
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF010FIXTUREFOLLOWING010xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF011FIXTUREFOLLOWING011xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 2,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              }
+            ]
+          }
+        ],
+        "$type": "com.linkedin.voyager.dash.search.SearchClusterCollection"
+      }
+    },
+    "errors": []
+  },
+  "included": [
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920010",
+      "title": {
+        "text": "Anselm Kirkbride",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF010FIXTUREFOLLOWING010xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of Legal at Meridian Cask",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/anselmkirkbride?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF010FIXTUREFOLLOWING010xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/anselmkirkbride?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF010FIXTUREFOLLOWING010xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:920011",
+      "title": {
+        "text": "Bellona Achterberg",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF011FIXTUREFOLLOWING011xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Product Lead at Tallowfield",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/bellonaachterberg?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF011FIXTUREFOLLOWING011xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/bellonaachterberg?miniProfileUrn=urn%3Ali%3Afs_miniProfile%3AACoAAAF011FIXTUREFOLLOWING011xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    }
+  ]
+}
