@@ -105,7 +105,7 @@ export abstract class GeneratedActions {
     return this.call('outreach.follow', params);
   }
 
-  /** `outreach.invite` — Send a connection invite, optionally with a note. Check linkedin_get_connection_status first. Hard cap 100 invites/day; in Copilot mode (the default) the invite is queued for human approval and the result status is "queued" rather than "sent". Pass dry_run to preview the exact payload. */
+  /** `outreach.invite` — Send a connection invite, optionally with a note of at most 200 characters (LinkedIn's own limit; a longer note is refused with INVALID_PARAMS, so aim for 180 or fewer). Check linkedin_get_connection_status first. Hard cap 100 invites/day; in Copilot mode (the default) the invite is queued for human approval and the result status is "queued" rather than "sent". Note that on a free account LinkedIn allows only a few personalised (with-note) invitations a month, so prefer a note where it will count. Pass dry_run to preview the exact payload. */
   outreachInvite(params: ParamsOf<'outreach.invite'> & { dry_run?: boolean }): Promise<ResultOf<'outreach.invite'>> {
     return this.call('outreach.invite', params);
   }
@@ -225,12 +225,12 @@ export abstract class GeneratedActions {
     return this.call('campaign.tick', params);
   }
 
-  /** `queue.list` — List items in the human-approval queue, optionally filtered by status. In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting. Returns queue items with their action, params and target profile. */
+  /** `queue.list` — List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected", "sent" or "failed"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error. */
   queueList(params: ParamsOf<'queue.list'> = {} as ParamsOf<'queue.list'>): Promise<ResultOf<'queue.list'>> {
     return this.call('queue.list', params);
   }
 
-  /** `queue.approve` — Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved}. */
+  /** `queue.approve` — Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status "sent" or "failed") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved. */
   queueApprove(params: ParamsOf<'queue.approve'> & { dry_run?: boolean }): Promise<ResultOf<'queue.approve'>> {
     return this.call('queue.approve', params);
   }

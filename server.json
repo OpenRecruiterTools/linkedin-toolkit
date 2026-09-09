@@ -3,7 +3,7 @@
   "name": "io.github.FormatixAI/linkedin-toolkit",
   "title": "LinkedIn Toolkit",
   "description": "LinkedIn for AI agents from your own Chrome session: search, profiles, lists, outreach queue.",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "websiteUrl": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
   "repository": {
     "url": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "linkedin-toolkit-mcp",
-      "version": "2.0.2",
+      "version": "2.0.3",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

@@ -72,7 +72,7 @@ describe('contract vs docs/actions.md', () => {
   it('mirrors the documented event names', () => {
     const line = doc.slice(doc.indexOf('Event names:'));
     for (const ev of EVENTS) expect(line).toContain(ev);
-    expect(EVENTS.length).toBe(11);
+    expect(EVENTS.length).toBe(12);
   });
 });
 

@@ -9,7 +9,7 @@
  * everywhere else.
  */
 
-import { ACTIONS, ERROR, EVENTS, EngineError } from '../lib/actions.js';
+import { ACTIONS, ERROR, EVENTS, EngineError, INVITE_NOTE_MAX } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { handle, register } from './engine.js';
 import { K, allActions, get, getStoredProfile, newId, remove, set, stamp } from '../lib/storage.js';
@@ -339,6 +339,35 @@ export async function chooseBranch(branch, enrollment) {
   return 1;
 }
 
+/**
+ * Cut a rendered invitation note down to what LinkedIn will accept.
+ *
+ * A note is a template plus somebody's name and job title, so the same step
+ * that fits for "Ada Lovelace, Analyst" can overflow for someone with a longer
+ * name at a longer company. Refusing the step would strand that one person
+ * halfway through a sequence for a reason they cannot see, so the note is cut
+ * instead — at a word boundary, because a sentence stopped mid-word reads as a
+ * bug to the person receiving it — and the cut is announced as an event so the
+ * template can be shortened rather than quietly clipped forever.
+ *
+ * @returns {{note: string, truncated: boolean, originalLength: number}}
+ */
+export function fitInviteNote(note, limit = INVITE_NOTE_MAX) {
+  const text = note === undefined || note === null ? '' : String(note);
+  if (text.length <= limit) return { note: text, truncated: false, originalLength: text.length };
+
+  const cut = text.slice(0, limit);
+  const lastSpace = cut.search(/\s\S*$/);
+  // Only honour the word boundary if it leaves most of the allowance; a note
+  // whose first "word" is longer than the limit is cut where the limit is.
+  const trimmed = lastSpace > limit * 0.5 ? cut.slice(0, lastSpace) : cut;
+  return {
+    note: trimmed.replace(/[\s,;:–—-]+$/, '').trimEnd(),
+    truncated: true,
+    originalLength: text.length,
+  };
+}
+
 async function stepParams(campaign, step, enrollment) {
   const profile = (await getStoredProfile(enrollment.publicId)) || {
     publicId: enrollment.publicId,
@@ -355,7 +384,20 @@ async function stepParams(campaign, step, enrollment) {
     campaignId: campaign.campaignId,
     stepIndex: enrollment.stepIndex,
   };
-  if (step.type === 'invite') params.note = renderTemplate(variant || step.note, profile);
+  if (step.type === 'invite') {
+    const fitted = fitInviteNote(renderTemplate(variant || step.note, profile));
+    params.note = fitted.note;
+    if (fitted.truncated) {
+      await emit(EVENTS.CAMPAIGN_NOTE_TRUNCATED, {
+        campaignId: campaign.campaignId,
+        publicId: enrollment.publicId,
+        stepIndex: enrollment.stepIndex,
+        originalLength: fitted.originalLength,
+        limit: INVITE_NOTE_MAX,
+        note: fitted.note,
+      });
+    }
+  }
   if (step.type === 'message') params.body = renderTemplate(variant || step.body, profile);
   if (step.type === 'inmail') {
     params.body = renderTemplate(variant || step.body, profile);

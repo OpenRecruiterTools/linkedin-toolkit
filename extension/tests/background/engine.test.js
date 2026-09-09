@@ -36,6 +36,22 @@ describe('handle', () => {
     expect(res.error.code).toBe(ERROR.INVALID_PARAMS);
   });
 
+  it('carries the validator\'s howToFix onto the error envelope', async () => {
+    register(ACTIONS.OUTREACH_INVITE, async () => ({}));
+    const res = await handle(ACTIONS.OUTREACH_INVITE, {
+      publicId: 'dom',
+      note: 'x'.repeat(201),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error.howToFix).toBe('LinkedIn limits invitation notes to 200 characters.');
+  });
+
+  it('leaves howToFix off a refusal that carries no advice', async () => {
+    register(ACTIONS.SEARCH_PEOPLE, async () => ({ profiles: [] }));
+    const res = await handle(ACTIONS.SEARCH_PEOPLE, {});
+    expect(res.error.howToFix).toBeUndefined();
+  });
+
   it('validates before the handler runs', async () => {
     const fn = vi.fn(async () => ({}));
     register(ACTIONS.SEARCH_PEOPLE, fn);

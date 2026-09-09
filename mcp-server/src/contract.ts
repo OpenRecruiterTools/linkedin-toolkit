@@ -393,6 +393,7 @@ export const EVENTS = [
   'challenge_detected',
   'queue_item_added',
   'queue_item_sent',
+  'campaign_note_truncated',
   'research_progress',
   'research_completed',
 ] as const;
@@ -535,7 +536,7 @@ export const PARAMS = {
   'campaign.tick': Empty,
 
   'queue.list': z.object({
-    status: z.enum(['pending', 'approved', 'rejected', 'sent']).optional(),
+    status: z.enum(['pending', 'approved', 'rejected', 'sent', 'failed']).optional(),
   }),
   'queue.approve': z.object({
     ids: z.array(z.string()),
@@ -878,7 +879,7 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_send_invite',
     action: 'outreach.invite',
     description:
-      'Send a connection invite, optionally with a note. Check linkedin_get_connection_status first. Hard cap 100 invites/day; in Copilot mode (the default) the invite is queued for human approval and the result status is "queued" rather than "sent". Pass dry_run to preview the exact payload.',
+      'Send a connection invite, optionally with a note of at most 200 characters (LinkedIn\'s own limit; a longer note is refused with INVALID_PARAMS, so aim for 180 or fewer). Check linkedin_get_connection_status first. Hard cap 100 invites/day; in Copilot mode (the default) the invite is queued for human approval and the result status is "queued" rather than "sent". Note that on a free account LinkedIn allows only a few personalised (with-note) invitations a month, so prefer a note where it will count. Pass dry_run to preview the exact payload.',
     write: true,
   },
   {
@@ -955,14 +956,14 @@ export const TOOLS: ToolDef[] = [
     name: 'linkedin_queue_list',
     action: 'queue.list',
     description:
-      'List items in the human-approval queue, optionally filtered by status. In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting. Returns queue items with their action, params and target profile.',
+      'List items in the human-approval queue, optionally filtered by status ("pending", "approved", "rejected", "sent" or "failed"). In Copilot mode every agent-originated write lands here first, so call this to show the user what is waiting, and poll it after linkedin_queue_approve to see what actually sent. Returns queue items with their action, params and target profile; a failed item carries result.error.',
     write: false,
   },
   {
     name: 'linkedin_queue_approve',
     action: 'queue.approve',
     description:
-      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved}.',
+      'Approve queued writes by id so the extension sends them, optionally editing the note or body first. This works only when the user has turned Autopilot on: in the default Copilot mode approval is a human action and the extension answers UNAUTHORIZED, so show the queue with linkedin_queue_list and ask the user to approve in the popup. Returns {approved} immediately — the count marked approved, not sent. The extension then sends them one at a time at human pace, which takes seconds to minutes, so watch queue_item_sent events or poll linkedin_queue_list (status "sent" or "failed") rather than assuming the writes have landed when this returns. An edited note longer than 200 characters is refused here with INVALID_PARAMS and nothing is approved.',
     write: true,
   },
   {

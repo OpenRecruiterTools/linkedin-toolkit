@@ -76,7 +76,7 @@ For a single person, use `linkedin-profile-to-dossier` — it is faster and cost
    *No substantive public web results found.*   <!-- if that is the truth -->
 
    ## Suggested opener
-   "<≤300 characters. One hook drawn from the strongest fact above or from signals. One ask.>"
+   "<≤200 characters — LinkedIn's limit for an invitation note; aim for 180. One hook drawn from the strongest fact above or from signals. One ask.>"
    Hook used: <which fact, and where it came from>
    ```
 

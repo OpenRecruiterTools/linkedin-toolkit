@@ -277,7 +277,8 @@ An agent reaches the same thing through `linkedin_query_sql` with `{ "sql": "SEL
 
 The server POSTs `{ event, payload }` to a URL you set — `invite_accepted`, `reply_received`,
 `positive_reply`, `campaign_step_done`, `campaign_completed`, `quota_hit`, `challenge_detected`,
-`queue_item_added`, `queue_item_sent`, `research_progress`, `research_completed`.
+`queue_item_added`, `queue_item_sent`, `campaign_note_truncated`, `research_progress`,
+`research_completed`.
 
 ```bash
 lit config set webhookUrl https://your-n8n/webhook/linkedin-events

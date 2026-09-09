@@ -22,6 +22,7 @@ export const EVENTS = [
 	'challenge_detected',
 	'queue_item_added',
 	'queue_item_sent',
+	'campaign_note_truncated',
 	'research_progress',
 	'research_completed',
 ] as const;
@@ -39,6 +40,8 @@ const EVENT_DESCRIPTIONS: Record<EventName, string> = {
 		'LinkedIn raised a security challenge. Page someone: writes stay paused until a human clears it in Chrome.',
 	queue_item_added: 'A write was queued for human approval.',
 	queue_item_sent: 'An approved write was sent.',
+	campaign_note_truncated:
+		'A campaign invite note rendered longer than LinkedIn allows and was cut at a word boundary. Shorten the template.',
 	research_progress: 'One row of a Research Pack job finished.',
 	research_completed: 'A Research Pack job finished.',
 };

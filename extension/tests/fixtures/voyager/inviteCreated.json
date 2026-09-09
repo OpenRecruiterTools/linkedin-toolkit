@@ -1,0 +1,19 @@
+{
+  "data": {
+    "value": {
+      "inviteeUrn": "urn:li:fsd_profile:ACoAAAada0000000000000000000000000000",
+      "followingStateUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAada0000000000000000000000000000",
+      "*invitation": "urn:li:fsd_invitation:7000000000000000001",
+      "*invitee": "urn:li:fsd_profile:ACoAAAada0000000000000000000000000000",
+      "invitationUrn": "urn:li:fsd_invitation:7000000000000000001",
+      "followEdgeUpdated": true,
+      "*followingState": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAada0000000000000000000000000000",
+      "$recipeTypes": [
+        "com.linkedin.voyager.dash.deco.relationships.InvitationCreationResultWithInvitee"
+      ],
+      "$type": "com.linkedin.voyager.dash.relationships.invitation.InvitationCreationResult"
+    },
+    "$type": "com.linkedin.restli.common.ActionResponse"
+  },
+  "included": []
+}

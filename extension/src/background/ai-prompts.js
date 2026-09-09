@@ -47,7 +47,8 @@ const BUILDERS = {
   opener: (input) => ({
     system:
       `You write the first line of a LinkedIn connection request. ` +
-      `Keep it under 300 characters, in a ${input.tone || 'friendly, professional'} tone. ` +
+      `Keep it under 180 characters — LinkedIn refuses an invitation note over 200, and a ` +
+      `margin leaves room for a long name — in a ${input.tone || 'friendly, professional'} tone. ` +
       `One specific, verifiable reason for reaching out. No flattery, no buzzwords, ` +
       `no "I came across your profile". ${NO_INVENTION} Reply with the opener only.`,
     user: `Profile:\n${profileFacts(input.profile)}${

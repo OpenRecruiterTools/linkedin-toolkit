@@ -14,7 +14,7 @@
  * see `docs/voyager-endpoints.md` for how to re-capture them.
  */
 
-import { ERROR, EngineError } from '../lib/actions.js';
+import { ERROR, EngineError, INVITE_NOTE_FIX, INVITE_NOTE_MAX } from '../lib/actions.js';
 import {
   LINKEDIN_BASE,
   generateTrackingId,
@@ -62,6 +62,19 @@ export const CAPTURED = Object.freeze({
   clientVersion: '1.13.46474',
 });
 
+/**
+ * The invitation write, separately.
+ *
+ * It could not be captured with the reads, because capturing a write means
+ * sending one to a real person. It was captured on 2026-09-09 from a manual
+ * send through LinkedIn's own UI, so `createInvitation` below is the only
+ * write in this file that is verified rather than inferred.
+ */
+export const INVITE_CAPTURED = Object.freeze({
+  at: '2026-09-09',
+  clientVersion: '1.13.46516',
+});
+
 export const ENDPOINTS = Object.freeze({
   // ---- REST paths still served, captured 2026-09-08, client 1.13.46474 ----
   me: '/me',
@@ -71,6 +84,13 @@ export const ENDPOINTS = Object.freeze({
   companies: '/organization/companies',
   connections: '/relationships/dash/connections',
   sentInvitations: '/relationships/sentInvitationViewsV2',
+
+  /**
+   * Connection invitations. Verified against a real send on 2026-09-09,
+   * client 1.13.46516 — the only write in this table that has been.
+   * Takes `?action=verifyQuotaAndCreateV2` and the invitation decoration.
+   */
+  createInvitation: '/voyagerRelationshipsDashMemberRelationships',
 
   /**
    * Persisted GraphQL query ids. Captured 2026-09-08, client 1.13.46474.
@@ -98,6 +118,14 @@ export const ENDPOINTS = Object.freeze({
     topCard: 'com.linkedin.voyager.dash.deco.identity.profile.WebTopCardCore-19',
     connectionList: 'com.linkedin.voyager.dash.deco.web.mynetwork.ConnectionListWithProfile-16',
     company: 'com.linkedin.voyager.deco.organization.web.WebFullCompanyMain-12',
+    /**
+     * What `verifyQuotaAndCreateV2` decorates its answer with. Without it
+     * LinkedIn still creates the invitation but answers a thinner body, and
+     * the `*invitation` urn this build reads success from is not in it.
+     * Captured 2026-09-09, client 1.13.46516.
+     */
+    invitationCreation:
+      'com.linkedin.voyager.dash.deco.relationships.InvitationCreationResultWithInvitee-2',
   }),
 
   /**
@@ -120,7 +148,6 @@ export const ENDPOINTS = Object.freeze({
     salesNavSearch: `${LINKEDIN_BASE}/sales-api/salesApiPeopleSearch`,
     recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
     followingStates: '/feed/dash/followingStates',
-    createInvitation: '/voyagerRelationshipsDashMemberRelationships',
     createMessage: '/voyagerMessagingDashMessengerMessages',
     createComment: '/feed/comments',
     createReaction: '/feed/reactions',
@@ -819,30 +846,122 @@ export async function getSentInvitations({ start = 0, count = 100 } = {}) {
 }
 
 /* ================================================================== */
-/*  Writes — every one of these is unverified                          */
+/*  Writes — the invitation is verified; the rest are not              */
 /* ================================================================== */
 
 /**
- * Send a connection invitation (note ≤ 300 characters).
+ * What LinkedIn says when it refuses an invitation, and what to do about it.
  *
- * Unverified: a write cannot be probed without sending it to a real person.
- * The path and body are the ones the current web client uses.
+ * A refusal comes back as `{"data":{"code":…,"message":…}}` — sometimes with a
+ * non-200, sometimes as a 200 with no `*invitation` in it — and the two that
+ * matter are worth naming, because neither is a bug and neither is fixed by
+ * retrying.
+ */
+const INVITE_DUPLICATE_FIX =
+  'That invitation is already pending. Check "Sent" under My Network before inviting again.';
+
+const INVITE_ALLOWANCE_FIX =
+  'LinkedIn has exhausted an invitation allowance on this account. Free accounts get only a few personalised (with-note) invitations a month — send without a note, or wait for the allowance to reset.';
+
+const INVITE_UNRECOGNISED_FIX =
+  'LinkedIn accepted the request but did not answer with an invitation urn; see docs/voyager-endpoints.md';
+
+function looksLikeDuplicate(code, message) {
+  return /ALREADY|DUPLICATE|PENDING/i.test(code) || /already (been )?(sent|invited)|pending invitation|duplicate/i.test(message);
+}
+
+function looksLikeAllowance(code, message) {
+  return (
+    /QUOTA|LIMIT|EXCEEDED|EXHAUST/i.test(code) ||
+    /quota|limit|allowance|remaining|weekly|monthly|too many/i.test(message)
+  );
+}
+
+/**
+ * Turn a refused invitation into one honest EngineError.
+ *
+ * @param {any} payload the parsed LinkedIn body, when there was one
+ * @param {string} fallback the message to use when LinkedIn said nothing useful
+ */
+function inviteFailure(payload, fallback) {
+  const data = (payload && payload.data) || payload || {};
+  const code = String(data.code || data.status || '');
+  const message = String(data.message || '').trim();
+  const said = message || fallback;
+
+  let howToFix = INVITE_UNRECOGNISED_FIX;
+  if (looksLikeDuplicate(code, message)) howToFix = INVITE_DUPLICATE_FIX;
+  else if (looksLikeAllowance(code, message)) howToFix = INVITE_ALLOWANCE_FIX;
+
+  return new EngineError(
+    ERROR.LINKEDIN_ERROR,
+    code ? `LinkedIn refused the invitation (${code}): ${said}` : `LinkedIn refused the invitation: ${said}`,
+    { howToFix },
+  );
+}
+
+/**
+ * Send a connection invitation.
+ *
+ * Verified against a real send on 2026-09-09 (client 1.13.46516): this is the
+ * exact URL, decoration and body LinkedIn's own "Connect" dialog uses, and
+ * success is the `*invitation` urn in the decorated answer. The `x-li-track`
+ * and `x-li-page-instance` headers the page also sends are deliberately not
+ * forged — they describe a browser viewport and a page view that did not
+ * happen, and LinkedIn accepted the call without them.
+ *
+ * @param {{publicId?: string, publicIdentifier?: string, profileUrn?: string, note?: string}} params
+ * @returns {Promise<{invitationUrn: string, inviteeUrn: string}>}
  */
 export async function sendInvite({ publicId, publicIdentifier, profileUrn, note }) {
+  const message = note === undefined || note === null ? '' : String(note);
+  // Length is checked before the profile is resolved: refusing costs nothing,
+  // and resolving costs a metered profile view.
+  if (message.length > INVITE_NOTE_MAX) {
+    throw new EngineError(
+      ERROR.INVALID_PARAMS,
+      `note must be ${INVITE_NOTE_MAX} characters or fewer (this one is ${message.length})`,
+      { howToFix: INVITE_NOTE_FIX },
+    );
+  }
+
   const id = publicId || publicIdentifier;
   const urn = toFsdProfileUrn(profileUrn) || (await resolveProfileUrn(id));
-  const body = {
-    invitee: { inviteeUnion: { memberProfile: urn } },
-    trackingId: generateTrackingId(),
-  };
-  if (note) body.customMessage = String(note).slice(0, 300);
 
-  return unverified('createInvitation', () =>
-    voyagerFetch(`${ENDPOINTS.unverified.createInvitation}?action=verifyQuotaAndCreateV2`, {
+  const body = { invitee: { inviteeUnion: { memberProfile: urn } } };
+  // LinkedIn's dialog omits the field entirely for a note-less invitation, and
+  // an empty string is not the same thing: it spends a personalised invitation.
+  if (message) body.customMessage = message;
+
+  const path = `${ENDPOINTS.createInvitation}?${qs({
+    action: 'verifyQuotaAndCreateV2',
+    decorationId: ENDPOINTS.decorations.invitationCreation,
+  })}`;
+
+  let raw;
+  try {
+    raw = await voyagerFetch(path, {
       method: 'POST',
       body,
-    }),
-  );
+      headers: { 'content-type': 'application/json; charset=UTF-8' },
+    });
+  } catch (e) {
+    // A stand-down (rate limit, challenge, signed out) is the user's to act on
+    // and must not be dressed up as an invitation problem.
+    if (e instanceof EngineError && e.code !== ERROR.LINKEDIN_ERROR) throw e;
+    throw inviteFailure(e && e.response, (e && e.message) || 'LinkedIn refused the invitation.');
+  }
+
+  const value = (raw && raw.data && raw.data.value) || {};
+  const invitationUrn = value['*invitation'] || value.invitationUrn || '';
+  if (!invitationUrn) {
+    throw inviteFailure(raw, 'LinkedIn answered with no invitation urn.');
+  }
+
+  return {
+    invitationUrn,
+    inviteeUrn: value.inviteeUrn || value['*invitee'] || urn,
+  };
 }
 
 /**
@@ -960,9 +1079,16 @@ export const UNVERIFIABLE = Object.freeze([
   'salesNavSearch',
   'recruiterSearch',
   'follow',
-  'invite',
   'message',
 ]);
+
+/**
+ * Writes whose shape *is* verified but which the self-check still will not run,
+ * because running one means sending something to a real person. They report
+ * `skipped`, not `unverified`: the distinction is the whole point of having
+ * captured them.
+ */
+export const VERIFIED_WRITES = Object.freeze(['invite']);
 
 /**
  * A read-only pass over the verified endpoints, one minimal call each.
@@ -997,6 +1123,7 @@ export async function verifyEndpoints({ probes = {}, meter } = {}) {
   if (!self.loggedIn) {
     for (const name of VERIFIABLE) if (!endpoints[name]) endpoints[name] = 'skipped';
     for (const name of UNVERIFIABLE) endpoints[name] = 'unverified';
+    for (const name of VERIFIED_WRITES) endpoints[name] = 'skipped';
     return {
       endpoints,
       clientVersionCaptured: CAPTURED.clientVersion,
@@ -1061,6 +1188,7 @@ export async function verifyEndpoints({ probes = {}, meter } = {}) {
   }
 
   for (const name of UNVERIFIABLE) endpoints[name] = 'unverified';
+  for (const name of VERIFIED_WRITES) endpoints[name] = 'skipped';
 
   return {
     endpoints,

@@ -6,10 +6,11 @@ import * as events from '../../src/background/events.js';
 import * as quota from '../../src/background/quota.js';
 import * as queue from '../../src/background/queue.js';
 import * as storage from '../../src/lib/storage.js';
-import '../../src/background/outreach.js';
-import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
+import * as outreach from '../../src/background/outreach.js';
+import { routeBackground, seedSession, status, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
+import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 
 let net;
 let seen;
@@ -32,12 +33,30 @@ afterEach(() => {
 const invite = (origin, params = {}) =>
   handle(ACTIONS.OUTREACH_INVITE, { publicId: 'adalovelace', note: 'Hi Ada', ...params }, origin);
 
+/** Queue the two answers one invite to a stranger needs: the urn, then the send. */
+const queueInvite = () => {
+  net.push(profileView);
+  net.push(inviteCreated);
+};
+
+/**
+ * Approve, then run the sender to completion.
+ *
+ * `queue.approve` only marks items now — the sending is a separate tick — so
+ * every test that wants the outcome asks for it explicitly rather than relying
+ * on a timer the fake clock would never fire.
+ */
+const approveAndSend = async (params, origin) => {
+  const res = await handle(ACTIONS.QUEUE_APPROVE, params, origin);
+  if (res.ok) await queue.sendApproved();
+  return res;
+};
+
 const eventNames = () => seen.map((f) => f.event);
 
 describe('origin rules', () => {
   it('popup sends directly', async () => {
-    net.push(profileView); // urn resolution
-    net.push({});
+    queueInvite();
     const res = await invite('popup');
     expect(res.data.status).toBe('sent');
     expect(await queue.list()).toHaveLength(0);
@@ -57,8 +76,7 @@ describe('origin rules', () => {
 
   it.each(['campaign', 'mcp', 'cli'])('%s sends directly with autopilot on', async (origin) => {
     await setConfig({ autopilot: true });
-    net.push(profileView);
-    net.push({});
+    queueInvite();
     const res = await invite(origin);
     expect(res.data.status).toBe('sent');
     expect(await queue.list()).toHaveLength(0);
@@ -68,8 +86,7 @@ describe('origin rules', () => {
     await invite('mcp');
     expect((await quota.snapshot('invite')).dailyUsed).toBe(0);
 
-    net.push(profileView);
-    net.push({});
+    queueInvite();
     await invite('popup');
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
   });
@@ -104,8 +121,7 @@ describe('the send path', () => {
       delays.push(ms);
       return Promise.resolve();
     });
-    net.push(profileView);
-    net.push({});
+    queueInvite();
 
     const res = await invite('popup');
     expect(res.data.status).toBe('sent');
@@ -133,8 +149,7 @@ describe('the send path', () => {
   });
 
   it('reports the RateLimit on the envelope', async () => {
-    net.push(profileView);
-    net.push({});
+    queueInvite();
     const res = await invite('popup');
     expect(res.rateLimit).toMatchObject({ dailyUsed: 1, dailyCap: 20 });
   });
@@ -188,7 +203,7 @@ describe('the send path', () => {
     await storage.putProfile({ publicId: 'adalovelace', fullName: 'Ada Lovelace', urn: '' });
 
     net.push(profileView); // the metered read that actually has the urn
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
 
     const res = await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'adalovelace', note: 'Hi' }, 'popup');
 
@@ -212,7 +227,7 @@ describe('the send path', () => {
     it.each(['mcp', 'cli', 'campaign'])('strips profileUrn from a %s invite', async (origin) => {
       await setConfig({ autopilot: true });
       net.push(profileView); // the metered read the engine makes anyway
-      net.push({}); // the invite
+      net.push(inviteCreated); // the invite
 
       const res = await handle(
         ACTIONS.OUTREACH_INVITE,
@@ -245,8 +260,7 @@ describe('the send path', () => {
       await setConfig({ autopilot: true });
       // Non-empty but nonsense: the old code would have passed it straight
       // through, and voyager's own fallback would have fetched for free.
-      net.push(profileView);
-      net.push({});
+      queueInvite();
 
       await handle(
         ACTIONS.OUTREACH_INVITE,
@@ -281,8 +295,7 @@ describe('the send path', () => {
   });
 
   it('a stranger costs exactly one visit for the whole invite', async () => {
-    net.push(profileView); // the urn resolution
-    net.push({}); // the invite
+    queueInvite();
     await handle(ACTIONS.OUTREACH_INVITE, { publicId: 'stranger', note: 'Hi' }, 'popup');
     expect((await quota.snapshot('visit')).dailyUsed).toBe(1);
     expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
@@ -309,12 +322,21 @@ describe('queue.list / approve / reject', () => {
     expect((await handle(ACTIONS.QUEUE_LIST, { status: 'sent' })).data.items).toHaveLength(0);
   });
 
-  it('approve executes the item and marks it sent', async () => {
+  it('lists failed items too', async () => {
     const queued = await invite('mcp');
-    net.push(profileView);
-    net.push({});
+    net.push({ __status: 500, body: { message: 'boom' } });
+    await approveAndSend({ ids: [queued.data.queueId] });
 
-    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    const failed = (await handle(ACTIONS.QUEUE_LIST, { status: 'failed' })).data.items;
+    expect(failed).toHaveLength(1);
+    expect(failed[0].result.error.message).toMatch(/boom|500/);
+  });
+
+  it('approve marks the item and the sender sends it', async () => {
+    const queued = await invite('mcp');
+    queueInvite();
+
+    const res = await approveAndSend({ ids: [queued.data.queueId] });
     expect(res.data).toEqual({ approved: 1 });
 
     const items = await queue.list();
@@ -326,10 +348,9 @@ describe('queue.list / approve / reject', () => {
 
   it('approve applies note and body edits before sending', async () => {
     const queued = await invite('mcp');
-    net.push(profileView);
-    net.push({});
+    queueInvite();
 
-    await handle(ACTIONS.QUEUE_APPROVE, {
+    await approveAndSend({
       ids: [queued.data.queueId],
       edits: { [queued.data.queueId]: { note: 'Edited note' } },
     });
@@ -338,18 +359,17 @@ describe('queue.list / approve / reject', () => {
     expect(body.customMessage).toBe('Edited note');
   });
 
-  it('approve marks an item failed when the send throws, and keeps going', async () => {
+  it('the sender marks an item failed when the send throws, and keeps going', async () => {
     const a = await invite('mcp');
     const b = await invite('mcp', { publicId: 'bobbright' });
 
     net.push({ __status: 500, body: { message: 'boom' } });
     net.push(profileView);
-    net.push({});
+    net.push(inviteCreated);
 
-    const res = await handle(ACTIONS.QUEUE_APPROVE, {
-      ids: [a.data.queueId, b.data.queueId],
-    });
-    expect(res.data.approved).toBe(1);
+    const res = await approveAndSend({ ids: [a.data.queueId, b.data.queueId] });
+    // Both were *approved*; only one of them sent.
+    expect(res.data.approved).toBe(2);
 
     const items = await queue.list();
     expect(items.find((i) => i.id === a.data.queueId).status).toBe('failed');
@@ -407,20 +427,18 @@ describe('an agent cannot approve its own queue', () => {
   it('allows queue.approve from mcp once autopilot is on', async () => {
     const queued = await invite('mcp');
     await setConfig({ autopilot: true });
-    net.push(profileView);
-    net.push({});
+    queueInvite();
 
-    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }, 'mcp');
+    const res = await approveAndSend({ ids: [queued.data.queueId] }, 'mcp');
     expect(res.ok).toBe(true);
     expect(res.data).toEqual({ approved: 1 });
   });
 
   it.each(['popup', 'cli'])('lets %s approve — both are a human deciding', async (origin) => {
     const queued = await invite('mcp');
-    net.push(profileView);
-    net.push({});
+    queueInvite();
 
-    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }, origin);
+    const res = await approveAndSend({ ids: [queued.data.queueId] }, origin);
     expect(res.ok).toBe(true);
     expect(res.data).toEqual({ approved: 1 });
   });
@@ -430,5 +448,175 @@ describe('an agent cannot approve its own queue', () => {
     const res = await handle(ACTIONS.QUEUE_REJECT, { ids: [queued.data.queueId] }, origin);
     expect(res.ok).toBe(true);
     expect(res.data).toEqual({ rejected: 1 });
+  });
+});
+
+/* ================================================================== */
+
+/**
+ * Issue #21: approving three invitations returned nothing over the bridge for
+ * more than 60 seconds while the sends carried on behind it. Approving and
+ * sending are two separate things now, and these are the tests that say so.
+ */
+describe('approve returns before anything is sent', () => {
+  it('marks items approved and calls LinkedIn not at all', async () => {
+    const a = await invite('mcp');
+    const b = await invite('mcp', { publicId: 'bobbright' });
+
+    const res = await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+
+    expect(res.data).toEqual({ approved: 2 });
+    expect(net.calls).toHaveLength(0);
+    expect(await queue.list('approved')).toHaveLength(2);
+    expect(await queue.list('sent')).toHaveLength(0);
+    expect((await quota.snapshot('invite')).dailyUsed).toBe(0);
+  });
+
+  it('does not wait for the pacing delay', async () => {
+    // A delay long enough that a synchronous send could not possibly have
+    // finished: if approve waited for it, this test would hang.
+    let waited = false;
+    quota.setSleepFn(() => {
+      waited = true;
+      return Promise.resolve();
+    });
+
+    const queued = await invite('mcp');
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    expect(waited).toBe(false);
+
+    queueInvite();
+    await queue.sendApproved();
+    expect(waited).toBe(true);
+  });
+
+  it('the sender picks up everything approved, oldest first, one at a time', async () => {
+    const a = await invite('mcp');
+    const b = await invite('mcp', { publicId: 'bobbright' });
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+
+    queueInvite();
+    queueInvite();
+    const out = await queue.sendApproved();
+
+    expect(out).toEqual({ sent: 2, failed: 0, remaining: 0 });
+    expect(await queue.list('sent')).toHaveLength(2);
+    expect(eventNames().filter((e) => e === 'queue_item_sent')).toHaveLength(2);
+  });
+
+  it('an already-approved item is not approved twice', async () => {
+    const queued = await invite('mcp');
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    const again = await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    expect(again.data).toEqual({ approved: 0 });
+  });
+
+  it('stops the drain on a stand-down and leaves the rest approved', async () => {
+    const a = await invite('mcp');
+    const b = await invite('mcp', { publicId: 'bobbright' });
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [a.data.queueId, b.data.queueId] });
+
+    net.push(status(429, {}));
+    const out = await queue.sendApproved();
+
+    expect(out.sent).toBe(0);
+    expect(out.remaining).toBe(1);
+    expect((await queue.list('approved'))).toHaveLength(1);
+    expect((await queue.list('failed'))).toHaveLength(1);
+  });
+
+  it('two drains at once do not send the same item twice', async () => {
+    const queued = await invite('mcp');
+    await handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] });
+    queueInvite();
+
+    const [first, second] = await Promise.all([queue.sendApproved(), queue.sendApproved()]);
+    expect(first).toBe(second);
+    expect(await queue.list('sent')).toHaveLength(1);
+    expect(net.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+});
+
+describe('the 200-character note limit', () => {
+  const long = 'x'.repeat(201);
+
+  it('refuses an over-long note before anything is queued or spent', async () => {
+    const res = await invite('mcp', { note: long });
+
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe(ERROR.INVALID_PARAMS);
+    expect(res.error.howToFix).toBe('LinkedIn limits invitation notes to 200 characters.');
+    expect(await queue.list()).toHaveLength(0);
+    expect(net.calls).toHaveLength(0);
+  });
+
+  it('accepts exactly 200', async () => {
+    queueInvite();
+    const res = await invite('popup', { note: 'x'.repeat(200) });
+    expect(res.ok).toBe(true);
+  });
+
+  it('refuses an edit that makes a queued item too long, and approves nothing', async () => {
+    const queued = await invite('mcp');
+
+    const res = await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [queued.data.queueId],
+      edits: { [queued.data.queueId]: { note: long } },
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe(ERROR.INVALID_PARAMS);
+    expect(res.error.howToFix).toBe('LinkedIn limits invitation notes to 200 characters.');
+    // Nothing moved: the item is still pending, with its original note.
+    const items = await queue.list('pending');
+    expect(items).toHaveLength(1);
+    expect(items[0].params.note).toBe('Hi Ada');
+  });
+
+  it('refuses the whole batch rather than approving the valid half', async () => {
+    const a = await invite('mcp');
+    const b = await invite('mcp', { publicId: 'bobbright' });
+
+    const res = await handle(ACTIONS.QUEUE_APPROVE, {
+      ids: [a.data.queueId, b.data.queueId],
+      edits: { [b.data.queueId]: { note: long } },
+    });
+
+    expect(res.ok).toBe(false);
+    expect(await queue.list('pending')).toHaveLength(2);
+    expect(await queue.list('approved')).toHaveLength(0);
+  });
+});
+
+describe('a reservation the engine refused itself is handed back', () => {
+  it('releases the invite unit when our own validation stops the send', async () => {
+    // Straight through `send`, past the engine's own param check, which is the
+    // only way a validation failure can happen after the reservation.
+    const before = (await quota.snapshot('invite')).dailyUsed;
+
+    await expect(
+      outreach.send(ACTIONS.OUTREACH_INVITE, {
+        publicId: 'adalovelace',
+        profileUrn: 'urn:li:fsd_profile:ACoAAAada',
+        note: 'x'.repeat(201),
+      }),
+    ).rejects.toMatchObject({ code: ERROR.INVALID_PARAMS });
+
+    expect((await quota.snapshot('invite')).dailyUsed).toBe(before);
+    expect(net.calls).toHaveLength(0);
+  });
+
+  it('keeps it spent when LinkedIn is the one that refused', async () => {
+    net.push(status(400, { data: { code: 'CANT_RESEND_YET', message: 'Already sent.' } }));
+
+    await expect(
+      outreach.send(ACTIONS.OUTREACH_INVITE, {
+        publicId: 'adalovelace',
+        profileUrn: 'urn:li:fsd_profile:ACoAAAada',
+        note: 'Hi',
+      }),
+    ).rejects.toMatchObject({ code: ERROR.LINKEDIN_ERROR });
+
+    expect((await quota.snapshot('invite')).dailyUsed).toBe(1);
   });
 });

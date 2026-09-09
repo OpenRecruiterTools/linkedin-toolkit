@@ -1,0 +1,8 @@
+{
+  "data": {
+    "code": "CANT_RESEND_YET",
+    "message": "An invitation has already been sent to this member and is still pending.",
+    "$type": "com.linkedin.voyager.dash.relationships.invitation.InvitationCreationResult"
+  },
+  "included": []
+}

@@ -27,6 +27,9 @@ import memberPosts from '../fixtures/voyager/memberPosts.json';
 import mutualConnections from '../fixtures/voyager/mutualConnections.json';
 import sentInvitations from '../fixtures/voyager/sentInvitations.json';
 import sentInvitationsGraphql from '../fixtures/voyager/sentInvitationsGraphql.json';
+import inviteCreated from '../fixtures/voyager/inviteCreated.json';
+import inviteDuplicate from '../fixtures/voyager/inviteDuplicate.json';
+import inviteQuotaExhausted from '../fixtures/voyager/inviteQuotaExhausted.json';
 
 let net;
 
@@ -65,6 +68,14 @@ describe('endpoint catalogue', () => {
     expect(Object.keys(v.ENDPOINTS.unverified)).toContain('comments');
     expect(Object.keys(v.ENDPOINTS.unverified)).toContain('followingStates');
     expect(v.ENDPOINTS.comments).toBeUndefined();
+  });
+
+  it('the invitation write is verified, and records its own capture', () => {
+    expect(v.ENDPOINTS.createInvitation).toBe('/voyagerRelationshipsDashMemberRelationships');
+    expect(v.ENDPOINTS.unverified.createInvitation).toBeUndefined();
+    expect(v.INVITE_CAPTURED).toEqual({ at: '2026-09-09', clientVersion: '1.13.46516' });
+    expect(v.UNVERIFIABLE).not.toContain('invite');
+    expect(v.VERIFIED_WRITES).toContain('invite');
   });
 });
 
@@ -729,13 +740,153 @@ describe('sent invitations', () => {
 
 describe('writes', () => {
   it('sendInvite posts the member profile urn and the note', async () => {
-    net.push({});
+    net.push(inviteCreated);
     await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'Hello Ada' });
     const call = net.calls[0];
     expect(call.method).toBe('POST');
     expect(call.url).toContain('action=verifyQuotaAndCreateV2');
     expect(call.json.invitee.inviteeUnion.memberProfile).toBe('urn:li:fsd_profile:ACoAAAada');
     expect(call.json.customMessage).toBe('Hello Ada');
+  });
+
+  /**
+   * Everything below is shaped from a real send captured on 2026-09-09
+   * (client 1.13.46516), with the person and the note replaced. It is the only
+   * write in this file whose wire format has been seen rather than inferred,
+   * and the point of these tests is that it stays that way.
+   */
+  describe('sendInvite, against the captured request', () => {
+    it('asks the verified endpoint with the action and the decoration', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'Hello Ada' });
+
+      const call = net.calls[0];
+      expect(call.url).toBe(
+        'https://www.linkedin.com/voyager/api/voyagerRelationshipsDashMemberRelationships' +
+          '?action=verifyQuotaAndCreateV2' +
+          '&decorationId=com.linkedin.voyager.dash.deco.relationships.InvitationCreationResultWithInvitee-2',
+      );
+    });
+
+    it('sends the headers LinkedIn answered, including the charset on the content type', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' });
+
+      expect(net.calls[0].headers).toMatchObject({
+        'csrf-token': 'ajax:1234567890',
+        'x-restli-protocol-version': '2.0.0',
+        accept: 'application/vnd.linkedin.normalized+json+2.1',
+        'x-li-lang': 'en_US',
+        'content-type': 'application/json; charset=UTF-8',
+      });
+    });
+
+    it('omits customMessage entirely when there is no note', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' });
+
+      const body = net.calls[0].json;
+      expect(body).toEqual({
+        invitee: { inviteeUnion: { memberProfile: 'urn:li:fsd_profile:ACoAAAada' } },
+      });
+      expect('customMessage' in body).toBe(false);
+    });
+
+    it('omits it for an empty note too — an empty note is not a note', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: '' });
+      expect('customMessage' in net.calls[0].json).toBe(false);
+    });
+
+    it('sends no trackingId — the captured request carries none', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'Hi' });
+      expect(net.calls[0].json.trackingId).toBeUndefined();
+    });
+
+    it('reads success from the invitation urn in the decorated answer', async () => {
+      net.push(inviteCreated);
+      const out = await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'Hi' });
+
+      expect(out).toEqual({
+        invitationUrn: 'urn:li:fsd_invitation:7000000000000000001',
+        inviteeUrn: 'urn:li:fsd_profile:ACoAAAada0000000000000000000000000000',
+      });
+    });
+
+    it('refuses a note over 200 characters without asking LinkedIn anything', async () => {
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'x'.repeat(201) }),
+      ).rejects.toMatchObject({
+        code: ERROR.INVALID_PARAMS,
+        extra: { howToFix: 'LinkedIn limits invitation notes to 200 characters.' },
+      });
+      expect(net.calls).toHaveLength(0);
+    });
+
+    it('accepts a note of exactly 200 characters', async () => {
+      net.push(inviteCreated);
+      await v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'x'.repeat(200) });
+      expect(net.calls[0].json.customMessage).toHaveLength(200);
+    });
+
+    it('a 200 with no invitation urn is a LINKEDIN_ERROR, not a success', async () => {
+      net.push({ data: { value: { followEdgeUpdated: true } } });
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' }),
+      ).rejects.toMatchObject({ code: ERROR.LINKEDIN_ERROR });
+    });
+
+    it('names a duplicate invitation and says where to look', async () => {
+      net.push(status(400, inviteDuplicate));
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' }),
+      ).rejects.toMatchObject({
+        code: ERROR.LINKEDIN_ERROR,
+        message: expect.stringContaining('CANT_RESEND_YET'),
+        extra: { howToFix: expect.stringContaining('already pending') },
+      });
+    });
+
+    it('recognises a duplicate answered as a 200 as well', async () => {
+      net.push(inviteDuplicate);
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' }),
+      ).rejects.toMatchObject({ extra: { howToFix: expect.stringContaining('already pending') } });
+    });
+
+    it('explains an exhausted personalised-invitation allowance', async () => {
+      net.push(status(400, inviteQuotaExhausted));
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada', note: 'Hi' }),
+      ).rejects.toMatchObject({
+        code: ERROR.LINKEDIN_ERROR,
+        extra: { howToFix: expect.stringContaining('personalised') },
+      });
+    });
+
+    it('carries LinkedIn\'s own message rather than a slice of raw JSON', async () => {
+      net.push(status(400, inviteDuplicate));
+      await expect(v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' })).rejects.toThrow(
+        /An invitation has already been sent/,
+      );
+    });
+
+    it('lets a stand-down through untouched — it is the user\'s to act on', async () => {
+      net.push(status(429, {}));
+      await expect(
+        v.sendInvite({ profileUrn: 'urn:li:fsd_profile:ACoAAAada' }),
+      ).rejects.toMatchObject({ code: ERROR.RATE_LIMITED });
+    });
+
+    it('resolves a public id to a urn when the caller has none', async () => {
+      net.push(profileView);
+      net.push(inviteCreated);
+      await v.sendInvite({ publicId: 'adalovelace', note: 'Hi' });
+      expect(net.calls[net.calls.length - 1].json.invitee.inviteeUnion.memberProfile).toContain(
+        'fsd_profile',
+      );
+    });
   });
 
   it('sendMessage posts to the messenger create action with our mailbox', async () => {

@@ -24,7 +24,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `network.unfollowAll` | `{}` | `{ unfollowed: number }` — popup only; any other origin gets `UNAUTHORIZED` |
 | `outreach.view` | `{ publicId }` | `WriteResult` |
 | `outreach.follow` | `{ publicId }` | `WriteResult` |
-| `outreach.invite` | `{ publicId, note? }` | `WriteResult` |
+| `outreach.invite` | `{ publicId, note? }` | `WriteResult` — `note` is at most **200 characters**, LinkedIn's own limit; a longer one is refused with `INVALID_PARAMS` and `howToFix: 'LinkedIn limits invitation notes to 200 characters.'` before any quota is spent, and a campaign step whose rendered note overruns is truncated at a word boundary with a `campaign_note_truncated` event rather than failing. Free accounts also get only a small monthly allowance of personalised (with-note) invitations; exhausting it comes back as `LINKEDIN_ERROR` |
 | `outreach.message` | `{ publicId, body }` | `WriteResult` |
 | `outreach.inmail` | `{ publicId, subject, body }` | `WriteResult` |
 | `outreach.like` | `{ postUrl }` | `WriteResult` |
@@ -46,8 +46,8 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `campaign.enroll` | `{ campaignId, publicIds }` | `{ enrolled, skipped }` |
 | `campaign.pause` / `campaign.resume` / `campaign.delete` | `{ campaignId }` | `Campaign` |
 | `campaign.tick` | `{}` | `{ executed: number, queued: number }` |
-| `queue.list` | `{ status?: 'pending'\|'approved'\|'rejected'\|'sent' }` | `{ items: QueueItem[] }` |
-| `queue.approve` | `{ ids: string[], edits?: Record<id, {note?, body?}> }` | `{ approved: number }` — origin `mcp` is refused with `UNAUTHORIZED` unless `autopilot` is on; `popup` and `cli` are a human deciding and always pass |
+| `queue.list` | `{ status?: 'pending'\|'approved'\|'rejected'\|'sent'\|'failed' }` | `{ items: QueueItem[] }` — a `failed` item carries `result.error` |
+| `queue.approve` | `{ ids: string[], edits?: Record<id, {note?, body?, subject?}> }` | `{ approved: number }` — **returns immediately**: `approved` is how many were *marked* approved, not how many sent. The extension then sends them one at a time at human pace, on a one-minute alarm plus an immediate kick, emitting `queue_item_sent` per success and marking the rest `failed` with their error; watch those events or poll `queue.list`. Edits are validated against the action's own params first, so an over-long note is refused with `INVALID_PARAMS` and *nothing* is approved. Origin `mcp` is refused with `UNAUTHORIZED` unless `autopilot` is on; `popup` and `cli` are a human deciding and always pass |
 | `queue.reject` | `{ ids: string[] }` | `{ rejected: number }` — same origin rule as `queue.approve` |
 | `ai.complete` | `{ task: 'opener'\|'summary'\|'sentiment'\|'comment'\|'score', input: object }` | `{ output: string \| object, provider, model }` |
 | `export.csv` | `{ kind: 'profiles'\|'list'\|'campaign'\|'inbox', id? }` | `{ csv: string, filename }` |
@@ -116,7 +116,9 @@ Event (extension → server) `{ event: EventName, payload }`.
 
 Error codes: `EXTENSION_OFFLINE`, `NOT_LOGGED_IN`, `RATE_LIMITED`, `CHALLENGE_DETECTED`, `QUOTA_EXCEEDED`, `OUTSIDE_BUSINESS_HOURS`, `INVALID_PARAMS`, `NOT_FOUND`, `LINKEDIN_ERROR`, `AI_NOT_CONFIGURED`, `AI_ERROR`, `UNAUTHORIZED` (bad bridge token), `INTERNAL`.
 
-Event names: `invite_accepted`, `reply_received`, `positive_reply`, `campaign_step_done`, `campaign_completed`, `quota_hit`, `challenge_detected`, `queue_item_added`, `queue_item_sent`, `research_progress`, `research_completed`.
+Event names: `invite_accepted`, `reply_received`, `positive_reply`, `campaign_step_done`, `campaign_completed`, `quota_hit`, `challenge_detected`, `queue_item_added`, `queue_item_sent`, `campaign_note_truncated`, `research_progress`, `research_completed`.
+
+`campaign_note_truncated` carries `{ campaignId, publicId, stepIndex, originalLength, limit, note }`: a campaign invite step whose rendered note came out longer than the 200-character limit was cut at a word boundary and sent, rather than failing that one person. Shorten the template.
 
 ### Bridge protocol
 

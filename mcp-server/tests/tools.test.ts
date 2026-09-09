@@ -408,7 +408,7 @@ describe('prompts', () => {
     });
     const text = (result.messages[0].content as any).text as string;
     expect(text).toContain('ada-lovelace');
-    expect(text).toContain('300 characters');
+    expect(text).toContain('200 characters');
     expect(text).toContain('Do not call linkedin_send_invite');
   });
 

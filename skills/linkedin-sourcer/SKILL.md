@@ -95,6 +95,12 @@ Lists tab to download it.
 - **No writes.** This skill never calls `linkedin_send_invite`, `linkedin_send_message`,
   `linkedin_follow`, `linkedin_view_profile` in bulk, or any other write tool.
 - **Copilot mode still applies** to anything downstream. Say so when handing off.
+- **Hand off within the outreach limits.** If the shortlist is going to
+  `linkedin-outreach-writer` or a campaign, any suggested opener must fit an invitation note:
+  **200 characters is LinkedIn's hard limit, so aim for 180 or fewer**. Longer notes are refused
+  with `INVALID_PARAMS`, and campaign steps that overrun are truncated at a word boundary. On a
+  free account, personalised (with-note) invitations are also capped at a handful per month — say
+  so when the shortlist is longer than that.
 - **Ask before going wide.** Anything over 100 profiles or over 3 pages of search gets confirmed
   with the user first, with the quota cost stated.
 - **Never fabricate a publicId.** Only use ids returned by a tool.

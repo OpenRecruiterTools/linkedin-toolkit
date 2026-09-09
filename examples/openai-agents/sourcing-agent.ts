@@ -94,7 +94,7 @@ const getConnectionStatus = tool({
 const sendInvite = tool({
   name: 'linkedin_send_invite',
   description:
-    'Send a connection invite with an optional note (300 characters maximum). In Copilot mode — the default — this QUEUES the invite for human approval and returns {status:"queued", queueId}. That is success, not failure. Pass dry_run:true to see what would be sent without queuing anything.',
+    'Send a connection invite with an optional note (200 characters maximum — LinkedIn\'s limit; a longer note is refused with INVALID_PARAMS). In Copilot mode — the default — this QUEUES the invite for human approval and returns {status:"queued", queueId}. That is success, not failure. Pass dry_run:true to see what would be sent without queuing anything.',
   parameters: z.object({
     publicId: z.string(),
     note: z.string().max(300).nullable(),
@@ -121,7 +121,7 @@ Order of work:
    connected or already pending.
 5. Score against the brief using only fields the tools returned. One line of reasoning each.
 6. linkedin_get_profile with full:true for the finalists only — each one costs visit quota.
-7. Draft invite notes under 300 characters, each hanging on a specific fact from that person's
+7. Draft invite notes under 180 characters (200 is LinkedIn's hard limit), each hanging on a specific fact from that person's
    own profile. No flattery, no "I came across your profile", no invented facts.
 8. dry_run the first invite and show it before queuing the rest.
 

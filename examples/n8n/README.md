@@ -66,6 +66,7 @@ The webhook receives `{ event, payload }` for:
 | `quota_hit` | `{ kind, cap }` | Log it; nothing to fix, the engine is working |
 | `challenge_detected` | `{ detectedAt }` | **Page someone.** Every write pauses until a human clears it in Chrome |
 | `queue_item_added` / `queue_item_sent` | `{ id, action, publicId }` | Approval dashboards |
+| `campaign_note_truncated` | `{ campaignId, publicId, stepIndex, originalLength, limit }` | An invite note was cut to fit LinkedIn's 200 characters — shorten the template |
 | `research_progress` / `research_completed` | `{ jobId, done, total, listId }` | Research Pack progress |
 
 ## Any action, from any node

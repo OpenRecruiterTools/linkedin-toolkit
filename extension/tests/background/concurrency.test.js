@@ -9,6 +9,7 @@ import '../../src/background/outreach.js';
 import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
+import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 
 let net;
 
@@ -125,8 +126,8 @@ describe('quota.reserve is atomic', () => {
 
   it('two concurrent sends cannot take the account over a hard cap', async () => {
     await setConfig({ accountPreset: 'free', dailyInviteCap: 1, hourlyCap: 50 });
-    net.push({});
-    net.push({});
+    net.push(inviteCreated);
+    net.push(inviteCreated);
 
     const results = await Promise.allSettled([
       handle(ACTIONS.OUTREACH_INVITE, { publicId: 'adalovelace', note: 'a' }, 'popup'),
@@ -151,14 +152,14 @@ describe('the queue survives concurrent writes', () => {
     expect(await queue.list('pending')).toHaveLength(15);
   });
 
-  it('approving the same item twice sends it once', async () => {
+  it('approving the same item twice claims it once, and it sends once', async () => {
     const queued = await handle(
       ACTIONS.OUTREACH_INVITE,
       { publicId: 'adalovelace', note: 'Hi' },
       'mcp',
     );
-    net.push({});
-    net.push({});
+    net.push(inviteCreated);
+    net.push(inviteCreated);
 
     const [first, second] = await Promise.all([
       handle(ACTIONS.QUEUE_APPROVE, { ids: [queued.data.queueId] }),
@@ -166,7 +167,25 @@ describe('the queue survives concurrent writes', () => {
     ]);
 
     expect(first.data.approved + second.data.approved).toBe(1);
+    await queue.sendApproved();
+
     expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(1);
     expect((await queue.list())[0].status).toBe('sent');
+  });
+
+  it('two senders running at once never send an item twice', async () => {
+    await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        handle(ACTIONS.OUTREACH_INVITE, { publicId: `p${i}`, note: 'Hi' }, 'mcp'),
+      ),
+    );
+    const ids = (await queue.list('pending')).map((i) => i.id);
+    await handle(ACTIONS.QUEUE_APPROVE, { ids });
+    for (let i = 0; i < 4; i += 1) net.push(inviteCreated);
+
+    await Promise.all([queue.sendApproved(), queue.sendApproved(), queue.sendApproved()]);
+
+    expect(await queue.list('sent')).toHaveLength(4);
+    expect(net.calls.filter((c) => c.url.includes('action=verifyQuotaAndCreateV2'))).toHaveLength(4);
   });
 });

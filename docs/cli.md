@@ -55,10 +55,16 @@ lit invite <profile-url> --note "..."
 lit message <profile-url> --body "..."
 lit campaign create --from sequences/warm-connect.json --list "Data leads"
 lit campaign pause <campaignId>
-lit queue list
-lit queue approve <id> [<id>...]
+lit queue list                                                # pending by default
+lit queue list --status sent|failed|approved|pending|rejected
+lit queue approve <id> [<id>...]                              # marks them; sending follows
 lit queue reject  <id> [<id>...]
 ```
+
+`lit queue approve` returns as soon as the items are marked. The extension then sends them one at
+a time at human pace — seconds to minutes, depending on your delay settings — so check the outcome
+with `lit queue list --status sent` and `--status failed`, which shows why each one failed.
+A note longer than LinkedIn's 200 characters is refused at approval time, and nothing is approved.
 
 ## Research Pack
 

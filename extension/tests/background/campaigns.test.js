@@ -14,6 +14,7 @@ import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
 import profileView from '../fixtures/voyager/profileView.json';
 import inviteAccepted from '../fixtures/voyager/inviteAccepted.json';
+import inviteCreated from '../fixtures/voyager/inviteCreated.json';
 import conversations from '../fixtures/voyager/conversations.json';
 import conversationEvents from '../fixtures/voyager/conversationEvents.json';
 import warmConnect from '../../sequences/warm-connect.json';
@@ -155,7 +156,9 @@ describe('linear sequence', () => {
       { type: 'invite', note: 'Hi {{firstName}}' },
     ]);
 
-    net.push(profileView); // the view
+    // The view is answered by the `/identity/dash/profiles` route above, so
+    // nothing is queued for it; queueing one would be left over to be eaten by
+    // the next unrouted call, which is the invite.
     let res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data.executed).toBe(1);
     expect(names()).toContain('campaign_step_done');
@@ -174,7 +177,7 @@ describe('linear sequence', () => {
     expect(net.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
 
     jump(24 * HOUR);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data.executed).toBe(1);
 
@@ -223,7 +226,7 @@ describe('branching', () => {
 
   it('takes the then arm when the invite was accepted', async () => {
     const c = await makeCampaign(branched);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     // The invitation is no longer pending; the branch confirms with one read
@@ -240,7 +243,7 @@ describe('branching', () => {
 
   it('takes the else arm when it was not accepted', async () => {
     await makeCampaign(branched);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     // The invitation is still pending, so the branch takes the else arm.
@@ -255,7 +258,7 @@ describe('branching', () => {
 
   it('climbs back out of the arm and finishes', async () => {
     const c = await makeCampaign(branched);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     net.push({}); // whichever arm it takes
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -279,7 +282,7 @@ describe('branching', () => {
         },
       },
     ]);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
@@ -347,6 +350,69 @@ describe('stopOnReply', () => {
   });
 });
 
+describe('invite notes are cut to fit LinkedIn, not refused', () => {
+  it('fitInviteNote leaves a note that already fits exactly alone', () => {
+    expect(campaigns.fitInviteNote('Hi Ada')).toEqual({
+      note: 'Hi Ada',
+      truncated: false,
+      originalLength: 6,
+    });
+    const exact = 'x'.repeat(200);
+    expect(campaigns.fitInviteNote(exact).truncated).toBe(false);
+    expect(campaigns.fitInviteNote(exact).note).toHaveLength(200);
+  });
+
+  it('cuts at a word boundary rather than mid-word', () => {
+    const words = `${'word '.repeat(60)}tail`;
+    const out = campaigns.fitInviteNote(words);
+
+    expect(out.truncated).toBe(true);
+    expect(out.note.length).toBeLessThanOrEqual(200);
+    expect(out.note.endsWith('word')).toBe(true);
+    expect(out.originalLength).toBe(words.length);
+  });
+
+  it('leaves no trailing space or dangling punctuation', () => {
+    const out = campaigns.fitInviteNote(`${'a'.repeat(150)} and, then more words here to overflow it`);
+    expect(out.note).not.toMatch(/[\s,;:-]$/);
+  });
+
+  it('falls back to a hard cut when the first word is longer than the limit', () => {
+    const out = campaigns.fitInviteNote('y'.repeat(400));
+    expect(out.note).toHaveLength(200);
+    expect(out.truncated).toBe(true);
+  });
+
+  it('a campaign sends the cut note and says it cut it', async () => {
+    const long = `Hi {{firstName}}, ${'a very long clause about their work '.repeat(8)}worth a chat?`;
+    await makeCampaign([{ type: 'invite', note: long }]);
+    await setConfig({ autopilot: true });
+
+    net.push(inviteCreated);
+    const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+
+    expect(res.data.executed).toBe(1);
+    const sentNote = net.calls[net.calls.length - 1].json.customMessage;
+    expect(sentNote.length).toBeLessThanOrEqual(200);
+    expect(sentNote.startsWith('Hi Ada,')).toBe(true);
+
+    const warning = seen.find((f) => f.event === 'campaign_note_truncated');
+    expect(warning).toBeTruthy();
+    expect(warning.payload).toMatchObject({ publicId: 'adalovelace', stepIndex: 0, limit: 200 });
+    expect(warning.payload.originalLength).toBeGreaterThan(200);
+  });
+
+  it('says nothing when the note already fits', async () => {
+    await makeCampaign([{ type: 'invite', note: 'Hi {{firstName}}' }]);
+    await setConfig({ autopilot: true });
+
+    net.push(inviteCreated);
+    await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
+
+    expect(names()).not.toContain('campaign_note_truncated');
+  });
+});
+
 describe('variants', () => {
   it('rotates round-robin across the campaign', async () => {
     const c = (
@@ -359,7 +425,7 @@ describe('variants', () => {
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
     await storage.putProfile({ publicId: 'carlachen', firstName: 'Carla' });
 
-    for (let i = 0; i < 3; i += 1) net.push({}); // three invites
+    for (let i = 0; i < 3; i += 1) net.push(inviteCreated); // three invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
@@ -379,7 +445,7 @@ describe('variants without a note or body', () => {
     });
     await storage.putProfile({ publicId: 'bobbright', firstName: 'Bob' });
 
-    for (let i = 0; i < 2; i += 1) net.push({}); // two invites
+    for (let i = 0; i < 2; i += 1) net.push(inviteCreated); // two invites
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);
@@ -448,7 +514,7 @@ describe('already connected', () => {
 
   it('spends exactly one profile view on an invite to a stranger', async () => {
     await makeCampaign([{ type: 'invite', note: 'Hi' }]);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
 
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
@@ -460,7 +526,7 @@ describe('already connected', () => {
 
   it('still invites someone we are not connected to', async () => {
     await makeCampaign([{ type: 'invite', note: 'Hi' }]);
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     const res = await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     expect(res.data.executed).toBe(1);
   });
@@ -493,14 +559,16 @@ describe('shipped sequence templates', () => {
       publicIds: ['adalovelace'],
     });
 
-    net.push(profileView); // the view
+    // The view is answered by the `/identity/dash/profiles` route above, so
+    // nothing is queued for it; queueing one would be left over to be eaten by
+    // the next unrouted call, which is the invite.
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);
 
     // the wait (the template decides how long)
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     jump(connectThenMessage.steps[1].waitMs + HOUR);
 
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     expect((await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')).data.executed).toBe(1);
     expect(net.calls[net.calls.length - 1].json.customMessage).toMatch(/^Hi Ada/);
   });
@@ -539,8 +607,9 @@ describe('copilot and quotas', () => {
     expect(item.params.stepIndex).toBeUndefined();
     expect(item.params.note).toBe('Hi Ada');
 
-    net.push({}); // the invite
+    net.push(inviteCreated); // the invite
     await handle(ACTIONS.QUEUE_APPROVE, { ids: [item.id] });
+    await queue.sendApproved();
 
     const entry = (await storage.allActions()).find((e) => e.action === ACTIONS.OUTREACH_INVITE);
     expect(entry.campaignId).toBe(c.campaignId);
@@ -571,8 +640,9 @@ describe('copilot and quotas', () => {
     });
     expect(await queue.list('pending')).toHaveLength(1);
 
-    net.push({}); // the approved invite
+    net.push(inviteCreated); // the approved invite
     await handle(ACTIONS.QUEUE_APPROVE, { ids: [item.id] });
+    await queue.sendApproved();
 
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
     e = await enrollmentOf(c.campaignId);
@@ -609,11 +679,11 @@ describe('copilot and quotas', () => {
     // One person a tick, by leaving only one invite's worth of quota per day.
     await setConfig({ accountPreset: 'free', dailyInviteCap: 1, hourlyCap: 50 });
 
-    net.push({});
+    net.push(inviteCreated);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     jump(24 * HOUR);
-    net.push({});
+    net.push(inviteCreated);
     await handle(ACTIONS.CAMPAIGN_TICK, {}, 'system');
 
     const notes = net.calls.filter((x) => x.json && x.json.customMessage).map((x) => x.json.customMessage);

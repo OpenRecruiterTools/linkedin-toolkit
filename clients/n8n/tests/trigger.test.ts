@@ -25,11 +25,11 @@ describe('the trigger description', () => {
     expect(node.description.outputs).toEqual(['main']);
   });
 
-  it('offers all eleven contract events, each with a description', () => {
+  it('offers all twelve contract events, each with a description', () => {
     const events = node.description.properties.find((property) => property.name === 'events')!;
     const options = events.options as Array<{ value: string; description: string }>;
     expect(options.map((option) => option.value)).toEqual([...EVENTS]);
-    expect(options).toHaveLength(11);
+    expect(options).toHaveLength(12);
     for (const option of options) expect(option.description.length).toBeGreaterThan(10);
   });
 

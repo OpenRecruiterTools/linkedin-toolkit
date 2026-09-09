@@ -97,7 +97,9 @@ export async function voyagerFetch(path, options = {}) {
 
   const init = { ...options, headers, credentials: 'include' };
   if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
-    headers['content-type'] = 'application/json';
+    // A caller may pin an exact content-type — the invitation write sends the
+    // `; charset=UTF-8` spelling the web client sends — so only fill it in.
+    if (!headers['content-type']) headers['content-type'] = 'application/json';
     init.body = JSON.stringify(init.body);
   }
 
@@ -116,10 +118,23 @@ export async function voyagerFetch(path, options = {}) {
     } catch {
       /* body is optional */
     }
-    throw new EngineError(
+    const error = new EngineError(
       ERROR.LINKEDIN_ERROR,
       `Voyager API error ${resp.status}: ${body.slice(0, 300)}`,
     );
+    // LinkedIn explains a refused write in the body — `{"data":{"code":…,
+    // "message":…}}` for a duplicate invitation or an exhausted allowance — so
+    // the parsed body rides along for a caller that can turn it into a real
+    // explanation. It hangs off the error itself rather than off `extra`, which
+    // is folded into the response envelope: raw LinkedIn JSON is ours to read,
+    // not something to hand to every client.
+    error.status = resp.status;
+    try {
+      if (body) error.response = JSON.parse(body);
+    } catch {
+      /* not JSON; the message already carries the text */
+    }
+    throw error;
   }
 
   if (resp.status === 204) return { ok: true };

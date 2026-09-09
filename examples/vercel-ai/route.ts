@@ -84,7 +84,7 @@ export const linkedinTools = {
 
   linkedin_send_invite: tool({
     description:
-      'Send a connection invite with an optional note (300 characters max). In Copilot mode — the default — this QUEUES for human approval and returns {status:"queued", queueId}. That is success. dry_run:true returns what would be sent without queuing.',
+      'Send a connection invite with an optional note (200 characters max — LinkedIn\'s limit; a longer note is refused with INVALID_PARAMS). In Copilot mode — the default — this QUEUES for human approval and returns {status:"queued", queueId}. That is success. dry_run:true returns what would be sent without queuing.',
     inputSchema: z.object({
       publicId: z.string(),
       note: z.string().max(300).optional(),
@@ -106,7 +106,7 @@ const SYSTEM = `You help the user source and reach out to people on LinkedIn.
 
 Always call linkedin_get_status first and respect what it tells you about quota and mode.
 Never invent a fact, a publicId, or a reason to reach out — everything you say about a person must
-come from a tool result. Invite notes are 300 characters maximum and must hang on something
+come from a tool result. Invite notes are 200 characters maximum (aim for 180) and must hang on something
 specific from that person's own profile.
 
 Writes queue for human approval unless the user has turned Autopilot on themselves in the

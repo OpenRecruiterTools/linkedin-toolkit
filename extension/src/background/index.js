@@ -11,6 +11,7 @@
 
 import { ACTIONS, ERROR, EngineError, err } from '../lib/actions.js';
 import { handle, register } from './engine.js';
+import { sendApproved } from './queue.js';
 
 
 // Feature modules register their own contract actions on import.
@@ -34,6 +35,20 @@ import { ensureConnected, onAlarm, startKeepalive } from './bridge.js';
 /* ================================================================== */
 
 export const CAMPAIGN_TICK_ALARM = 'campaignTick';
+
+/**
+ * The approval queue's own tick.
+ *
+ * `queue.approve` marks items and returns; this is what actually sends them.
+ * It runs on the same kind of alarm as the campaign tick, at the shortest
+ * cadence `chrome.alarms` allows, because an approval is a human waiting —
+ * five minutes is fine for a sequence step and much too long for someone who
+ * has just pressed Approve. The usual case never waits for it at all: the
+ * approval kicks the sender immediately, and the alarm is the safety net for a
+ * service worker that was torn down mid-drain.
+ */
+export const QUEUE_TICK_ALARM = 'queueTick';
+export const QUEUE_TICK_MINUTES = 1;
 
 /* ================================================================== */
 /*  Tabs                                                              */
@@ -202,10 +217,17 @@ function reconnectBridge() {
 }
 
 chrome.alarms.create(CAMPAIGN_TICK_ALARM, { periodInMinutes: 5 });
+chrome.alarms.create(QUEUE_TICK_ALARM, { periodInMinutes: QUEUE_TICK_MINUTES });
 startKeepalive();
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   onAlarm(alarm).catch(() => {});
+
+  if (alarm.name === QUEUE_TICK_ALARM) {
+    sendApproved().catch((e) => console.warn('[Queue tick]', e.message));
+    return;
+  }
+
   if (alarm.name !== CAMPAIGN_TICK_ALARM) return;
   reconnectBridge();
   handle(ACTIONS.CAMPAIGN_TICK, {}, 'system')

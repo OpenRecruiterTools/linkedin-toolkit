@@ -154,9 +154,12 @@ describe('errors', () => {
 });
 
 describe('prompts', () => {
-  it('opener passes only profile facts and holds the 300-character rule', () => {
+  it('opener passes only profile facts and aims under LinkedIn\'s 200-character limit', () => {
     const { system, user } = promptFor('opener', { profile: ada, tone: 'direct' });
-    expect(system).toMatch(/300/);
+    // 180, not 200: a rendered name and job title must not push it over.
+    expect(system).toMatch(/180/);
+    expect(system).toMatch(/200/);
+    expect(system).not.toMatch(/300 characters/);
     expect(system).toMatch(/do not invent|never invent/i);
     expect(system).toContain('direct');
     expect(user).toContain('Ada Lovelace');

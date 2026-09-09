@@ -116,6 +116,7 @@ export const EVENTS = Object.freeze({
   CHALLENGE_DETECTED: 'challenge_detected',
   QUEUE_ITEM_ADDED: 'queue_item_added',
   QUEUE_ITEM_SENT: 'queue_item_sent',
+  CAMPAIGN_NOTE_TRUNCATED: 'campaign_note_truncated',
   RESEARCH_PROGRESS: 'research_progress',
   RESEARCH_COMPLETED: 'research_completed',
 });
@@ -130,6 +131,18 @@ export const HARD_CAPS = Object.freeze({
   dailyVisitCap: 500,
   dailySearchCap: 1000,
 });
+
+/**
+ * How long an invitation note may be.
+ *
+ * LinkedIn's own dialog stops at 200 characters (captured 2026-09-09, web
+ * client 1.13.46516). The engine is the only place that number is written, so
+ * validation, the queue, the campaign renderer and the Voyager write all agree.
+ */
+export const INVITE_NOTE_MAX = 200;
+
+/** The one sentence every layer says when a note is too long. */
+export const INVITE_NOTE_FIX = 'LinkedIn limits invitation notes to 200 characters.';
 
 /** Floors and ceilings that are not part of HARD_CAPS but are still enforced. */
 const MIN_DELAY_MS = 3000;
@@ -200,6 +213,8 @@ export function err(id, code, message, extra) {
  *   optional : same shape
  *   enums    : { field: [allowed, …] }
  *   max      : { field: ceiling }  (numeric, inclusive)
+ *   maxLength: { field: ceiling }  (string length, inclusive)
+ *   fix      : { field: howToFix } (advice attached when that field is refused)
  *   anyOf    : [field, …]          (at least one must be present)
  */
 const PARAM_SPECS = {
@@ -270,6 +285,10 @@ const PARAM_SPECS = {
   [ACTIONS.OUTREACH_INVITE]: {
     required: { publicId: 'string' },
     optional: { note: 'string', dryRun: 'boolean' },
+    // Refusing an over-long note here means the caller is told before a quota
+    // unit is spent and before LinkedIn is asked to do anything.
+    maxLength: { note: INVITE_NOTE_MAX },
+    fix: { note: INVITE_NOTE_FIX },
   },
   [ACTIONS.OUTREACH_MESSAGE]: {
     required: { publicId: 'string', body: 'string' },
@@ -330,7 +349,10 @@ const PARAM_SPECS = {
 
   [ACTIONS.QUEUE_LIST]: {
     optional: { status: 'string' },
-    enums: { status: ['pending', 'approved', 'rejected', 'sent'] },
+    // `failed` is a status the queue actually writes, so it has to be a status
+    // the queue can be asked for; without it there was no way to list the
+    // items that did not send.
+    enums: { status: ['pending', 'approved', 'rejected', 'sent', 'failed'] },
   },
   [ACTIONS.QUEUE_APPROVE]: {
     required: { ids: 'array' },
@@ -377,7 +399,7 @@ function checkType(field, value, expected) {
 
 /**
  * Validate params for an action.
- * @returns {{ok: true} | {ok: false, message: string}}
+ * @returns {{ok: true} | {ok: false, message: string, howToFix?: string}}
  */
 export function validateParams(action, params = {}) {
   const spec = Object.prototype.hasOwnProperty.call(PARAM_SPECS, action)
@@ -392,6 +414,12 @@ export function validateParams(action, params = {}) {
   const optional = spec.optional || {};
   const enums = spec.enums || {};
   const max = spec.max || {};
+  const maxLength = spec.maxLength || {};
+  const fix = spec.fix || {};
+
+  /** A refusal, with the per-field advice when the spec carries any. */
+  const refuse = (field, message) =>
+    fix[field] ? { ok: false, message, howToFix: fix[field] } : { ok: false, message };
 
   for (const [field, expected] of Object.entries(required)) {
     if (p[field] === undefined || p[field] === null) {
@@ -420,7 +448,18 @@ export function validateParams(action, params = {}) {
   for (const [field, ceiling] of Object.entries(max)) {
     if (p[field] === undefined || p[field] === null) continue;
     if (p[field] > ceiling) {
-      return { ok: false, message: `${field} must be ${ceiling} or less` };
+      return refuse(field, `${field} must be ${ceiling} or less`);
+    }
+  }
+
+  for (const [field, ceiling] of Object.entries(maxLength)) {
+    if (p[field] === undefined || p[field] === null) continue;
+    const length = String(p[field]).length;
+    if (length > ceiling) {
+      return refuse(
+        field,
+        `${field} must be ${ceiling} characters or fewer (this one is ${length})`,
+      );
     }
   }
 

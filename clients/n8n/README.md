@@ -72,6 +72,7 @@ care about, or leave the list empty for all eleven:
 | `quota_hit` | Log it — the engine is working as intended |
 | `challenge_detected` | **Page someone.** All writes are paused until a human clears it in Chrome |
 | `queue_item_added`, `queue_item_sent` | Approval dashboards |
+| `campaign_note_truncated` | An invite note was cut to fit LinkedIn's 200 characters — shorten the template |
 | `research_progress`, `research_completed` | Research Pack progress |
 
 A delivery whose event is filtered out is answered — so the server does not retry — but does not

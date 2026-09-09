@@ -9,6 +9,8 @@ import {
   EVENTS,
   HARD_CAPS,
   DEFAULT_CONFIG,
+  INVITE_NOTE_MAX,
+  INVITE_NOTE_FIX,
   validateParams,
   clampConfig,
   ok,
@@ -110,6 +112,7 @@ describe('EVENTS', () => {
     'challenge_detected',
     'queue_item_added',
     'queue_item_sent',
+    'campaign_note_truncated',
     'research_progress',
     'research_completed',
   ];
@@ -189,6 +192,44 @@ describe('validateParams', () => {
       true,
     );
     expect(validateParams('outreach.comment', { postUrl: 'u', body: 'b' }).ok).toBe(true);
+  });
+
+  describe('the invitation note limit', () => {
+    it('is the 200 characters LinkedIn allows', () => {
+      expect(INVITE_NOTE_MAX).toBe(200);
+      expect(validateParams('outreach.invite', { publicId: 'dom', note: 'x'.repeat(200) }).ok).toBe(
+        true,
+      );
+    });
+
+    it('refuses a longer note, and says how long it was', () => {
+      const res = validateParams('outreach.invite', { publicId: 'dom', note: 'x'.repeat(201) });
+      expect(res.ok).toBe(false);
+      expect(res.message).toContain('201');
+      expect(res.howToFix).toBe('LinkedIn limits invitation notes to 200 characters.');
+      expect(res.howToFix).toBe(INVITE_NOTE_FIX);
+    });
+
+    it('says nothing about a note that is not there', () => {
+      expect(validateParams('outreach.invite', { publicId: 'dom' }).ok).toBe(true);
+    });
+
+    it('leaves messages alone — only invitations have this limit', () => {
+      expect(
+        validateParams('outreach.message', { publicId: 'dom', body: 'x'.repeat(2000) }).ok,
+      ).toBe(true);
+    });
+  });
+
+  it('carries no howToFix for a refusal that has no specific advice', () => {
+    expect(validateParams('outreach.invite', {}).howToFix).toBeUndefined();
+  });
+
+  it('accepts every status the queue can actually be in', () => {
+    for (const status of ['pending', 'approved', 'rejected', 'sent', 'failed']) {
+      expect(validateParams('queue.list', { status }).ok, status).toBe(true);
+    }
+    expect(validateParams('queue.list', { status: 'gone' }).ok).toBe(false);
   });
 
   it('has a spec for every action in ACTIONS', () => {
