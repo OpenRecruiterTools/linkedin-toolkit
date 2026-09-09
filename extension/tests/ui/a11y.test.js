@@ -363,14 +363,14 @@ describe('accessible names', () => {
 
     addStep('invite');
     const note = host.querySelector('[data-step="0"] textarea');
-    expect(note.getAttribute('aria-label')).toBe('Invite note (300 characters on LinkedIn)');
+    expect(note.getAttribute('aria-label')).toBe('Invite note (200 characters on LinkedIn)');
 
     [...host.querySelectorAll('[data-step="0"] button')]
       .find((b) => b.textContent.includes('+ Alternative'))
       .click();
     const variant = [...host.querySelectorAll('[data-step="0"] textarea')][1];
     expect(variant.getAttribute('aria-label')).toBe(
-      'Invite note (300 characters on LinkedIn) — alternative 1',
+      'Invite note (200 characters on LinkedIn) — alternative 1',
     );
 
     addStep('inmail');

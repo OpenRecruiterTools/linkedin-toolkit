@@ -68,7 +68,7 @@ All of these honour Copilot mode and the hard caps.
 |---|---|---|
 | `linkedin_view_profile` | `outreach.view` | Visit a profile so it shows in their "who viewed". Costs visit quota. |
 | `linkedin_follow` | `outreach.follow` | Follow without connecting. |
-| `linkedin_send_invite` | `outreach.invite` | Connection invite, optional `note` ≤ 300 characters. |
+| `linkedin_send_invite` | `outreach.invite` | Connection invite, optional `note` ≤ **200 characters** (LinkedIn's limit; aim for 180). Free accounts get only a few personalised invitations a month. |
 | `linkedin_send_message` | `outreach.message` | Direct message to an existing connection. |
 | `linkedin_send_inmail` | `outreach.inmail` | InMail with `subject` and `body`. Needs credits on the account. |
 | `linkedin_like_post` | `outreach.like` | Like a post by URL. |
@@ -89,8 +89,8 @@ All of these honour Copilot mode and the hard caps.
 
 | Tool | Action | What it does |
 |---|---|---|
-| `linkedin_queue_list` | `queue.list` | Filter by `pending`, `approved`, `rejected`, `sent`. |
-| `linkedin_queue_approve` | `queue.approve` | Approve by id, optionally with `edits` per id. |
+| `linkedin_queue_list` | `queue.list` | Filter by `pending`, `approved`, `rejected`, `sent`, `failed`. A failed item carries `result.error`. |
+| `linkedin_queue_approve` | `queue.approve` | Approve by id, optionally with `edits` per id. Returns `{approved}` **immediately** — how many were marked, not sent. Watch `queue_item_sent` or poll the list. An edited note over 200 characters is refused and nothing is approved. |
 | `linkedin_queue_reject` | `queue.reject` | Reject by id. |
 
 ### Research Pack
@@ -157,7 +157,11 @@ All of these honour Copilot mode and the hard caps.
 
 // linkedin_queue_approve
 { "ids": ["q_7a1e"], "edits": { "q_7a1e": { "note": "Hi Lola — …edited…" } } }
-// → { "approved": 1 }
+// → { "approved": 1 }                                 ← marked, not sent. Returns straight away.
+
+// linkedin_queue_list — a moment later, to see what actually happened
+{ "status": "sent" }
+// → { "items": [ { "id": "q_7a1e", "status": "sent", "result": { "status": "sent", … } } ] }
 ```
 
 ### A campaign

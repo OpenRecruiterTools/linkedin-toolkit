@@ -74,7 +74,7 @@ linkedin_get_profile             { publicId? | url?, full? }        full:true co
 linkedin_get_connection_status   { publicIds: [] }                  before any invite
 linkedin_list_create             { name, tags? }
 linkedin_list_add                { listId, publicIds: [] }
-linkedin_send_invite             { publicId, note?, dry_run? }      note ≤ 300 characters
+linkedin_send_invite             { publicId, note?, dry_run? }      note ≤ 200 characters
 linkedin_send_message            { publicId, body, dry_run? }
 linkedin_queue_list              { status? }
 linkedin_query_sql               { sql: string }                    SELECT only, local, free
@@ -90,7 +90,8 @@ linkedin_query_sql               { sql: string }                    SELECT only,
 5. score against the brief                 — using only fields the tools returned
 6. linkedin_get_profile full:true          — finalists only, each costs visit quota
 7. linkedin_list_create + linkedin_list_add
-8. draft notes ≤ 300 chars                 — one specific fact from that person's own profile
+8. draft notes ≤ 180 chars                 — one specific fact from that person's own profile
+                                             (200 is LinkedIn's hard limit; leave a margin)
 9. linkedin_send_invite dry_run:true       — show the first one before queuing the rest
 10. linkedin_send_invite × n               — all return "queued"
 11. linkedin_queue_list                    — tell the user where their drafts are

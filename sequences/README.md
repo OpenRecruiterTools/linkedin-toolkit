@@ -73,7 +73,9 @@ Steps mirror the `Step` type in [`../docs/actions.md`](../docs/actions.md):
 { "type": "follow" }
 { "type": "like" }                              // likes the enrollee's most recent post
 { "type": "wait", "waitMs": 86400000 }          // one day
-{ "type": "invite",  "variants": ["A", "B"] }   // note; 300 characters hard limit
+{ "type": "invite",  "variants": ["A", "B"] }   // note; 200 characters hard limit, aim for 180
+                                                // — a rendered note that overruns is cut at a
+                                                //   word boundary, with a campaign_note_truncated event
 { "type": "message", "variants": ["A", "B"] }
 { "type": "inmail",  "subject": "…", "variants": ["A", "B"] }
 { "type": "branch", "branch": {

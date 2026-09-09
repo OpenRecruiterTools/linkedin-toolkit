@@ -591,7 +591,7 @@ export function buildProgram(io: Io = defaultIo): Command {
     .command('invite')
     .argument('<url>', 'profile URL or publicId')
     .description('Send a connection invite (queued for approval in Copilot mode).')
-    .option('--note <note>', 'a note, under 300 characters')
+    .option('--note <note>', 'a note, at most 200 characters (LinkedIn\'s limit)')
     .option('--dry-run', 'show what would be sent without sending it')
     .action(async (url, options) => {
       const data = await client().action('outreach.invite', {

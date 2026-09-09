@@ -70,7 +70,7 @@ On creation:
 Campaign "Warm connect · heng-fintech-london" (cmp_7f21) created — 6 steps over 12 days
   1. view
   2. wait 1d
-  3. invite (2 variants, ≤300 chars)
+  3. invite (2 variants, ≤200 chars)
   4. branch on accepted within 7d
        then: wait 2d → message (2 variants) → wait 4d → message
        else: wait 7d → follow

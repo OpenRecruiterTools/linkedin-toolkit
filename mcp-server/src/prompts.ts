@@ -60,7 +60,7 @@ export function registerPrompts(server: McpServer, _toolkit: Toolkit): void {
           `1. linkedin_get_profile with publicId "${publicId}" and full=true, so the note can reference something real.`,
           '2. Optionally linkedin_get_connection_status to check they are not already connected.',
           '',
-          'Rules for the note: under 300 characters (LinkedIn will reject longer), no flattery, no "I came across your profile", one concrete detail from their profile, and one clear reason to connect. Offer two variants and say which you would send.',
+          'Rules for the note: at most 200 characters — LinkedIn\'s hard limit, so aim for 180 and leave room for a long name — no flattery, no "I came across your profile", one concrete detail from their profile, and one clear reason to connect. Offer two variants and say which you would send.',
           '',
           'Show the draft and stop. Do not call linkedin_send_invite — the human decides.',
         ].join('\n'),

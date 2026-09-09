@@ -90,7 +90,7 @@ or direction.>
 - <What the profile does not tell you and you would want to ask.>
 
 ## Suggested opener
-"<≤300 characters, one hook, one ask.>"
+"<≤200 characters — LinkedIn's limit for an invitation note; aim for 180. One hook, one ask.>"
 
 ## Gaps
 <Fields that were empty or ambiguous. Be explicit — this is what stops the reader trusting the

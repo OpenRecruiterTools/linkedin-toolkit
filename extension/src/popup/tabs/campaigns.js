@@ -188,7 +188,7 @@ function stepBody(step, depth) {
   }
 
   if (step.type === 'invite') {
-    return messageEditor(step, 'note', 'Invite note (300 characters on LinkedIn)');
+    return messageEditor(step, 'note', 'Invite note (200 characters on LinkedIn)');
   }
   if (step.type === 'message') {
     return messageEditor(step, 'body', 'Message body');
