@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] — 2026-09-09
+
+### Fixed
+- Invitations send through the verified `verifyQuotaAndCreateV2` call (captured live on client 1.13.46516): the missing `decorationId` and the unread `data.value` made every engine send report failure.
+- `queue.approve` returns immediately; a queue tick sends approved items with human pacing and emits `queue_item_sent` (#21).
+- Quota reservations are handed back when the engine refuses a send itself (invalid params) rather than LinkedIn.
+
+### Added
+- Invitation notes are capped at LinkedIn's 200 characters everywhere a note is drafted or validated; skills recommend 180.
+- `lit queue list --status pending|approved|sent|failed|rejected`, with the failure reason on failed items.
+- `docs/safety.md` explains the monthly personalised-invitation allowance on free accounts.
+
 ## [2.0.1] — 2026-09-09
 
 A packaging and documentation release: how the toolkit is found, installed and explained. Nothing
@@ -196,6 +208,7 @@ The original Chrome extension.
 - Rate limiting: configurable jittered delays, hourly caps, daily invite and message quotas, a
   business-hours window, 429 backoff and 451 challenge detection
 
+[2.0.3]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v2.0.1...v2.0.3
 [2.0.1]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/releases/tag/v1.0.0

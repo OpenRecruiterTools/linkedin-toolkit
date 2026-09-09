@@ -1,6 +1,6 @@
 {
   "name": "linkedin-toolkit",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Typed client and agent-framework tool adapters for the LinkedIn Toolkit local HTTP API.",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "linkedin-toolkit-mcp",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "mcpName": "io.github.FormatixAI/linkedin-toolkit",
   "description": "MCP server, localhost bridge, HTTP action API, SQLite mirror and lit CLI for LinkedIn Toolkit.",
   "license": "MIT",
