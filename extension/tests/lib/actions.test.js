@@ -115,6 +115,7 @@ describe('EVENTS', () => {
     'campaign_note_truncated',
     'research_progress',
     'research_completed',
+    'unfollow_progress',
   ];
 
   it('contains every event name in the contract, and no others', () => {

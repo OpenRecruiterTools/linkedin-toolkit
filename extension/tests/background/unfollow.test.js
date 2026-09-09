@@ -1,17 +1,20 @@
 /**
  * @vitest-environment jsdom
  *
- * Mass unfollow.
+ * Mass unfollow, both modes.
  *
- * The in-page half (`unfollowScan`, `unfollowSweep`) is tested against a jsdom
- * fixture of LinkedIn's Following manager — two pages, 30 rows, aria-labelled
- * toggles that flip on click, exactly as the real page behaves. Nothing here
- * touches LinkedIn.
+ * **DOM mode.** The in-page half (`unfollowScan`, `unfollowSweep`) is tested
+ * against a jsdom fixture of LinkedIn's Following manager — two pages, 30
+ * rows, aria-labelled toggles that flip on click, exactly as the real page
+ * behaves. The worker half is tested through the `chrome` mock, because what
+ * matters there is not the clicking but the guard rails: one tab id, the tab
+ * re-checked between every batch, and a run that stops the moment it moves.
  *
- * The worker half (`unfollowAll`) is tested through the `chrome` mock, because
- * what matters there is not the clicking but the guard rails: one tab id, the
- * tab re-checked between every batch, and a run that stops the moment the tab
- * moves.
+ * **API mode.** Tested through a `fetch` stub holding a Following list that
+ * actually shrinks as the run works through it, so the paging arithmetic has
+ * to be right rather than merely plausible.
+ *
+ * Nothing here touches LinkedIn. Every name below is invented.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -21,16 +24,23 @@ import {
   FOLLOW_BACK_SELECTOR,
   FOLLOWING_URL,
   TOTAL_RE,
+  UNFOLLOW_API_PACING,
   UNFOLLOW_SELECTOR,
   nameFromLabel,
   setSleepFn,
   unfollowAll,
   unfollowCount,
   unfollowScan,
+  unfollowStatus,
+  unfollowStop,
   unfollowSweep,
 } from '../../src/background/unfollow.js';
-import { UNFOLLOW_LIMIT_MAX } from '../../src/lib/actions.js';
+import { noteBackoff } from '../../src/background/quota.js';
+import { EVENTS, UNFOLLOW_LIMIT_MAX } from '../../src/lib/actions.js';
 import { FOLLOWING_NAMES, mountFollowingPage } from '../fixtures/following-page.js';
+import followingPage1 from '../fixtures/voyager/following.json';
+import followingPage2 from '../fixtures/voyager/followingPage2.json';
+import { seedSession, status, stubFetch } from '../helpers/net.js';
 import { setActiveTab } from '../setup.js';
 
 const mock = () => globalThis.chrome.__mock;
@@ -280,7 +290,7 @@ describe('unfollowCount', () => {
       [{ result: { count: 785, loaded: 20, total: 785, labels: ['Click to stop following Ada Lovelace'] } }],
     ];
 
-    expect(await unfollowCount()).toEqual({ count: 785, sample: ['Ada Lovelace'] });
+    expect(await unfollowCount({ mode: 'dom' })).toEqual({ count: 785, sample: ['Ada Lovelace'] });
     expect(chrome.tabs.update).not.toHaveBeenCalled();
   });
 
@@ -288,7 +298,7 @@ describe('unfollowCount', () => {
     onFollowingPage();
     mock().executeScriptResults = [[{ result: 7 }]];
 
-    expect(await unfollowCount()).toEqual({ count: 7, sample: [] });
+    expect(await unfollowCount({ mode: 'dom' })).toEqual({ count: 7, sample: [] });
   });
 });
 
@@ -310,7 +320,7 @@ describe('unfollowAll', () => {
       ],
     ];
 
-    const result = await unfollowAll({ limit: 2 });
+    const result = await unfollowAll({ limit: 2, mode: 'dom' });
 
     expect(result).toEqual({
       unfollowed: 2,
@@ -328,7 +338,7 @@ describe('unfollowAll', () => {
       [{ result: { unfollowed: 0, attempted: 0, labels: [], remaining: 0, hasMore: false } }],
     ];
 
-    const result = await unfollowAll({});
+    const result = await unfollowAll({ mode: 'dom' });
 
     expect(mock().executeScriptCalls[0].args[0].limit).toBe(UNFOLLOW_LIMIT_MAX);
     expect(result.stopped).toBe('end');
@@ -351,7 +361,7 @@ describe('unfollowAll', () => {
       ],
     ];
 
-    const result = await unfollowAll({ limit: 5, dryRun: true });
+    const result = await unfollowAll({ limit: 5, dryRun: true, mode: 'dom' });
 
     expect(result).toEqual({
       unfollowed: 0,
@@ -371,7 +381,7 @@ describe('unfollowAll', () => {
       chrome.tabs.update(tab.id, { url: 'https://www.linkedin.com/feed/' }),
     );
 
-    const result = await unfollowAll({ limit: 50 });
+    const result = await unfollowAll({ limit: 50, mode: 'dom' });
 
     expect(result.stopped).toBe('error');
     expect(result.error).toMatch(/moved away from your Following list/);
@@ -386,7 +396,7 @@ describe('unfollowAll', () => {
       chrome.tabs.update(tab.id, { url: 'https://www.linkedin.com/checkpoint/challenge/' }),
     );
 
-    const result = await unfollowAll({ limit: 50 });
+    const result = await unfollowAll({ limit: 50, mode: 'dom' });
 
     expect(result.stopped).toBe('error');
     expect(result.error).toMatch(/checkpoint/i);
@@ -398,7 +408,7 @@ describe('unfollowAll', () => {
     mock().executeScriptResults = [sweepResult(), sweepResult()];
     moveTabAfterFirstBatch(() => chrome.tabs.remove(tab.id));
 
-    const result = await unfollowAll({ limit: 50 });
+    const result = await unfollowAll({ limit: 50, mode: 'dom' });
 
     expect(result.stopped).toBe('error');
     expect(result.error).toMatch(/closed/i);
@@ -422,7 +432,7 @@ describe('unfollowAll', () => {
       ],
     ];
 
-    const result = await unfollowAll({ limit: 50 });
+    const result = await unfollowAll({ limit: 50, mode: 'dom' });
 
     expect(result.stopped).toBe('error');
     expect(result.error).toMatch(/verification or restriction/);
@@ -438,11 +448,450 @@ describe('unfollowAll', () => {
       [{ result: { unfollowed: 1, attempted: 1, labels: ['Unfollow Ada Lovelace'], remaining: 0, hasMore: false } }],
     ];
 
-    await unfollowAll({ limit: 1 });
+    await unfollowAll({ limit: 1, mode: 'dom' });
 
     expect(mock().executeScriptCalls).toHaveLength(1);
     for (const call of mock().executeScriptCalls) {
       expect(call.target.tabId).toBe(target.id);
     }
+  });
+});
+
+/* ================================================================== */
+/*  API mode                                                          */
+/* ================================================================== */
+/*                                                                    */
+/*  Nothing here touches LinkedIn either: `stubFetch` answers every    */
+/*  request from a fake Following list built out of the two captured-  */
+/*  shape fixtures, and that list *shrinks* as the run unfollows from  */
+/*  it, which is the only way to prove the paging arithmetic does not  */
+/*  step over anybody.                                                */
+/*                                                                    */
+/* ================================================================== */
+
+const PATCH_BODY = '{"patch":{"$set":{"following":false}}}';
+
+/** Every fictional person in the two fixtures, in list order. */
+const ENTITIES = [...followingPage1.included, ...followingPage2.included];
+const FOLLOWING = ENTITIES.map((e) => e.title.text);
+const URNS = ENTITIES.map((e) => e.entityUrn.match(/urn:li:fsd_profile:[^,)]+/)[0]);
+
+/** The state urn LinkedIn is addressed by, and the path it becomes. */
+const statePath = (profileUrn) =>
+  `https://www.linkedin.com/voyager/api/feed/dash/followingStates/${encodeURIComponent(
+    `urn:li:fsd_followingState:${profileUrn}`,
+  )}`;
+
+/**
+ * A living Following list behind the stub.
+ *
+ * Reads page it, and a successful unfollow removes that person from it — so a
+ * second read at the same offset returns different people, exactly as it does
+ * against LinkedIn. `onPost` lets a test make the nth write fail.
+ */
+function followingWorld(net, onPost = null) {
+  const world = { remaining: [...ENTITIES], posts: [], reads: [] };
+
+  /**
+   * LinkedIn is under no obligation to send back as many as we asked for — the
+   * live client asks for ten and gets ten — so the fake serves at most ten
+   * whatever `count` says. Code that assumed it got its whole page would page
+   * straight over somebody, and this is what catches that.
+   */
+  const PAGE_CAP = 10;
+
+  const clusters = (start, count) => {
+    const slice = world.remaining.slice(start, start + Math.min(count, PAGE_CAP));
+    return {
+      data: {
+        data: {
+          searchDashClustersByAll: {
+            metadata: { totalResultCount: world.remaining.length },
+            paging: { start, count, total: world.remaining.length },
+            elements: [
+              {
+                items: slice.map((entity, i) => ({
+                  item: { '*entityResult': entity.entityUrn },
+                  position: i + 1,
+                })),
+              },
+            ],
+          },
+        },
+        errors: [],
+      },
+      included: slice,
+    };
+  };
+
+  net.route(
+    (url) => url.includes('voyagerSearchDashClusters'),
+    (url) => {
+      const decoded = decodeURIComponent(url);
+      const start = Number((decoded.match(/start:(\d+)/) || [])[1] || 0);
+      const count = Number((decoded.match(/count:(\d+)/) || [])[1] || 10);
+      world.reads.push({ start, count });
+      return clusters(start, count);
+    },
+  );
+
+  net.route(
+    (url) => url.includes('/feed/dash/followingStates/'),
+    (url) => {
+      const urn = decodeURIComponent(url.split('/followingStates/')[1]);
+      const profileUrn = urn.replace('urn:li:fsd_followingState:', '');
+      world.posts.push(profileUrn);
+
+      const failure = onPost ? onPost(world.posts.length, profileUrn, world) : null;
+      if (failure) return status(failure, {});
+
+      world.remaining = world.remaining.filter((e) => !e.entityUrn.includes(profileUrn));
+      return undefined; // LinkedIn answers 200 with an empty body
+    },
+  );
+
+  return world;
+}
+
+const nameFor = (i) => FOLLOWING[i];
+
+describe('API mode — reading the list', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('sends exactly the query the Following manager sends', async () => {
+    net.route('voyagerSearchDashClusters', followingPage1);
+
+    await unfollowCount();
+
+    expect(net.calls).toHaveLength(1);
+    expect(net.calls[0].method).toBe('GET');
+    expect(decodeURIComponent(net.calls[0].url)).toBe(
+      'https://www.linkedin.com/voyager/api/graphql?variables=' +
+        '(start:0,count:10,origin:CurationHub,query:(flagshipSearchIntent:MYNETWORK_CURATION_HUB,' +
+        'includeFiltersInResponse:true,queryParameters:List((key:resultType,value:List(PEOPLE_FOLLOW)))))' +
+        '&queryId=voyagerSearchDashClusters.e438ab99259203e9c1cd3f358e217282',
+    );
+  });
+
+  it('answers the total from totalResultCount, not from the page', async () => {
+    net.route('voyagerSearchDashClusters', followingPage1);
+
+    const data = await unfollowCount();
+
+    // Ten came back; twelve is the honest answer, and it needed no tab.
+    expect(data.count).toBe(12);
+    expect(data.sample).toEqual(FOLLOWING.slice(0, 10));
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+    expect(chrome.tabs.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('API mode — the unfollow write', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('POSTs the captured path, headers and body, once per person', async () => {
+    followingWorld(net);
+
+    const result = await unfollowAll({ limit: 1 });
+
+    const post = net.calls.find((c) => c.method === 'POST');
+    expect(post.url).toBe(statePath(URNS[0]));
+    // The urn is percent-encoded, as every urn in a path in this engine is.
+    expect(post.url).toContain('urn%3Ali%3Afsd_followingState%3Aurn%3Ali%3Afsd_profile%3A');
+    expect(post.url).not.toContain('?');
+    expect(post.body).toBe(PATCH_BODY);
+    expect(post.headers['csrf-token']).toBe('ajax:1234567890');
+    expect(post.headers['x-restli-protocol-version']).toBe('2.0.0');
+    expect(post.headers.accept).toBe('application/vnd.linkedin.normalized+json+2.1');
+    expect(post.headers['content-type']).toBe('application/json; charset=UTF-8');
+    expect(post.credentials).toBe('include');
+
+    expect(result).toEqual({
+      unfollowed: 1,
+      attempted: 1,
+      names: [nameFor(0)],
+      stopped: 'limit',
+    });
+  });
+
+  it('stops at the limit and touches nobody past it', async () => {
+    const world = followingWorld(net);
+
+    const result = await unfollowAll({ limit: 3 });
+
+    expect(world.posts).toEqual(URNS.slice(0, 3));
+    expect(result.unfollowed).toBe(3);
+    expect(result.attempted).toBe(3);
+    expect(result.names).toEqual(FOLLOWING.slice(0, 3));
+    expect(result.stopped).toBe('limit');
+  });
+
+  it('works through the whole list, paging as it shrinks', async () => {
+    const world = followingWorld(net);
+
+    const result = await unfollowAll({});
+
+    expect(result.unfollowed).toBe(12);
+    expect(result.attempted).toBe(12);
+    expect(result.stopped).toBe('end');
+    // Everybody exactly once, nobody skipped, in list order.
+    expect(world.posts).toEqual(URNS);
+    expect(result.names).toEqual(FOLLOWING);
+    expect(world.remaining).toEqual([]);
+  });
+
+  it('paces itself with a randomised 0.8-1.6 second gap', async () => {
+    followingWorld(net);
+    const waits = [];
+    setSleepFn((ms) => {
+      waits.push(ms);
+      return Promise.resolve();
+    });
+
+    await unfollowAll({ limit: 4 });
+
+    // Three gaps for four people: there is nothing to wait for after the last.
+    expect(waits).toHaveLength(3);
+    for (const ms of waits) {
+      expect(ms).toBeGreaterThanOrEqual(UNFOLLOW_API_PACING.minDelayMs);
+      expect(ms).toBeLessThanOrEqual(UNFOLLOW_API_PACING.maxDelayMs);
+    }
+    // Randomised, not a metronome — a flat interval is its own signature.
+    expect(new Set(waits).size).toBeGreaterThan(1);
+  });
+});
+
+describe('API mode — dry run', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('names everybody across both pages and writes nothing', async () => {
+    const world = followingWorld(net);
+
+    const result = await unfollowAll({ dryRun: true });
+
+    expect(result).toEqual({
+      unfollowed: 0,
+      attempted: 0,
+      names: FOLLOWING,
+      stopped: 'end',
+    });
+    expect(world.posts).toEqual([]);
+    expect(net.calls.every((c) => c.method === 'GET')).toBe(true);
+    expect(world.remaining).toHaveLength(12);
+    // Two pages, because the list did not shrink under it.
+    expect(world.reads.map((r) => r.start)).toEqual([0, 10]);
+  });
+
+  it('honours the limit and does not read a page it will not report', async () => {
+    const world = followingWorld(net);
+
+    const result = await unfollowAll({ limit: 4, dryRun: true });
+
+    expect(result.names).toEqual(FOLLOWING.slice(0, 4));
+    expect(result.stopped).toBe('limit');
+    expect(world.reads).toHaveLength(1);
+    expect(world.posts).toEqual([]);
+  });
+
+  it('announces no progress for a preview', async () => {
+    followingWorld(net);
+
+    await unfollowAll({ dryRun: true });
+
+    expect(mock().messages.filter((m) => m.event === 'unfollow_progress')).toEqual([]);
+  });
+});
+
+describe('API mode — standing down', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('stops dead on a 451 and keeps what it already did', async () => {
+    const world = followingWorld(net, (n) => (n === 2 ? 451 : null));
+
+    const result = await unfollowAll({});
+
+    expect(world.posts).toHaveLength(2);
+    expect(result.unfollowed).toBe(1);
+    expect(result.attempted).toBe(2);
+    expect(result.names).toEqual([nameFor(0)]);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/security challenge/i);
+  });
+
+  it.each([
+    [429, /rate limited/i],
+    [401, /log in again/i],
+    [403, /denied access/i],
+  ])('stops dead on a %i', async (code, matcher) => {
+    const world = followingWorld(net, (n) => (n === 1 ? code : null));
+
+    const result = await unfollowAll({});
+
+    expect(world.posts).toHaveLength(1);
+    expect(result.unfollowed).toBe(0);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(matcher);
+  });
+
+  it('shrugs off one failure and carries on', async () => {
+    const world = followingWorld(net, (n) => (n === 2 ? 500 : null));
+
+    const result = await unfollowAll({});
+
+    // Everybody was tried; the one LinkedIn refused is the shortfall.
+    expect(world.posts).toHaveLength(12);
+    expect(result.attempted).toBe(12);
+    expect(result.unfollowed).toBe(11);
+    expect(result.names).not.toContain(nameFor(1));
+    expect(result.stopped).toBe('end');
+  });
+
+  it('stops after two failures in a row', async () => {
+    const world = followingWorld(net, (n) => (n === 2 || n === 3 ? 500 : null));
+
+    const result = await unfollowAll({});
+
+    expect(world.posts).toHaveLength(3);
+    expect(result.unfollowed).toBe(1);
+    expect(result.attempted).toBe(3);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/two unfollows in a row/i);
+  });
+
+  it('refuses to start at all while the challenge latch is set', async () => {
+    const world = followingWorld(net);
+    await noteBackoff(451);
+
+    const result = await unfollowAll({});
+
+    expect(result.unfollowed).toBe(0);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/challenge/i);
+    expect(world.posts).toEqual([]);
+    expect(net.calls).toEqual([]);
+  });
+});
+
+describe('API mode — stop and status', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('reports nothing running when nothing is', () => {
+    expect(unfollowStatus()).toEqual({ running: false, done: 0, total: 0, lastName: '' });
+    expect(unfollowStop()).toEqual({ stopping: false });
+  });
+
+  it('ends the run between people when Stop is pressed', async () => {
+    followingWorld(net, (n) => {
+      if (n === 2) expect(unfollowStop()).toEqual({ stopping: true });
+      return null;
+    });
+
+    const result = await unfollowAll({});
+
+    expect(result.unfollowed).toBe(2);
+    expect(result.attempted).toBe(2);
+    expect(result.names).toEqual(FOLLOWING.slice(0, 2));
+    // Nothing went wrong: `cancelled` is not `error`, and there is no message.
+    expect(result.stopped).toBe('cancelled');
+    expect(result.error).toBeUndefined();
+  });
+
+  it('leaves no flag set for the next run to trip over', async () => {
+    let stopOnce = true;
+    followingWorld(net, () => {
+      if (stopOnce) {
+        stopOnce = false;
+        unfollowStop();
+      }
+      return null;
+    });
+
+    const first = await unfollowAll({});
+    expect(first.stopped).toBe('cancelled');
+    expect(first.unfollowed).toBe(1);
+    expect(unfollowStatus().running).toBe(false);
+
+    const second = await unfollowAll({ limit: 2 });
+    expect(second.unfollowed).toBe(2);
+    expect(second.stopped).toBe('limit');
+  });
+
+  it('answers where the run has got to while it is running', async () => {
+    const seen = [];
+    followingWorld(net, () => {
+      seen.push(unfollowStatus());
+      return null;
+    });
+
+    await unfollowAll({ limit: 3 });
+
+    // The third write is issued after two have landed.
+    expect(seen[2]).toEqual({
+      running: true,
+      done: 2,
+      total: 12,
+      lastName: nameFor(1),
+    });
+    // And the final state survives the run, so a late poll still reads it.
+    expect(unfollowStatus()).toEqual({
+      running: false,
+      done: 3,
+      total: 12,
+      lastName: nameFor(2),
+    });
+  });
+});
+
+describe('API mode — progress events', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('emits unfollow_progress every ten, and not once per person', async () => {
+    followingWorld(net);
+
+    await unfollowAll({});
+
+    const progress = mock().messages.filter((m) => m.event === EVENTS.UNFOLLOW_PROGRESS);
+    expect(progress.map((m) => m.payload)).toEqual([{ done: 10, total: 12 }]);
+  });
+
+  it('does not announce the same ten twice when the next one fails', async () => {
+    // The eleventh write fails, so the count stays at ten. Announcing again
+    // would have a progress line stall on a number it had already reported.
+    followingWorld(net, (n) => (n === 11 ? 500 : null));
+
+    await unfollowAll({});
+
+    const progress = mock().messages.filter((m) => m.event === EVENTS.UNFOLLOW_PROGRESS);
+    expect(progress.map((m) => m.payload)).toEqual([{ done: 10, total: 12 }]);
   });
 });

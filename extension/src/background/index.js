@@ -12,7 +12,7 @@
 import { ACTIONS, ERROR, EngineError, err } from '../lib/actions.js';
 import { handle, register } from './engine.js';
 import { sendApproved } from './queue.js';
-import { unfollowAll, unfollowCount } from './unfollow.js';
+import { unfollowAll, unfollowCount, unfollowStatus, unfollowStop } from './unfollow.js';
 
 
 // Feature modules register their own contract actions on import.
@@ -56,26 +56,39 @@ export const QUEUE_TICK_MINUTES = 1;
 /* ================================================================== */
 
 /**
- * Mass unfollow is the one action here that drives the user's own visible tab,
- * clicking through their following list a page at a time. It is destructive in
- * a way no quota covers — there is no undo and no queue — and it is not
- * something an agent should ever start on its own initiative. Only the popup,
- * where the person can see the tab it is working in, may run it.
+ * Mass unfollow is destructive in a way no quota covers — there is no undo and
+ * no queue — and it is not something an agent should ever start on its own
+ * initiative. Only the popup, where a person is watching it happen and can
+ * press Stop, may run it. That is true of the fast API mode as much as of the
+ * mode that drives the visible tab: going faster is not the same as being
+ * safer, and it is the irreversibility that earns the gate.
+ *
+ * `unfollowStop` and `unfollowStatus` are gated the same way for a simpler
+ * reason: they are only meaningful to whoever started the run, and the only
+ * caller that can start one is the popup.
  */
 const UNFOLLOW_IS_HUMAN =
-  'Mass unfollow runs in your own browser tab and cannot be undone. Run it from the popup.';
+  'Mass unfollow cannot be undone, so it only runs from the popup where you can watch and stop it.';
 
 function assertPopup(ctx = {}) {
   if (ctx.origin !== 'popup') throw new EngineError(ERROR.UNAUTHORIZED, UNFOLLOW_IS_HUMAN);
 }
 
-register(ACTIONS.NETWORK_UNFOLLOW_COUNT, (_params, ctx) => {
+register(ACTIONS.NETWORK_UNFOLLOW_COUNT, (params, ctx) => {
   assertPopup(ctx);
-  return unfollowCount();
+  return unfollowCount(params || {});
 });
 register(ACTIONS.NETWORK_UNFOLLOW_ALL, (params, ctx) => {
   assertPopup(ctx);
   return unfollowAll(params || {});
+});
+register(ACTIONS.NETWORK_UNFOLLOW_STOP, (_params, ctx) => {
+  assertPopup(ctx);
+  return unfollowStop();
+});
+register(ACTIONS.NETWORK_UNFOLLOW_STATUS, (_params, ctx) => {
+  assertPopup(ctx);
+  return unfollowStatus();
 });
 
 /* ================================================================== */

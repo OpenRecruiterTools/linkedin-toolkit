@@ -36,6 +36,8 @@ export const ACTIONS = Object.freeze({
   NETWORK_STATUS: 'network.status',
   NETWORK_UNFOLLOW_COUNT: 'network.unfollowCount',
   NETWORK_UNFOLLOW_ALL: 'network.unfollowAll',
+  NETWORK_UNFOLLOW_STOP: 'network.unfollowStop',
+  NETWORK_UNFOLLOW_STATUS: 'network.unfollowStatus',
 
   OUTREACH_VIEW: 'outreach.view',
   OUTREACH_FOLLOW: 'outreach.follow',
@@ -119,6 +121,7 @@ export const EVENTS = Object.freeze({
   CAMPAIGN_NOTE_TRUNCATED: 'campaign_note_truncated',
   RESEARCH_PROGRESS: 'research_progress',
   RESEARCH_COMPLETED: 'research_completed',
+  UNFOLLOW_PROGRESS: 'unfollow_progress',
 });
 
 /* ================================================================== */
@@ -169,6 +172,32 @@ export const UNFOLLOW_LIMIT_FIX =
 
 /** How many names `network.unfollowCount` returns as a sample. */
 export const UNFOLLOW_SAMPLE_MAX = 10;
+
+/**
+ * How a run reaches the following list.
+ *
+ * `api` reads the curation-hub search that LinkedIn's own Following manager
+ * reads (`resultType: PEOPLE_FOLLOW`) and unfollows with the same
+ * `followingStates` patch its buttons send. It needs no tab, it is roughly
+ * three times faster, and — because it never touches the DOM — it cannot be
+ * broken by a markup change.
+ *
+ * `dom` is the original: it drives the user's own visible tab, clicking the
+ * page the way a person would. It is kept as the fallback for the day LinkedIn
+ * changes the query id or the patch shape, because a page a human can click is
+ * the one thing that cannot go stale.
+ */
+export const UNFOLLOW_MODES = Object.freeze(['api', 'dom']);
+export const UNFOLLOW_MODE_DEFAULT = 'api';
+
+/**
+ * Why a run ended.
+ *
+ * `cancelled` is `network.unfollowStop` — the person pressed Stop — and is
+ * deliberately distinct from `error`: nothing went wrong, and the names
+ * already unfollowed are still reported.
+ */
+export const UNFOLLOW_STOPPED = Object.freeze(['limit', 'end', 'error', 'cancelled']);
 
 /** Floors and ceilings that are not part of HARD_CAPS but are still enforced. */
 const MIN_DELAY_MS = 3000;
@@ -304,16 +333,22 @@ const PARAM_SPECS = {
   [ACTIONS.NETWORK_CONNECTIONS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_FOLLOWERS]: { optional: { start: 'number', count: 'number' } },
   [ACTIONS.NETWORK_STATUS]: { required: { publicIds: 'array' } },
-  [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {},
+  [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
+    optional: { mode: 'string' },
+    enums: { mode: UNFOLLOW_MODES },
+  },
   // `limit` is the safety rail: run it on one person first, then five, and
   // only then trust it with everything. `dryRun` walks the same list and
-  // clicks nothing, so the names can be read before anything is undoable.
+  // unfollows nobody, so the names can be read before anything is undoable.
   [ACTIONS.NETWORK_UNFOLLOW_ALL]: {
-    optional: { limit: 'number', dryRun: 'boolean' },
+    optional: { limit: 'number', dryRun: 'boolean', mode: 'string' },
+    enums: { mode: UNFOLLOW_MODES },
     min: { limit: UNFOLLOW_LIMIT_MIN },
     max: { limit: UNFOLLOW_LIMIT_MAX },
     fix: { limit: UNFOLLOW_LIMIT_FIX },
   },
+  [ACTIONS.NETWORK_UNFOLLOW_STOP]: {},
+  [ACTIONS.NETWORK_UNFOLLOW_STATUS]: {},
 
   [ACTIONS.OUTREACH_VIEW]: { required: { publicId: 'string' } },
   [ACTIONS.OUTREACH_FOLLOW]: { required: { publicId: 'string' } },

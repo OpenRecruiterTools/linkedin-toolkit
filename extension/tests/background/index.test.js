@@ -131,7 +131,7 @@ describe('config', () => {
 });
 
 describe('network.unfollowCount', () => {
-  it('reads the count and a sample of names from the active tab', async () => {
+  it('reads the count and a sample of names from the active tab in dom mode', async () => {
     await chrome.tabs.create({
       url: 'https://www.linkedin.com/mynetwork/network-manager/people-follow/following/',
       active: true,
@@ -140,7 +140,7 @@ describe('network.unfollowCount', () => {
       { result: { count: 785, loaded: 20, total: 785, labels: ['Click to stop following Ada'] } },
     ];
 
-    expect(await call(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({
+    expect(await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, { mode: 'dom' })).toEqual({
       count: 785,
       sample: ['Ada'],
     });
@@ -174,7 +174,11 @@ describe('network.unfollowAll params', () => {
       { result: { unfollowed: 0, attempted: 0, labels: ['Unfollow Ada'], hasMore: false } },
     ];
 
-    const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, { limit: 2, dryRun: true });
+    const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, {
+      limit: 2,
+      dryRun: true,
+      mode: 'dom',
+    });
 
     expect(data).toEqual({ unfollowed: 0, attempted: 0, names: ['Ada'], stopped: 'end' });
     expect(mock().executeScriptCalls[0].args[0]).toMatchObject({ limit: 2, dryRun: true });
@@ -182,14 +186,19 @@ describe('network.unfollowAll params', () => {
 });
 
 describe('mass unfollow is popup-only', () => {
-  it.each([ACTIONS.NETWORK_UNFOLLOW_COUNT, ACTIONS.NETWORK_UNFOLLOW_ALL])(
+  it.each([
+    ACTIONS.NETWORK_UNFOLLOW_COUNT,
+    ACTIONS.NETWORK_UNFOLLOW_ALL,
+    ACTIONS.NETWORK_UNFOLLOW_STOP,
+    ACTIONS.NETWORK_UNFOLLOW_STATUS,
+  ])(
     '%s refuses every origin but the popup',
     async (action) => {
       for (const origin of ['mcp', 'cli', 'campaign', 'system']) {
         const res = await route({ action, params: {}, origin });
         expect(res.ok).toBe(false);
         expect(res.error.code).toBe('UNAUTHORIZED');
-        expect(res.error.message).toMatch(/Run it from the popup/);
+        expect(res.error.message).toMatch(/only runs from the popup/);
       }
       expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
     },
@@ -202,9 +211,24 @@ describe('mass unfollow is popup-only', () => {
     });
     mock().executeScriptResult = [{ result: 3 }];
 
-    const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_COUNT, params: {} });
+    const res = await route({
+      action: ACTIONS.NETWORK_UNFOLLOW_COUNT,
+      params: { mode: 'dom' },
+    });
     expect(res.ok).toBe(true);
     expect(res.data).toEqual({ count: 3, sample: [] });
+  });
+
+  it('answers unfollowStatus for the popup, with nothing running', async () => {
+    const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_STATUS, params: {} });
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ running: false, done: 0, total: 0, lastName: '' });
+  });
+
+  it('answers unfollowStop with stopping: false when nothing is running', async () => {
+    const res = await route({ action: ACTIONS.NETWORK_UNFOLLOW_STOP, params: {} });
+    expect(res.ok).toBe(true);
+    expect(res.data).toEqual({ stopping: false });
   });
 });
 
