@@ -632,6 +632,15 @@ export function createDemoHandlers(emit: (event: string, payload: unknown) => vo
         ? { unfollowed: 0, attempted: 0, names, stopped: 'end' }
         : { unfollowed: names.length, attempted: names.length, names, stopped: 'end' };
     },
+    // The demo run is synchronous, so there is never anything in flight to
+    // stop or to report on. Saying so is more honest than inventing a run.
+    'network.unfollowStop': () => ({ stopping: false }),
+    'network.unfollowStatus': () => ({
+      running: false,
+      done: 0,
+      total: FAKE_FOLLOWING.length,
+      lastName: '',
+    }),
 
     'outreach.view': (params: any) =>
       params?.dry_run ? { status: 'dryRun', wouldSend: params } : enqueue('outreach.view', params),

@@ -2670,7 +2670,15 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "dom"
+                    ]
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -2768,6 +2776,13 @@
                   },
                   "dryRun": {
                     "type": "boolean"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "dom"
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -2816,7 +2831,8 @@
                               "enum": [
                                 "limit",
                                 "end",
-                                "error"
+                                "error",
+                                "cancelled"
                               ]
                             },
                             "error": {
@@ -2827,6 +2843,186 @@
                             "unfollowed",
                             "attempted",
                             "names"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rateLimit": {
+                          "$ref": "#/components/schemas/RateLimit"
+                        }
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/network.unfollowStop": {
+      "post": {
+        "operationId": "action_network_unfollowStop",
+        "summary": "network.unfollowStop",
+        "description": "Run the `network.unfollowStop` action on the connected extension.",
+        "tags": [
+          "network"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ok",
+                        "data"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "const": true
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "stopping": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "stopping"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rateLimit": {
+                          "$ref": "#/components/schemas/RateLimit"
+                        }
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/network.unfollowStatus": {
+      "post": {
+        "operationId": "action_network_unfollowStatus",
+        "summary": "network.unfollowStatus",
+        "description": "Run the `network.unfollowStatus` action on the connected extension.",
+        "tags": [
+          "network"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "ok",
+                        "data"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "const": true
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "running": {
+                              "type": "boolean"
+                            },
+                            "done": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "running",
+                            "done",
+                            "total",
+                            "lastName"
                           ],
                           "additionalProperties": false
                         },

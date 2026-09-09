@@ -95,6 +95,16 @@ export abstract class GeneratedActions {
     return this.call('network.unfollowAll', params);
   }
 
+  /** `network.unfollowStop` — Call the `network.unfollowStop` action. */
+  networkUnfollowStop(params: ParamsOf<'network.unfollowStop'> = {} as ParamsOf<'network.unfollowStop'>): Promise<ResultOf<'network.unfollowStop'>> {
+    return this.call('network.unfollowStop', params);
+  }
+
+  /** `network.unfollowStatus` — Call the `network.unfollowStatus` action. */
+  networkUnfollowStatus(params: ParamsOf<'network.unfollowStatus'> = {} as ParamsOf<'network.unfollowStatus'>): Promise<ResultOf<'network.unfollowStatus'>> {
+    return this.call('network.unfollowStatus', params);
+  }
+
   /** `outreach.view` — Visit a profile so the visit shows up in their "who viewed your profile". Use it as a light warm-up touch before an invite. This is a direct, metered action: it is paced and drawn from the visit bucket (500 visits/day) but never queued for approval, so the result status is "sent". Pass dry_run to preview. */
   outreachView(params: ParamsOf<'outreach.view'> & { dry_run?: boolean }): Promise<ResultOf<'outreach.view'>> {
     return this.call('outreach.view', params);
@@ -289,6 +299,8 @@ export const ACTION_METHODS: Record<ActionName, string> = {
   'network.status': 'networkStatus',
   'network.unfollowCount': 'networkUnfollowCount',
   'network.unfollowAll': 'networkUnfollowAll',
+  'network.unfollowStop': 'networkUnfollowStop',
+  'network.unfollowStatus': 'networkUnfollowStatus',
   'outreach.view': 'outreachView',
   'outreach.follow': 'outreachFollow',
   'outreach.invite': 'outreachInvite',

@@ -396,6 +396,7 @@ export const EVENTS = [
   'campaign_note_truncated',
   'research_progress',
   'research_completed',
+  'unfollow_progress',
 ] as const;
 
 export type EventName = (typeof EVENTS)[number];
@@ -485,14 +486,18 @@ export const PARAMS = {
   'network.connections': z.object({ ...Pagination }),
   'network.followers': z.object({ ...Pagination }),
   'network.status': z.object({ publicIds: z.array(z.string()) }),
-  'network.unfollowCount': Empty,
+  'network.unfollowCount': z.object({ mode: z.enum(['api', 'dom']).optional() }),
   // Popup-only, and irreversible, so the params are the safety rails: `limit`
   // caps a run at N successful unfollows, `dryRun` walks the same list and
-  // clicks nothing. See docs/actions.md.
+  // unfollows nobody. `mode` picks the route — `api` (default) talks to
+  // LinkedIn directly, `dom` clicks the user's own tab. See docs/actions.md.
   'network.unfollowAll': z.object({
     limit: z.number().int().min(1).max(5000).optional(),
     dryRun: z.boolean().optional(),
+    mode: z.enum(['api', 'dom']).optional(),
   }),
+  'network.unfollowStop': Empty,
+  'network.unfollowStatus': Empty,
 
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
@@ -620,8 +625,15 @@ export const RESULTS: Record<ActionName, z.ZodTypeAny> = {
     unfollowed: z.number(),
     attempted: z.number(),
     names: z.array(z.string()),
-    stopped: z.enum(['limit', 'end', 'error']).optional(),
+    stopped: z.enum(['limit', 'end', 'error', 'cancelled']).optional(),
     error: z.string().optional(),
+  }),
+  'network.unfollowStop': z.object({ stopping: z.boolean() }),
+  'network.unfollowStatus': z.object({
+    running: z.boolean(),
+    done: z.number(),
+    total: z.number(),
+    lastName: z.string(),
   }),
   'outreach.view': WriteResultSchema,
   'outreach.follow': WriteResultSchema,

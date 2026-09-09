@@ -55,8 +55,8 @@ describe('contract vs docs/actions.md', () => {
     expect(extra).toEqual([]);
   });
 
-  it('has 51 actions', () => {
-    expect(ACTIONS.length).toBe(51);
+  it('has 53 actions', () => {
+    expect(ACTIONS.length).toBe(53);
   });
 
   it('has a result schema for every action', () => {
@@ -72,7 +72,7 @@ describe('contract vs docs/actions.md', () => {
   it('mirrors the documented event names', () => {
     const line = doc.slice(doc.indexOf('Event names:'));
     for (const ev of EVENTS) expect(line).toContain(ev);
-    expect(EVENTS.length).toBe(12);
+    expect(EVENTS.length).toBe(13);
   });
 });
 
