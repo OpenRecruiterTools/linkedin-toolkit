@@ -37,6 +37,11 @@ npx linkedin-toolkit-mcp
 # 3. Paste the token into the extension popup → Settings → Local bridge
 ```
 
+Never installed an unpacked Chrome extension before, or only want the extension and not
+the agent half? [**docs/install.md**](docs/install.md) walks through it with screenshots,
+and shows how to clean up your feed with mass unfollow — Preview first, then a small
+number, then the rest.
+
 Then point your agent at it. Claude Code, `.mcp.json` in your project root:
 
 ```json

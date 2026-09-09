@@ -64,7 +64,11 @@ Install
 3. Turn on "Developer mode" (top right).
 4. Click "Load unpacked" and pick the unzipped folder — the one holding
    manifest.json.
-5. The toolbar icon opens the popup.
+5. Pin the toolbar icon (jigsaw piece → pin), open linkedin.com, and click it.
+
+The same five steps with screenshots, plus how to clean up your feed with mass
+unfollow (preview it, try it on one person, then run the rest):
+https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/install.md
 
 This is deliberately not on the Chrome Web Store. Store policy forbids
 extensions that facilitate third-party terms-of-service violations, and an
