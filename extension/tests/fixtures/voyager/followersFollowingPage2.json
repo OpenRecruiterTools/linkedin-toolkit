@@ -1,0 +1,197 @@
+{
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "totalResultCount": 10,
+          "searchId": "fixture-followers-6",
+          "filterAppliedCount": 0,
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata"
+        },
+        "paging": {
+          "count": 50,
+          "start": 6,
+          "total": 10,
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "elements": [
+          {
+            "clusterRenderType": "LIST",
+            "title": null,
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWERS006xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWERS007xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 2,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWERS008xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 3,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWERS009xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 4,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              }
+            ]
+          }
+        ],
+        "$type": "com.linkedin.voyager.dash.search.SearchClusterCollection"
+      }
+    },
+    "errors": []
+  },
+  "included": [
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930006",
+      "title": {
+        "text": "Gideon Halloway",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWERS006xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of Legal at Pemberley Mutual",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF006FIXTUREFOLLOWERS006xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF006FIXTUREFOLLOWERS006xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 342,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWERS006xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF006FIXTUREFOLLOWERS006xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930007",
+      "title": {
+        "text": "Hesper Nakamura",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWERS007xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Product Lead at Fenwick Robotics",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF007FIXTUREFOLLOWERS007xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF007FIXTUREFOLLOWERS007xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": false,
+      "followerCount": 379,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWERS007xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF007FIXTUREFOLLOWERS007xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930008",
+      "title": {
+        "text": "Isolde Brannigan",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWERS008xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Chief Nurse at Ashgrove Trust",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF008FIXTUREFOLLOWERS008xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF008FIXTUREFOLLOWERS008xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": false,
+      "followerCount": 416,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWERS008xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF008FIXTUREFOLLOWERS008xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930009",
+      "title": {
+        "text": "Jorrit van Elsen",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWERS009xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of Data at Meridian Ferries",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF009FIXTUREFOLLOWERS009xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF009FIXTUREFOLLOWERS009xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 453,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWERS009xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF009FIXTUREFOLLOWERS009xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    }
+  ]
+}

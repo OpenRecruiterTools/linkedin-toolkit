@@ -17,6 +17,7 @@ import comments from '../fixtures/voyager/comments.json';
 import connections from '../fixtures/voyager/connections.json';
 import followers from '../fixtures/voyager/followers.json';
 import following from '../fixtures/voyager/following.json';
+import followersFollowing from '../fixtures/voyager/followersFollowing.json';
 import groupMembers from '../fixtures/voyager/groupMembers.json';
 import eventAttendees from '../fixtures/voyager/eventAttendees.json';
 import conversations from '../fixtures/voyager/conversations.json';
@@ -568,6 +569,66 @@ describe('audiences', () => {
     expect(out.profiles).toHaveLength(10);
     expect(out.profiles[0].fullName).toBe('Marlow Ashcombe');
     expect(out.profiles[0].urn).toMatch(/^urn:li:fsd_profile:/);
+  });
+
+  it('getFollowersFollowing sends the followers facet fifty at a time', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(decodeURIComponent(urlOf(0))).toBe(
+      'https://www.linkedin.com/voyager/api/graphql?variables=' +
+        '(start:0,count:50,origin:CurationHub,query:(flagshipSearchIntent:MYNETWORK_CURATION_HUB,' +
+        'includeFiltersInResponse:true,queryParameters:List((key:resultType,value:List(FOLLOWERS)))))' +
+        '&queryId=voyagerSearchDashClusters.e438ab99259203e9c1cd3f358e217282',
+    );
+    // The same request as the Following list, one operand apart.
+    expect(urlOf(0)).toContain(v.ENDPOINTS.queryIds.searchClusters);
+    expect(out.total).toBe(10);
+    expect(out.profiles).toHaveLength(6);
+  });
+
+  it('stamps each follower with the FollowingState LinkedIn sent for them', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(out.profiles.map((p) => [p.fullName, p.following])).toEqual([
+      ['Aurelie Vasterling', true],
+      ['Bramwell Ostrander', false],
+      ['Corentin Ashby-Fell', true],
+      ['Delphine Marchetti', true],
+      ['Emeric Sandoval', false],
+      ['Fenella Quintrell', true],
+    ]);
+  });
+
+  it('reads a follower with no state of its own as not followed', async () => {
+    // A shape we do not recognise must mean "leave this person alone", never
+    // "unfollow somebody we know nothing about".
+    const stripped = {
+      ...followersFollowing,
+      included: followersFollowing.included.filter(
+        (e) => !String(e.$type).endsWith('feed.FollowingState'),
+      ),
+    };
+    net.push(stripped);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    expect(out.profiles).toHaveLength(6);
+    expect(out.profiles.every((p) => p.following === false)).toBe(true);
+  });
+
+  it('never takes a name from the Profile rows, which do not carry one', async () => {
+    net.push(followersFollowing);
+
+    const out = await v.getFollowersFollowing({ start: 0 });
+
+    // Six followers came back, not eighteen: the Profile and FollowingState
+    // rows in `included` are not people in their own right.
+    expect(out.profiles).toHaveLength(6);
+    expect(out.profiles.every((p) => p.fullName)).toBe(true);
   });
 
   it('unfollowProfile POSTs the captured patch to the percent-encoded urn', async () => {

@@ -1,0 +1,279 @@
+{
+  "data": {
+    "data": {
+      "searchDashClustersByAll": {
+        "metadata": {
+          "totalResultCount": 10,
+          "searchId": "fixture-followers-0",
+          "filterAppliedCount": 0,
+          "$type": "com.linkedin.voyager.dash.search.SearchClusterCollectionMetadata"
+        },
+        "paging": {
+          "count": 50,
+          "start": 0,
+          "total": 10,
+          "$type": "com.linkedin.restli.common.CollectionMetadata"
+        },
+        "elements": [
+          {
+            "clusterRenderType": "LIST",
+            "title": null,
+            "$type": "com.linkedin.voyager.dash.search.SearchClusterViewModel",
+            "items": [
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWERS000xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 1,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWERS001xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 2,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWERS002xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 3,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWERS003xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 4,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWERS004xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 5,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              },
+              {
+                "item": {
+                  "*entityResult": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWERS005xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+                  "$type": "com.linkedin.voyager.dash.search.SearchItemUnion"
+                },
+                "position": 6,
+                "$type": "com.linkedin.voyager.dash.search.SearchItem"
+              }
+            ]
+          }
+        ],
+        "$type": "com.linkedin.voyager.dash.search.SearchClusterCollection"
+      }
+    },
+    "errors": []
+  },
+  "included": [
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930000",
+      "title": {
+        "text": "Aurelie Vasterling",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWERS000xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of People at Redgrave Optics",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF000FIXTUREFOLLOWERS000xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF000FIXTUREFOLLOWERS000xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 120,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWERS000xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF000FIXTUREFOLLOWERS000xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930001",
+      "title": {
+        "text": "Bramwell Ostrander",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWERS001xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Systems Architect at Calder Foundry",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF001FIXTUREFOLLOWERS001xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF001FIXTUREFOLLOWERS001xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": false,
+      "followerCount": 157,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWERS001xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF001FIXTUREFOLLOWERS001xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930002",
+      "title": {
+        "text": "Corentin Ashby-Fell",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWERS002xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Managing Partner at Thistledown Capital",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF002FIXTUREFOLLOWERS002xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF002FIXTUREFOLLOWERS002xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 194,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWERS002xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF002FIXTUREFOLLOWERS002xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930003",
+      "title": {
+        "text": "Delphine Marchetti",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWERS003xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Head of Supply at Norwood Bakeries",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF003FIXTUREFOLLOWERS003xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF003FIXTUREFOLLOWERS003xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 231,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWERS003xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF003FIXTUREFOLLOWERS003xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930004",
+      "title": {
+        "text": "Emeric Sandoval",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWERS004xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Lecturer in Statistics at Weir University",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF004FIXTUREFOLLOWERS004xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF004FIXTUREFOLLOWERS004xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": false,
+      "followerCount": 268,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWERS004xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF004FIXTUREFOLLOWERS004xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    },
+    {
+      "template": "UNIVERSAL",
+      "trackingUrn": "urn:li:member:930005",
+      "title": {
+        "text": "Fenella Quintrell",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "entityUrn": "urn:li:fsd_entityResultViewModel:(urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWERS005xx,MYNETWORK_CURATION_HUB,DEFAULT)",
+      "primarySubtitle": {
+        "text": "Programme Director at Larkspur Health",
+        "$type": "com.linkedin.voyager.dash.common.text.TextViewModel"
+      },
+      "secondarySubtitle": null,
+      "image": null,
+      "entityCustomTrackingInfo": null,
+      "navigationUrl": "https://www.linkedin.com/in/ACoAAAF005FIXTUREFOLLOWERS005xx",
+      "$type": "com.linkedin.voyager.dash.search.EntityResultViewModel",
+      "navigationContext": {
+        "url": "https://www.linkedin.com/in/ACoAAAF005FIXTUREFOLLOWERS005xx",
+        "$type": "com.linkedin.voyager.dash.search.NavigationContext"
+      }
+    },
+    {
+      "following": true,
+      "followerCount": 305,
+      "entityUrn": "urn:li:fsd_followingState:urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWERS005xx",
+      "$type": "com.linkedin.voyager.dash.feed.FollowingState"
+    },
+    {
+      "entityUrn": "urn:li:fsd_profile:ACoAAAF005FIXTUREFOLLOWERS005xx",
+      "profilePicture": null,
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile"
+    }
+  ]
+}

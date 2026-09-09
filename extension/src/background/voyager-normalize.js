@@ -552,6 +552,34 @@ export function normalizeSearchClusters(raw, source = 'search') {
   return { profiles, total: total(raw) };
 }
 
+/**
+ * The `FollowingState` rows of a search-clusters response → `urn → following`.
+ *
+ * The followers facet of the curation hub returns one
+ * `com.linkedin.voyager.dash.feed.FollowingState` per result, keyed by
+ * `entityUrn: "urn:li:fsd_followingState:urn:li:fsd_profile:<id>"`, carrying
+ * `following: true|false` (and a `followerCount` nobody here needs). It is the
+ * only place LinkedIn tells us whether we are still following a *connection*:
+ * connections are followed automatically on connect and never appear on the
+ * Following list, so a `following: true` on a follower is somebody the
+ * Following list will never offer.
+ *
+ * Anything that is not literally `true` is read as `false`, so a shape we do
+ * not recognise can only ever mean "leave this person alone".
+ *
+ * @param {object} raw a normalized search-clusters response
+ * @returns {Map<string, boolean>} `urn:li:fsd_profile:…` → following
+ */
+export function normalizeFollowingStates(raw) {
+  const states = new Map();
+  for (const entity of entitiesOfType(raw, 'feed.FollowingState')) {
+    const urn = fsdProfileUrnIn(entity.entityUrn);
+    if (!urn) continue;
+    states.set(urn, entity.following === true);
+  }
+  return states;
+}
+
 /** Sales Navigator people search → `{ profiles, total }`. Unverified shape. */
 export function normalizeSalesNavSearch(raw) {
   const list = (raw && raw.elements) || [];

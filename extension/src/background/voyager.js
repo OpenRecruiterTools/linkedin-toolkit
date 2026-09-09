@@ -32,6 +32,7 @@ import {
   normalizeCompany,
   normalizeConnections,
   normalizeConversations,
+  normalizeFollowingStates,
   normalizeMessages,
   normalizePosts,
   normalizeProfileSection,
@@ -93,6 +94,20 @@ export const INVITE_CAPTURED = Object.freeze({
  * id and no new normalizer. The write carries no `?action=` at all — the
  * `toggleFollow` action `follow()` still sends is a different, uncaptured
  * call, which is why both spellings are in the table below.
+ *
+ * **The Following list is not the whole story.** Verified on a real account on
+ * 2026-09-09: it does *not* include your connections. LinkedIn follows
+ * everybody you connect with automatically, and you go on following them after
+ * that list has been emptied to zero — which is why a feed that should be
+ * silent is still full of posts. The followers facet of the same query is the
+ * only place that state is visible: with
+ * `(key:resultType,value:List(FOLLOWERS)))` and `count:50` it answers the same
+ * `EntityResultViewModel` rows *plus* one
+ * `com.linkedin.voyager.dash.feed.FollowingState` per result
+ * (`entityUrn: "urn:li:fsd_followingState:urn:li:fsd_profile:<id>"`,
+ * `following: true|false`), and `metadata.totalResultCount` is the follower
+ * count. `following: true` on a follower is a connection you are still
+ * following. Captured the same day, on the same client, from the same account.
  */
 export const UNFOLLOW_CAPTURED = Object.freeze({
   at: '2026-09-09',
@@ -127,6 +142,28 @@ export const ENDPOINTS = Object.freeze({
    * watched LinkedIn accept.
    */
   followingStates: '/feed/dash/followingStates',
+
+  /**
+   * The two curation-hub facets, both **verified** on 2026-09-09 against
+   * client 1.13.46516.
+   *
+   * They are one request with one operand changed: the same
+   * `queryIds.searchClusters` hash, the same `CurationHub` origin, the same
+   * `MYNETWORK_CURATION_HUB` intent, and a `resultType` of `PEOPLE_FOLLOW`
+   * (the Following manager's own list) or `FOLLOWERS` (the followers list,
+   * which is the only read that carries a `FollowingState` per row and so the
+   * only place a connection's follow state can be seen). Naming them here
+   * rather than inline in two functions is what keeps them provably the same
+   * request: refreshing the hash after a LinkedIn release is still one edit.
+   */
+  curationHub: Object.freeze({
+    origin: 'CurationHub',
+    intent: 'MYNETWORK_CURATION_HUB',
+    resultTypes: Object.freeze({
+      following: 'PEOPLE_FOLLOW',
+      followers: 'FOLLOWERS',
+    }),
+  }),
 
   /**
    * Persisted GraphQL query ids. Captured 2026-09-08, client 1.13.46474.
@@ -744,20 +781,71 @@ export async function getConnections({ start = 0, count = 25 } = {}) {
  * vanity name, so `publicId` is that id — still a working profile URL, and
  * still a stable key.
  */
+/** The widest page the curation hub will answer with in one request. */
+export const FOLLOWERS_PAGE_SIZE = 50;
+
 export async function getFollowers({ start = 0, count = 25 } = {}) {
-  const raw = await searchClusters({
-    start,
-    count,
-    origin: 'CurationHub',
-    query: {
-      flagshipSearchIntent: 'MYNETWORK_CURATION_HUB',
-      includeFiltersInResponse: true,
-      queryParameters: [{ key: 'resultType', value: ['FOLLOWERS'] }],
-    },
-  });
+  const raw = await curationHubPage('followers', { start, count });
   const { profiles, total } = normalizeSearchClusters(raw, 'followers');
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }
+
+/**
+ * One page of the curation hub, by facet.
+ *
+ * `facet` is a key of `ENDPOINTS.curationHub.resultTypes`, and it is the only
+ * thing that differs between the followers read and the following read — same
+ * query id, same origin, same intent, same grammar. Written once so the two
+ * cannot drift apart.
+ *
+ * @param {'following'|'followers'} facet
+ * @param {{start?: number, count?: number}} page
+ */
+async function curationHubPage(facet, { start = 0, count = 25 } = {}) {
+  const hub = ENDPOINTS.curationHub;
+  return searchClusters({
+    start,
+    count,
+    origin: hub.origin,
+    query: {
+      flagshipSearchIntent: hub.intent,
+      includeFiltersInResponse: true,
+      queryParameters: [{ key: 'resultType', value: [hub.resultTypes[facet]] }],
+    },
+  });
+}
+
+/**
+ * Our followers, each carrying whether we are still following them back.
+ *
+ * The same read as `getFollowers`, kept apart from it because it answers a
+ * different question and costs more to answer: it also reads the
+ * `FollowingState` rows LinkedIn attaches to this facet and stamps
+ * `following: true|false` onto every profile. `network.followers` does not
+ * want that field and its result schema does not carry it; mass unfollow's
+ * `scope: 'everyone'` is the only caller, because this list is the only place
+ * a connection's follow state is visible at all (see `UNFOLLOW_CAPTURED`).
+ *
+ * A row with no state of its own comes back `following: false`, so an
+ * unrecognised shape can only ever mean "do not touch this person".
+ *
+ * `count` defaults to fifty — the most this surface will answer with in one
+ * go, and the difference between 190 reads and 948 on a 9,479-follower list.
+ */
+export async function getFollowersFollowing({ start = 0, count = FOLLOWERS_PAGE_SIZE } = {}) {
+  const raw = await curationHubPage('followers', { start, count });
+  const { profiles, total } = normalizeSearchClusters(raw, 'followers');
+  const states = normalizeFollowingStates(raw);
+  return {
+    profiles: profiles.map((profile) => ({
+      ...profile,
+      following: states.get(profile.urn) === true,
+    })),
+    total,
+    nextStart: profiles.length ? start + count : undefined,
+  };
+}
+
 
 /**
  * People *we* follow — the list behind the Following manager.
@@ -773,16 +861,7 @@ export async function getFollowers({ start = 0, count = 25 } = {}) {
  * page — which is the whole reason `network.unfollowCount` needs no tab.
  */
 export async function getFollowing({ start = 0, count = 25 } = {}) {
-  const raw = await searchClusters({
-    start,
-    count,
-    origin: 'CurationHub',
-    query: {
-      flagshipSearchIntent: 'MYNETWORK_CURATION_HUB',
-      includeFiltersInResponse: true,
-      queryParameters: [{ key: 'resultType', value: ['PEOPLE_FOLLOW'] }],
-    },
-  });
+  const raw = await curationHubPage('following', { start, count });
   const { profiles, total } = normalizeSearchClusters(raw, 'following');
   return { profiles, total, nextStart: profiles.length ? start + count : undefined };
 }

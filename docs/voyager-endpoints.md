@@ -73,6 +73,9 @@ Each of these returned HTTP 200 with real data on the capture date.
 | `queryIds.conversationsByCategory` | messaging: `variables=(query:(predicateUnions:List((conversationCategoryPredicate:(category:INBOX)))),count,mailboxUrn:<self>,lastUpdatedBefore:<ms>)` | paging back through the inbox |
 | `queryIds.messages` | messaging: `variables=(deliveredAt:<ms>,conversationUrn:<urn>,countBefore:<n>,countAfter:0)` | `inbox.messages` |
 | `queryIds.memberPosts` | `variables=(count,start,profileUrn:<urn>,paginationToken?)` | `research.pack`'s `recentPosts` |
+| `curationHub` + `queryIds.searchClusters` | `variables=(start,count,origin:CurationHub,query:(flagshipSearchIntent:MYNETWORK_CURATION_HUB,includeFiltersInResponse:true,queryParameters:List((key:resultType,value:List(PEOPLE_FOLLOW)))))` | `network.unfollowCount`, `network.unfollowAll` — the Following manager's own list. `metadata.totalResultCount` is the number LinkedIn's own header prints. **Captured 2026-09-09, client 1.13.46516** |
+| `curationHub` + `queryIds.searchClusters` | the same request with `value:List(FOLLOWERS)` and `count:50` | `network.followers`, and `network.unfollowAll { scope: 'everyone' }` — the **only** read that carries a `FollowingState` per row. **Captured 2026-09-09, client 1.13.46516** |
+| `followingStates` | `POST /feed/dash/followingStates/urn:li:fsd_followingState:urn:li:fsd_profile:<id>` with `{"patch":{"$set":{"following":false}}}` → 200, empty body | the unfollow write, as the Following manager's own button sends it. No `?action=`. **Captured 2026-09-09, client 1.13.46516** by unfollowing real people |
 
 ### What these endpoints do *not* give us
 
@@ -105,6 +108,21 @@ Each of these returned HTTP 200 with real data on the capture date.
 - **Followers** come back through the search surface, and their navigation urls
   carry the obfuscated member id rather than a vanity name, so `publicId` is
   that id. It is still a working profile URL and a stable key.
+- **The Following list does not include your connections.** Verified on a real
+  account on 2026-09-09: LinkedIn follows everybody you connect with
+  automatically, and you go on following them after the Following list has been
+  emptied to zero — which is why a feed that should be silent is still full of
+  posts. The `PEOPLE_FOLLOW` facet never mentions them. The `FOLLOWERS` facet is
+  the only place the state is visible: each result comes back with its own
+  `com.linkedin.voyager.dash.feed.FollowingState`
+  (`entityUrn: "urn:li:fsd_followingState:urn:li:fsd_profile:<id>"`,
+  `following: true|false`, `followerCount`), so `following: true` on a follower
+  is somebody you are still following whom the Following list will never offer.
+  The `…identity.profile.Profile` rows in the same response carry a picture and
+  an urn and **no name**, so names always come from the
+  `EntityResultViewModel`. `getFollowersFollowing()` is the read that puts the
+  two back together; `network.followers` uses the plain `getFollowers()`,
+  because its result schema does not carry a follow state.
 - **`title` and `location` are not search facets.** `(key:title,…)` is
   rejected outright, and turning a place name into a `geoUrn` needs a typeahead
   call this build does not make, so both are appended to `keywords` — which is
@@ -129,7 +147,7 @@ those are things the user has to act on.
 | `groupMemberships` | the capture account belongs to no groups |
 | `eventAttendees` | no event was available to read |
 | `salesNavSearch`, `recruiterSearch` | no Sales Navigator or Recruiter seat on the capture account |
-| `followingStates` | `outreach.follow`. A write; not probed |
+| `unverified.followingStates` | `outreach.follow` sends the same base path with `?action=toggleFollow`, which has never been captured. The bare POST the Unfollow button sends **is** verified and lives at `ENDPOINTS.followingStates`; these are two spellings, and only one has been watched working |
 | `createInvitation` | `voyagerRelationshipsDashMemberRelationships?action=verifyQuotaAndCreateV2`. A write; not probed |
 | `createMessage` | `voyagerMessagingDashMessengerMessages?action=createMessage`. A write; not probed |
 | `createReaction`, `createComment` | `outreach.like`, `outreach.comment`. Writes; not probed |
