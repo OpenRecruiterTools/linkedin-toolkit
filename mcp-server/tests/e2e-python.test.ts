@@ -28,6 +28,19 @@ const cli = resolve(repoRoot, 'mcp-server/dist/cli.js');
 const pythonClient = resolve(repoRoot, 'clients/python');
 const smokeScript = resolve(repoRoot, 'scripts/python-smoke.py');
 
+/**
+ * The version the Python client declares, read from the package this suite
+ * installs. Hard-coding it here would make an ordinary version bump fail a test
+ * that is not about versions; the API version the server reports is a different
+ * number and is still asserted literally.
+ */
+function pythonClientVersion(): string {
+  const pyproject = readFileSync(join(pythonClient, 'pyproject.toml'), 'utf8');
+  const match = /^version = "([^"]+)"/m.exec(pyproject);
+  if (!match) throw new Error('clients/python/pyproject.toml declares no version');
+  return match[1];
+}
+
 /** The first interpreter on PATH that is Python 3.10 or newer. */
 function findPython(): { command: string; args: string[]; version: string } | null {
   const candidates: [string, string[]][] = [
@@ -187,7 +200,7 @@ describe('the Python client against a live server', () => {
       {},
     );
     expect(code).toBe(0);
-    expect(stdout.trim()).toBe('2.0.0');
+    expect(stdout.trim()).toBe(pythonClientVersion());
   });
 
   it('runs the whole smoke script and prints one JSON object', async (ctx) => {
@@ -196,7 +209,7 @@ describe('the Python client against a live server', () => {
     expect(code, `stderr:\n${stderr}`).toBe(0);
 
     const out = JSON.parse(stdout);
-    expect(out.clientVersion).toBe('2.0.0');
+    expect(out.clientVersion).toBe(pythonClientVersion());
     expect(out.baseUrl).toBe(`http://127.0.0.1:${httpPort}`);
     expect(out.health).toMatchObject({ ok: true, extensionConnected: true, version: '2.0.0' });
   });
