@@ -120,11 +120,42 @@ entirely to work through everyone — and run it. It goes at about one person a
 second, so eight hundred is a bit under a quarter of an hour; leave the popup open
 if you want to watch it, and press **Stop** whenever you have had enough.
 
+### Connections are followed too
+
+Empty the Following list to zero and your feed will still be full of posts. That is
+not a bug in the toolkit: **LinkedIn does not put your connections on your Following
+list at all.** You are made to follow everybody you connect with, automatically, at
+the moment you connect, and nothing on that page ever mentions it. Tick **"Also
+unfollow my connections"** and the run adds a second pass — a page-by-page read of
+your *followers*, which is the only place LinkedIn says whether you are still
+following somebody — and unfollows the ones you are. Unfollowing a connection does
+not disconnect you: you stay connected, they stay in your network, you simply stop
+seeing their posts until you follow them again by hand.
+
+It is slower, and it is slower because it is reading rather than writing: a page of
+fifty followers every half second or so, which is a couple of minutes for ten
+thousand followers before the first of them is unfollowed. "Check count" with the
+box ticked does the same read and tells you the number without changing anything —
+that is the honest way to find out how big the job is. The limit, the Stop button
+and the preview all work across both lists exactly as they do across one.
+
+### Fast, and why it is not the default
+
+**"Fast (3 at a time)"** runs three unfollows at once instead of one, about four a
+second rather than one. It is genuinely quicker — a nine-hundred-person list in
+four minutes instead of twenty — and it is genuinely more likely to be the thing
+LinkedIn rate-limits, because four requests a second is not a shape a person makes.
+If it trips one, the run stops on the spot and keeps what it did, and you should
+leave it for the day. Careful, one at a time, is the default and the one to use;
+tick Fast when you have already watched a careful run work and you are impatient,
+not the first time.
+
 Under **Advanced** there is a second way to do it, "Browser tab", which drives your
 own Following page and clicks the buttons on it. It is three times slower and it is
 there for one reason: if LinkedIn changes the API the fast mode uses, the page a
 human can click still works. Leave it alone unless the fast mode has stopped
-working.
+working. It is the Following list only: there is no followers page with an Unfollow
+button on it to click, so "Also unfollow my connections" needs the fast mode.
 
 While it runs:
 
@@ -142,7 +173,9 @@ While it runs:
   would have to re-follow each of them by hand.
 
 "Check count" tells you how many accounts you currently follow, plus the first few
-names, without changing anything.
+names, without changing anything. With "Also unfollow my connections" ticked it also
+reads your followers list and tells you how many of *those* you are still following
+— the number the Following list does not show you.
 
 ---
 
