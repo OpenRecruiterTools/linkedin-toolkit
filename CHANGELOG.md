@@ -16,7 +16,7 @@ report API version `2.0.0`, and no extension code moved.
 - A manifest for the official [MCP Registry](https://registry.modelcontextprotocol.io):
   `server.json` at the repo root, on schema version `2025-12-11`, listing the npm package
   `linkedin-toolkit-mcp` as a stdio server under the name
-  `io.github.OpenRecruiterTools/linkedin-toolkit`, and the matching `mcpName` field in
+  `io.github.FormatixAI/linkedin-toolkit`, and the matching `mcpName` field in
   `mcp-server/package.json` — which is how the registry verifies that whoever publishes the
   listing also owns the npm package. `docs/registry-publish.md` is the runbook for doing it with
   the `mcp-publisher` CLI.
