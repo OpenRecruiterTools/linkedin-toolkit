@@ -12,8 +12,12 @@ That builds every workspace, regenerates `mcp-server/openapi.json` and `mcp-serv
 fails if either moved, lints, runs the whole JavaScript test suite, installs `clients/python` into
 a cached virtualenv and runs `pytest clients/python` (skipping with a message if there is no
 Python 3.10+ or no network for pip), validates all 20 sequence templates, and writes
-`dist/linkedin-toolkit-extension-v2.0.0.zip`. Do not start this list until it is green — and if the
-Python step reported a skip on your machine, run it somewhere it does not before step 6.
+`dist/linkedin-toolkit-extension-v<version>.zip`. Do not start this list until it is green — and if
+the Python step reported a skip on your machine, run it somewhere it does not before step 6.
+
+The zip is named from `GITHUB_REF_NAME` when it looks like a version, so a tagged release build
+names the file after the tag; run locally, with no ref, it falls back to `extension/manifest.json`.
+Bump the manifest anyway — a zip whose tag and manifest disagree installs as the wrong version.
 
 ## How to read the markers
 
@@ -112,7 +116,7 @@ something is wrong, ship `v2.0.1`.
 ## 4. GitHub Release — ⚠️ **IRREVERSIBLE** (the artefact is public)
 
 Pushing the tag fires `.github/workflows/release.yml`, which lints, tests, validates the sequences,
-builds `linkedin-toolkit-extension-v2.0.0.zip`, creates the release with generated notes and the
+builds `linkedin-toolkit-extension-v<tag>.zip`, creates the release with generated notes and the
 install block, and — if `NPM_TOKEN` is set — publishes `linkedin-toolkit-mcp`.
 
 - [ ] ↩️ Watch the run: `gh run watch`
@@ -123,7 +127,7 @@ install block, and — if `NPM_TOKEN` is set — publishes `linkedin-toolkit-mcp
 **If the workflow fails or you would rather do it by hand:**
 
 ```bash
-npm run release:check          # produces dist/linkedin-toolkit-extension-v2.0.0.zip
+npm run release:check          # produces dist/linkedin-toolkit-extension-v<manifest version>.zip
 gh release create v2.0.0 \
   dist/linkedin-toolkit-extension-v2.0.0.zip \
   --title "v2.0.0" \

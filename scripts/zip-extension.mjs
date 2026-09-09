@@ -13,6 +13,13 @@
  *
  *   node scripts/zip-extension.mjs
  *   → dist/linkedin-toolkit-extension-v<version>.zip
+ *
+ * The tag wins over the manifest when there is one (issue #20). A release
+ * workflow runs on `refs/tags/v2.0.4` and it is the tag that names the
+ * download people are sent to; a zip built from a manifest that had not been
+ * bumped shipped under the wrong name, silently, and looked like the previous
+ * release. `GITHUB_REF_NAME` is what the tag is called, so that is what the
+ * file is called; on a laptop, where there is no ref, the manifest still is.
  */
 import AdmZip from 'adm-zip';
 import { readFileSync, mkdirSync, rmSync, statSync, readdirSync } from 'node:fs';
@@ -49,8 +56,28 @@ function walk(dir, found = []) {
 }
 
 const manifest = JSON.parse(readFileSync(join(source, 'manifest.json'), 'utf8'));
-const version = manifest.version;
-if (!version) throw new Error('extension/manifest.json has no version');
+const manifestVersion = manifest.version;
+if (!manifestVersion) throw new Error('extension/manifest.json has no version');
+
+/**
+ * What the zip is called.
+ *
+ * A tag ref (`v2.0.4`, or `2.0.4`) names the file, with the leading `v`
+ * stripped so the one in the filename template is not doubled. A branch ref —
+ * `GITHUB_REF_NAME` is set for those too — is not a version, so anything that
+ * is not `x.y.z` falls back to the manifest rather than producing
+ * `linkedin-toolkit-extension-vmain.zip`.
+ */
+function zipVersion(refName, fallback) {
+  const ref = String(refName || '').trim();
+  const bare = ref.replace(/^v/, '');
+  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(bare) ? bare : fallback;
+}
+
+const version = zipVersion(process.env.GITHUB_REF_NAME, manifestVersion);
+if (version !== manifestVersion) {
+  console.log(`Naming the zip from GITHUB_REF_NAME (${version}), not the manifest (${manifestVersion}).`);
+}
 
 const readme = `LinkedIn Toolkit ${version}
 ${'='.repeat(`LinkedIn Toolkit ${version}`.length)}

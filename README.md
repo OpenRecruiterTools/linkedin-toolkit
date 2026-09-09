@@ -30,7 +30,7 @@ all. No headless browser, no proxies, no cloud session, no telemetry, no subscri
 ## Install in 3 lines
 
 ```bash
-# 1. Get the extension: download linkedin-toolkit-extension-v2.0.0.zip from Releases, unzip it,
+# 1. Get the extension: download linkedin-toolkit-extension-v2.0.4.zip from Releases, unzip it,
 #    then chrome://extensions → Developer mode → Load unpacked → pick the folder
 # 2. Start the server (it prints a pairing token)
 npx linkedin-toolkit-mcp
