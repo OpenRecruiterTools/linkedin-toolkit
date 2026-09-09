@@ -11,6 +11,15 @@ import { loadConfig } from './config.js';
 import { Toolkit } from './toolkit.js';
 import { createMcpServer } from './tools.js';
 
+/**
+ * The package binary normally starts an MCP server for an agent.  Let people
+ * discover the companion CLI without accidentally starting a long-lived
+ * server when they only asked for usage information.
+ */
+export function isCliInfoRequest(argv: string[]): boolean {
+  return argv.some((arg) => ['--help', '-h', '--version', '-V'].includes(arg));
+}
+
 export async function startStdioServer(): Promise<Toolkit> {
   const { config } = loadConfig();
   const toolkit = new Toolkit({ config });
@@ -39,7 +48,15 @@ const invokedDirectly = process.argv[1]
   : false;
 
 if (invokedDirectly) {
-  startStdioServer().catch((err) => {
+  const start = isCliInfoRequest(process.argv.slice(2))
+    ? async () => {
+        const { run } = await import('./cli.js');
+        const code = await run(process.argv.slice(2));
+        if (code !== 0) process.exit(code);
+      }
+    : startStdioServer;
+
+  start().catch((err) => {
     process.stderr.write(`linkedin-toolkit-mcp: failed to start: ${String(err)}\n`);
     process.exit(1);
   });

@@ -16,6 +16,7 @@ import {
   NOT_RUNNING,
   CliError,
 } from '../src/cli.js';
+import { isCliInfoRequest } from '../src/server.js';
 import { closedPort, makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
 import { defaultHandlers, pack } from './fixtures.js';
 import type { Handlers } from './fakeExtension.js';
@@ -124,6 +125,14 @@ describe('helpers', () => {
 });
 
 describe('--help', () => {
+  it('recognizes package-binary help and version flags without starting MCP', () => {
+    expect(isCliInfoRequest(['--help'])).toBe(true);
+    expect(isCliInfoRequest(['-h'])).toBe(true);
+    expect(isCliInfoRequest(['--version'])).toBe(true);
+    expect(isCliInfoRequest(['-V'])).toBe(true);
+    expect(isCliInfoRequest([])).toBe(false);
+  });
+
   it('lists every command', async () => {
     const code = await run(['--help'], io);
     expect(code).toBe(0);
