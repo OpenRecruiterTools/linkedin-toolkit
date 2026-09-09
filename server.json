@@ -1,0 +1,33 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.OpenRecruiterTools/linkedin-toolkit",
+  "title": "LinkedIn Toolkit",
+  "description": "LinkedIn for AI agents from your own Chrome session: search, profiles, lists, outreach queue.",
+  "version": "2.0.1",
+  "websiteUrl": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
+  "repository": {
+    "url": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "linkedin-toolkit-mcp",
+      "version": "2.0.1",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "LINKEDIN_TOOLKIT_HOME",
+          "description": "Directory for the local SQLite mirror and config. Defaults to ~/.linkedin-toolkit.",
+          "format": "filepath",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
