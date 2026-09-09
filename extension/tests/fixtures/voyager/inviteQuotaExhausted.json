@@ -1,0 +1,8 @@
+{
+  "data": {
+    "code": "PERSONALIZED_INVITATION_QUOTA_EXCEEDED",
+    "message": "You have no personalized invitations remaining this month.",
+    "$type": "com.linkedin.voyager.dash.relationships.invitation.InvitationCreationResult"
+  },
+  "included": []
+}
