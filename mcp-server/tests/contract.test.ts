@@ -154,6 +154,52 @@ describe('params validation', () => {
     expect(PARAMS['search.people'].safeParse({}).success).toBe(false);
   });
 
+  it('takes scope and speed on the two unfollow actions, and only those words', () => {
+    expect(PARAMS['network.unfollowAll'].safeParse({ scope: 'everyone', speed: 'fast' }).success).toBe(
+      true,
+    );
+    expect(PARAMS['network.unfollowCount'].safeParse({ scope: 'everyone' }).success).toBe(true);
+    expect(PARAMS['network.unfollowAll'].safeParse({ scope: 'connections' }).success).toBe(false);
+    expect(PARAMS['network.unfollowAll'].safeParse({ speed: 'fastest' }).success).toBe(false);
+    // And neither is required: the run that sends nothing is the careful one
+    // over the Following list, which is what every earlier build did.
+    expect(PARAMS['network.unfollowAll'].safeParse({}).success).toBe(true);
+  });
+
+  it('lets network.unfollowCount answer with what the followers scan found', () => {
+    expect(
+      RESULTS['network.unfollowCount'].safeParse({
+        count: 1205,
+        sample: ['Aurelie Vasterling'],
+        followers: { total: 9479, stillFollowing: 470 },
+      }).success,
+    ).toBe(true);
+    // The scan is optional, so the one-request answer still validates.
+    expect(RESULTS['network.unfollowCount'].safeParse({ count: 12 }).success).toBe(true);
+  });
+
+  it('lets network.unfollowStatus report a scan in progress', () => {
+    expect(
+      RESULTS['network.unfollowStatus'].safeParse({
+        running: true,
+        done: 12,
+        total: 40,
+        lastName: 'Marlow Ashcombe',
+        phase: 'scanning',
+        scanned: 1200,
+        scannedTotal: 9479,
+      }).success,
+    ).toBe(true);
+    expect(
+      RESULTS['network.unfollowStatus'].safeParse({
+        running: false,
+        done: 0,
+        total: 0,
+        lastName: '',
+      }).success,
+    ).toBe(true);
+  });
+
   it('accepts nested branch steps in campaign.create', () => {
     const parsed = PARAMS['campaign.create'].safeParse({
       name: 'seq',

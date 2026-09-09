@@ -2677,6 +2677,13 @@
                       "api",
                       "dom"
                     ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "following",
+                      "everyone"
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -2716,6 +2723,22 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "followers": {
+                              "type": "object",
+                              "properties": {
+                                "total": {
+                                  "type": "number"
+                                },
+                                "stillFollowing": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "total",
+                                "stillFollowing"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -2782,6 +2805,20 @@
                     "enum": [
                       "api",
                       "dom"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "following",
+                      "everyone"
+                    ]
+                  },
+                  "speed": {
+                    "type": "string",
+                    "enum": [
+                      "careful",
+                      "fast"
                     ]
                   }
                 },
@@ -3016,6 +3053,16 @@
                             },
                             "lastName": {
                               "type": "string"
+                            },
+                            "phase": {
+                              "type": "string",
+                              "const": "scanning"
+                            },
+                            "scanned": {
+                              "type": "number"
+                            },
+                            "scannedTotal": {
+                              "type": "number"
                             }
                           },
                           "required": [

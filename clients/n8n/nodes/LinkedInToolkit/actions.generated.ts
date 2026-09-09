@@ -830,6 +830,25 @@ export const ACTIONS: ActionSpec[] = [
             "value": "dom"
           }
         ]
+      },
+      {
+        "name": "network_unfollowCount_scope",
+        "key": "scope",
+        "displayName": "Scope",
+        "required": false,
+        "description": "One of following, everyone.",
+        "type": "options",
+        "default": "following",
+        "options": [
+          {
+            "name": "Following",
+            "value": "following"
+          },
+          {
+            "name": "Everyone",
+            "value": "everyone"
+          }
+        ]
       }
     ]
   },
@@ -877,6 +896,44 @@ export const ACTIONS: ActionSpec[] = [
           {
             "name": "Dom",
             "value": "dom"
+          }
+        ]
+      },
+      {
+        "name": "network_unfollowAll_scope",
+        "key": "scope",
+        "displayName": "Scope",
+        "required": false,
+        "description": "One of following, everyone.",
+        "type": "options",
+        "default": "following",
+        "options": [
+          {
+            "name": "Following",
+            "value": "following"
+          },
+          {
+            "name": "Everyone",
+            "value": "everyone"
+          }
+        ]
+      },
+      {
+        "name": "network_unfollowAll_speed",
+        "key": "speed",
+        "displayName": "Speed",
+        "required": false,
+        "description": "One of careful, fast.",
+        "type": "options",
+        "default": "careful",
+        "options": [
+          {
+            "name": "Careful",
+            "value": "careful"
+          },
+          {
+            "name": "Fast",
+            "value": "fast"
           }
         ]
       }

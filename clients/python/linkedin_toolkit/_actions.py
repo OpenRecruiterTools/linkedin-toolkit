@@ -230,18 +230,19 @@ class ActionMethods:
         params = {"publicIds": publicIds}
         return self._invoke("network.status", {k: v for k, v in params.items() if v is not None})
 
-    def network_unfollow_count(self, *, mode: Optional[str] = None) -> Any:
+    def network_unfollow_count(self, *, mode: Optional[str] = None, scope: Optional[str] = None) -> Any:
         """``network.unfollowCount``.
 
         Run the `network.unfollowCount` action on the connected extension.
 
         Args:
             mode (str): (one of "api", "dom") Optional.
+            scope (str): (one of "following", "everyone") Optional.
         """
-        params = {"mode": mode}
+        params = {"mode": mode, "scope": scope}
         return self._invoke("network.unfollowCount", {k: v for k, v in params.items() if v is not None})
 
-    def network_unfollow_all(self, *, limit: Optional[int] = None, dryRun: Optional[bool] = None, mode: Optional[str] = None) -> Any:
+    def network_unfollow_all(self, *, limit: Optional[int] = None, dryRun: Optional[bool] = None, mode: Optional[str] = None, scope: Optional[str] = None, speed: Optional[str] = None) -> Any:
         """``network.unfollowAll``.
 
         Run the `network.unfollowAll` action on the connected extension.
@@ -250,8 +251,10 @@ class ActionMethods:
             limit (int): (min 1; max 5000) Optional.
             dryRun (bool): Optional.
             mode (str): (one of "api", "dom") Optional.
+            scope (str): (one of "following", "everyone") Optional.
+            speed (str): (one of "careful", "fast") Optional.
         """
-        params = {"limit": limit, "dryRun": dryRun, "mode": mode}
+        params = {"limit": limit, "dryRun": dryRun, "mode": mode, "scope": scope, "speed": speed}
         return self._invoke("network.unfollowAll", {k: v for k, v in params.items() if v is not None})
 
     def network_unfollow_stop(self) -> Any:
