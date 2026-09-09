@@ -24,7 +24,7 @@ from .client import AsyncLinkedInToolkit, LinkedInToolkit
 from .errors import ERROR_CODES, TERMINAL_ERROR_CODES, LinkedInToolkitError
 from .tools import raw_tools, tool_by_name, tools, tools_version
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 __all__ = [
     "__version__",

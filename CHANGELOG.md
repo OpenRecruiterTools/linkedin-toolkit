@@ -5,9 +5,46 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.1] — 2026-09-09
 
-Nothing yet.
+A packaging and documentation release: how the toolkit is found, installed and explained. Nothing
+in the server's behaviour or its API contract changed — `openapi.json` and `tools.json` still
+report API version `2.0.0`, and no extension code moved.
+
+### Added
+
+- A manifest for the official [MCP Registry](https://registry.modelcontextprotocol.io):
+  `server.json` at the repo root, on schema version `2025-12-11`, listing the npm package
+  `linkedin-toolkit-mcp` as a stdio server under the name
+  `io.github.OpenRecruiterTools/linkedin-toolkit`, and the matching `mcpName` field in
+  `mcp-server/package.json` — which is how the registry verifies that whoever publishes the
+  listing also owns the npm package. `docs/registry-publish.md` is the runbook for doing it with
+  the `mcp-publisher` CLI.
+- A `Dockerfile`, so the registries and directories that introspect a server by building and
+  running it (Glama, the MCP Registry) have something to build.
+- `--help` on the server binary: `npx linkedin-toolkit-mcp --help` now explains what the binary
+  is, how to wire it into an MCP client, and where the pairing token lives, then prints the `lit`
+  usage and exits — instead of starting a bridge and waiting on stdin.
+  ([#19](https://github.com/OpenRecruiterTools/linkedin-toolkit/pull/19), thanks
+  [@addielaruee](https://github.com/addielaruee))
+- A CommonJS entry point for the Node client, so `require('linkedin-toolkit')` works alongside the
+  ESM import. ([#18](https://github.com/OpenRecruiterTools/linkedin-toolkit/pull/18), thanks
+  [@1cbyc](https://github.com/1cbyc))
+
+### Fixed
+
+- Every repository link in the README and the docs points at
+  `OpenRecruiterTools/linkedin-toolkit` and at the `master` default branch, so nothing lands on a
+  404 or on a branch that does not exist.
+- The lockfile is portable to Linux CI runners: the rollup platform binaries are pinned as
+  optional dependencies, and `n8n-workflow` is pinned to `1.120.0`, the last release without the
+  `isolated-vm` native build.
+
+### Docs
+
+- `docs/why-browser-agents-fail-on-linkedin.md` gained "The other failure: hard-coded endpoints" —
+  why the Voyager endpoints a scraper hard-codes drift out from under it, and what the toolkit
+  does instead.
 
 ## [2.0.0] — 2026-09
 
@@ -159,6 +196,6 @@ The original Chrome extension.
 - Rate limiting: configurable jittered delays, hourly caps, daily invite and message quotas, a
   business-hours window, 429 backoff and 451 challenge detection
 
-[Unreleased]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v2.0.0...HEAD
+[2.0.1]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/OpenRecruiterTools/linkedin-toolkit/releases/tag/v1.0.0

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "linkedin-toolkit"
-version = "2.0.0"
+version = "2.0.1"
 description = "Python client and agent-framework tool wrappers for the LinkedIn Toolkit local HTTP API."
 readme = "README.md"
 license = { text = "MIT" }
