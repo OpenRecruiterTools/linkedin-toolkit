@@ -9,7 +9,7 @@ Everything a machine can prepare is already in the repo:
 
 | Thing | Where | State |
 | --- | --- | --- |
-| `mcpName` ownership marker | `mcp-server/package.json` | `io.github.OpenRecruiterTools/linkedin-toolkit` |
+| `mcpName` ownership marker | `mcp-server/package.json` | `io.github.FormatixAI/linkedin-toolkit` |
 | Server manifest | `server.json` (repo root) | schema `2025-12-11`, validates clean |
 | `mcp-publisher` CLI | `E:\Dev\tools\mcp-publisher\mcp-publisher.exe` | v1.8.1, Windows amd64 |
 
@@ -55,7 +55,7 @@ Verify it landed, and that the marker shipped with it:
 
 ```bash
 npm view linkedin-toolkit-mcp version         # 2.0.1
-npm view linkedin-toolkit-mcp mcpName         # io.github.OpenRecruiterTools/linkedin-toolkit
+npm view linkedin-toolkit-mcp mcpName         # io.github.FormatixAI/linkedin-toolkit
 ```
 
 If `mcpName` comes back empty, the registry will not accept the publish — fix and ship `2.0.2`;
@@ -102,7 +102,7 @@ E:\Dev\tools\mcp-publisher\mcp-publisher.exe publish
 ```text
 Publishing to https://registry.modelcontextprotocol.io...
 ✓ Successfully published
-✓ Server io.github.OpenRecruiterTools/linkedin-toolkit version 2.0.1
+✓ Server io.github.FormatixAI/linkedin-toolkit version 2.0.1
 ```
 
 ## 4. Log out — ↩️ reversible
@@ -120,12 +120,12 @@ curl "https://registry.modelcontextprotocol.io/v0/servers?search=linkedin-toolki
 ```
 
 The response should contain a server object whose `name` is
-`io.github.OpenRecruiterTools/linkedin-toolkit`, whose `version` is `2.0.1`, and whose `_meta`
+`io.github.FormatixAI/linkedin-toolkit`, whose `version` is `2.0.1`, and whose `_meta`
 block reports `"status": "active"` and `"isLatest": true`. The newer `/v0.1/servers` path works
 too and takes the same `search` parameter:
 
 ```bash
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.OpenRecruiterTools/linkedin-toolkit"
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.FormatixAI/linkedin-toolkit"
 ```
 
 Downstream directories (Cursor, VS Code, PulseMCP, Glama and the rest) mirror the official

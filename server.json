@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.OpenRecruiterTools/linkedin-toolkit",
+  "name": "io.github.FormatixAI/linkedin-toolkit",
   "title": "LinkedIn Toolkit",
   "description": "LinkedIn for AI agents from your own Chrome session: search, profiles, lists, outreach queue.",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "websiteUrl": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
   "repository": {
     "url": "https://github.com/OpenRecruiterTools/linkedin-toolkit",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "linkedin-toolkit-mcp",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
