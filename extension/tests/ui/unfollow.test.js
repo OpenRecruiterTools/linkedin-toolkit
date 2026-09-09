@@ -418,3 +418,266 @@ describe('Stop', () => {
     }
   });
 });
+
+/* ================================================================== */
+/*  The two checkboxes                                                */
+/* ================================================================== */
+
+const everyoneBox = (host) => cardNode(host).querySelector('[data-testid="unfollow-everyone"]');
+const fastBox = (host) => cardNode(host).querySelector('[data-testid="unfollow-fast"]');
+const labelOf = (box) => box.closest('label').textContent.trim();
+
+describe('Also unfollow my connections', () => {
+  it('is off until it is ticked, and says why it exists', async () => {
+    const { host } = await mount();
+
+    expect(everyoneBox(host).checked).toBe(false);
+    expect(labelOf(everyoneBox(host))).toBe(
+      'Also unfollow my connections (scans your followers list; slower)',
+    );
+    expect(cardNode(host).textContent).toContain(
+      'Connections are followed automatically and do not appear in LinkedIn’s Following list.',
+    );
+  });
+
+  it('sends no scope at all while it is unticked', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: { count: 12, sample: [] },
+    });
+
+    buttonNamed(host, 'Check count').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({});
+  });
+
+  it('counts everyone, and says what the followers scan found', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
+        count: 1_205,
+        sample: ['Aurelie Vasterling'],
+        followers: { total: 9_479, stillFollowing: 470 },
+      },
+    });
+
+    everyoneBox(host).checked = true;
+    buttonNamed(host, 'Check count').click();
+    await flush(10);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({ scope: 'everyone' });
+    expect(cardNode(host).textContent).toContain('1,205 accounts you can unfollow.');
+    expect(cardNode(host).textContent).toContain(
+      'Another 470 of your 9,479 followers — your connections — are followed too.',
+    );
+  });
+
+  it('says so plainly when there is nothing extra to find', async () => {
+    const { host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: {
+        count: 12,
+        sample: [],
+        followers: { total: 9_479, stillFollowing: 0 },
+      },
+    });
+
+    everyoneBox(host).checked = true;
+    buttonNamed(host, 'Check count').click();
+    await flush(10);
+
+    expect(cardNode(host).textContent).toContain(
+      'Nobody of your 9,479 followers is followed on top of that.',
+    );
+  });
+
+  it('previews both lists', async () => {
+    let answer;
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    });
+
+    everyoneBox(host).checked = true;
+    limitBox(host).value = '5';
+    buttonNamed(host, 'Preview').click();
+    await flush(10);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({
+      limit: 5,
+      scope: 'everyone',
+      dryRun: true,
+    });
+    // While it runs it says which two lists it is reading, because a preview
+    // that ticks the box is a two-minute wait rather than one request.
+    expect(cardNode(host).textContent).toContain('following and followers lists');
+
+    answer({ unfollowed: 0, attempted: 0, names: ['Ada'], stopped: 'end' });
+    await flush(8);
+    expect(nameItems(host)).toEqual(['Ada']);
+    expect(progressNode(host).hidden).toBe(true);
+  });
+
+  it('warns in the confirmation that connections do not come back', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: { unfollowed: 3, attempted: 3, names: [], stopped: 'end' },
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: false, done: 3, total: 3, lastName: '' },
+    });
+
+    everyoneBox(host).checked = true;
+    limitBox(host).value = '3';
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+
+    expect(document.body.textContent).toContain('Your connections are included');
+    expect(document.body.textContent).toContain('followed again by hand');
+
+    dialogButton('confirm-ok').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({
+      limit: 3,
+      scope: 'everyone',
+    });
+  });
+});
+
+describe('Fast', () => {
+  it('is off until it is ticked, and says what it costs', async () => {
+    const { host } = await mount();
+
+    expect(fastBox(host).checked).toBe(false);
+    expect(labelOf(fastBox(host))).toBe(
+      'Fast (3 at a time — more likely to trip LinkedIn’s rate limit)',
+    );
+    expect(cardNode(host).textContent).toContain(
+      'Careful, one at a time, is the default and the one to use.',
+    );
+  });
+
+  it('sends speed only on the run, never on a preview or a count', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: { count: 12, sample: [] },
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: { unfollowed: 2, attempted: 2, names: [], stopped: 'limit' },
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: false, done: 2, total: 2, lastName: '' },
+    });
+
+    fastBox(host).checked = true;
+    limitBox(host).value = '2';
+
+    buttonNamed(host, 'Check count').click();
+    await flush(8);
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_COUNT)).toEqual({});
+
+    buttonNamed(host, 'Preview').click();
+    await flush(8);
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({ limit: 2, dryRun: true });
+
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+    dialogButton('confirm-ok').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({ limit: 2, speed: 'fast' });
+  });
+
+  it('rides along with the scope when both are ticked', async () => {
+    const { engine, host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: { unfollowed: 1, attempted: 1, names: [], stopped: 'limit' },
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: false, done: 1, total: 1, lastName: '' },
+    });
+
+    everyoneBox(host).checked = true;
+    fastBox(host).checked = true;
+    limitBox(host).value = '1';
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+    dialogButton('confirm-ok').click();
+    await flush(8);
+
+    expect(engine.paramsFor(ACTIONS.NETWORK_UNFOLLOW_ALL)).toEqual({
+      limit: 1,
+      scope: 'everyone',
+      speed: 'fast',
+    });
+  });
+});
+
+describe('The scan, on screen', () => {
+  it('shows the scan as a scan and not as unfollows', async () => {
+    const { host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_ALL]: () => new Promise(() => {}),
+      [ACTIONS.NETWORK_UNFOLLOW_STATUS]: { running: true, done: 0, total: 0, lastName: '' },
+    });
+
+    everyoneBox(host).checked = true;
+    limitBox(host).value = '';
+    buttonNamed(host, 'Unfollow all').click();
+    await flush(6);
+    dialogButton('confirm-ok').click();
+    await flush(6);
+
+    emitEvent(EVENTS.UNFOLLOW_PROGRESS, { done: 450, total: 9_479, phase: 'scanning' });
+    await flush(2);
+
+    expect(progressNode(host).textContent).toBe('Scanning followers… 450 of 9,479');
+
+    // And back to the unfollow line the moment an unfollow is announced.
+    emitEvent(EVENTS.UNFOLLOW_PROGRESS, { done: 20, total: 500 });
+    await flush(2);
+    expect(progressNode(host).textContent).toBe('Unfollowed 20 of 500');
+  });
+
+  it('reads the scan off unfollowStatus between events', async () => {
+    vi.useFakeTimers();
+    try {
+      const { host } = await mount({
+        [ACTIONS.NETWORK_UNFOLLOW_ALL]: () => new Promise(() => {}),
+        [ACTIONS.NETWORK_UNFOLLOW_STATUS]: {
+          running: true,
+          done: 12,
+          total: 40,
+          lastName: 'Marlow Ashcombe',
+          phase: 'scanning',
+          scanned: 1_200,
+          scannedTotal: 9_479,
+        },
+      });
+
+      everyoneBox(host).checked = true;
+      buttonNamed(host, 'Unfollow all').click();
+      await vi.advanceTimersByTimeAsync(5);
+      dialogButton('confirm-ok').click();
+      await vi.advanceTimersByTimeAsync(5);
+      await vi.advanceTimersByTimeAsync(extract.UNFOLLOW_POLL_MS + 20);
+
+      expect(progressNode(host).textContent).toBe('Scanning followers… 1,200 of 9,479');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the scan while Check count is scanning, then clears it', async () => {
+    let answer;
+    const { host } = await mount({
+      [ACTIONS.NETWORK_UNFOLLOW_COUNT]: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    });
+
+    everyoneBox(host).checked = true;
+    buttonNamed(host, 'Check count').click();
+    await flush(6);
+
+    expect(cardNode(host).textContent).toContain('takes a couple of minutes');
+    emitEvent(EVENTS.UNFOLLOW_PROGRESS, { done: 300, total: 9_479, phase: 'scanning' });
+    await flush(2);
+    expect(progressNode(host).textContent).toBe('Scanning followers… 300 of 9,479');
+
+    answer({ count: 12, sample: [], followers: { total: 9_479, stillFollowing: 0 } });
+    await flush(8);
+
+    expect(progressNode(host).hidden).toBe(true);
+  });
+});

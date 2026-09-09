@@ -207,6 +207,7 @@ export const UNFOLLOW_MODE_DEFAULT = 'api';
  */
 export const UNFOLLOW_SCOPES = Object.freeze(['following', 'everyone']);
 export const UNFOLLOW_SCOPE_DEFAULT = 'following';
+export const UNFOLLOW_SCOPE_EVERYONE = 'everyone';
 
 /**
  * How hard a run pushes.
@@ -218,6 +219,7 @@ export const UNFOLLOW_SCOPE_DEFAULT = 'following';
  */
 export const UNFOLLOW_SPEEDS = Object.freeze(['careful', 'fast']);
 export const UNFOLLOW_SPEED_DEFAULT = 'careful';
+export const UNFOLLOW_SPEED_FAST = 'fast';
 
 /**
  * The one phase an `unfollow_progress` event ever names.

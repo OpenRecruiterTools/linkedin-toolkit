@@ -17,6 +17,9 @@ import {
   UNFOLLOW_LIMIT_MAX,
   UNFOLLOW_LIMIT_MIN,
   UNFOLLOW_MODE_DEFAULT,
+  UNFOLLOW_PHASE_SCANNING,
+  UNFOLLOW_SCOPE_EVERYONE,
+  UNFOLLOW_SPEED_FAST,
 } from '../../lib/actions.js';
 import {
   card,
@@ -548,7 +551,28 @@ const UNFOLLOW_MODES = [
   { value: 'dom', label: 'Browser tab (slower, clicks the page)' },
 ];
 
+/** The finding the second source exists for, in one line. */
+export const UNFOLLOW_EVERYONE_LABEL =
+  'Also unfollow my connections (scans your followers list; slower)';
+export const UNFOLLOW_EVERYONE_HINT =
+  'Connections are followed automatically and do not appear in LinkedIn’s Following list.';
+
+export const UNFOLLOW_FAST_LABEL =
+  'Fast (3 at a time — more likely to trip LinkedIn’s rate limit)';
+export const UNFOLLOW_FAST_HINT = 'Careful, one at a time, is the default and the one to use.';
+
 const accounts = (n) => `${fmtNumber(n)} account${n === 1 ? '' : 's'}`;
+
+/**
+ * A checkbox with its own explanation underneath.
+ *
+ * `field()` cannot be used: it is a `<label>`, and `checkbox()` already
+ * returns one, and a label inside a label is a control a screen reader cannot
+ * announce properly.
+ */
+function checkField(box, hint) {
+  return el('div', { class: 'field' }, box, el('span', { class: 'hint' }, hint));
+}
 
 /** A plain list of names with a heading, or an empty state. */
 function nameList(names, heading) {
@@ -586,6 +610,17 @@ export function unfollowCard() {
     progressLine.hidden = false;
   };
 
+  /**
+   * The scan is a different sentence, because it is a different number: nine
+   * thousand followers read is not nine thousand people unfollowed, and a line
+   * that said "Unfollowed 9,479" would be a lie in the most alarming direction.
+   */
+  const showScan = (scanned, total) => {
+    const of = total > 0 ? ` of ${fmtNumber(total)}` : '';
+    progressLine.textContent = `Scanning followers… ${fmtNumber(scanned)}${of}`;
+    progressLine.hidden = false;
+  };
+
   const modeSelect = select(UNFOLLOW_MODES, {
     value: UNFOLLOW_MODE_DEFAULT,
     'data-testid': 'unfollow-mode',
@@ -620,32 +655,69 @@ export function unfollowCard() {
     return n;
   };
 
+  const everyoneBox = checkbox(UNFOLLOW_EVERYONE_LABEL, {
+    'data-testid': 'unfollow-everyone',
+  });
+  const fastBox = checkbox(UNFOLLOW_FAST_LABEL, { 'data-testid': 'unfollow-fast' });
+
+  /** Nothing is sent unless it was ticked, so an untouched card behaves as before. */
+  const scopeParams = () =>
+    everyoneBox.input.checked ? { scope: UNFOLLOW_SCOPE_EVERYONE } : {};
+
+  const modeParams = () =>
+    modeSelect.value && modeSelect.value !== UNFOLLOW_MODE_DEFAULT
+      ? { mode: modeSelect.value }
+      : {};
+
   /**
-   * The mode only rides along when it is not the default, so the common call
-   * stays `{ limit }` and a reader of the engine log can see at a glance that
-   * somebody chose the slow path on purpose.
+   * The mode, the scope and the speed only ride along when they are not the
+   * default, so the common call stays `{ limit }` and a reader of the engine
+   * log can see at a glance that somebody chose the slow path on purpose.
    */
   const paramsFor = (extra) => {
     const limit = readLimit();
-    const params = limit === null ? { ...extra } : { limit, ...extra };
-    if (modeSelect.value && modeSelect.value !== UNFOLLOW_MODE_DEFAULT) {
-      params.mode = modeSelect.value;
-    }
-    return params;
+    return {
+      ...(limit === null ? {} : { limit }),
+      ...scopeParams(),
+      ...modeParams(),
+      ...extra,
+    };
+  };
+
+  /**
+   * What the followers scan found, as a sentence — the number the Following
+   * list does not show you.
+   */
+  const connectionsLine = (followers) => {
+    if (!followers) return '';
+    const still = Number(followers.stillFollowing) || 0;
+    const total = Number(followers.total);
+    const of = Number.isFinite(total) && total > 0 ? ` of your ${fmtNumber(total)} followers` : '';
+    if (!still) return ` Nobody${of} is followed on top of that.`;
+    return ` Another ${fmtNumber(still)}${of} — your connections — are followed too.`;
   };
 
   const countBtn = busyButton(
     'Check count',
     async () => {
-      const params = {};
-      if (modeSelect.value && modeSelect.value !== UNFOLLOW_MODE_DEFAULT) {
-        params.mode = modeSelect.value;
+      const params = { ...scopeParams(), ...modeParams() };
+      const scanning = params.scope === UNFOLLOW_SCOPE_EVERYONE;
+      if (scanning) {
+        status.set('Reading your followers list — this takes a couple of minutes…');
+        watchScan();
       }
-      const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, params);
-      const count = Number(data.count) || 0;
-      const sample = Array.isArray(data.sample) ? data.sample : [];
-      status.set(`${accounts(count)} you can unfollow.`);
-      render(results, sample.length ? nameList(sample, 'First few:') : null);
+      try {
+        const data = await call(ACTIONS.NETWORK_UNFOLLOW_COUNT, params);
+        const count = Number(data.count) || 0;
+        const sample = Array.isArray(data.sample) ? data.sample : [];
+        status.set(`${accounts(count)} you can unfollow.${connectionsLine(data.followers)}`);
+        render(results, sample.length ? nameList(sample, 'First few:') : null);
+      } finally {
+        if (scanning) {
+          stopWatching();
+          progressLine.hidden = true;
+        }
+      }
     },
     {
       variant: 'ghost',
@@ -658,15 +730,28 @@ export function unfollowCard() {
     'Preview',
     async () => {
       const params = paramsFor({ dryRun: true });
-      status.set('Reading your following list — nothing is being unfollowed…');
-      const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, params);
-      const names = Array.isArray(data.names) ? data.names : [];
+      const scanning = params.scope === UNFOLLOW_SCOPE_EVERYONE;
       status.set(
-        names.length
-          ? `Preview only — nothing was unfollowed. ${accounts(names.length)} would be:`
-          : 'Preview only — found nobody to unfollow.',
+        scanning
+          ? 'Reading your following and followers lists — nothing is being unfollowed…'
+          : 'Reading your following list — nothing is being unfollowed…',
       );
-      render(results, nameList(names, 'Would unfollow:'));
+      if (scanning) watchScan();
+      try {
+        const data = await call(ACTIONS.NETWORK_UNFOLLOW_ALL, params);
+        const names = Array.isArray(data.names) ? data.names : [];
+        status.set(
+          names.length
+            ? `Preview only — nothing was unfollowed. ${accounts(names.length)} would be:`
+            : 'Preview only — found nobody to unfollow.',
+        );
+        render(results, nameList(names, 'Would unfollow:'));
+      } finally {
+        if (scanning) {
+          stopWatching();
+          progressLine.hidden = true;
+        }
+      }
     },
     {
       variant: 'ghost',
@@ -678,13 +763,21 @@ export function unfollowCard() {
   const unfollowBtn = busyButton(
     'Unfollow all',
     async () => {
-      const params = paramsFor({});
+      const params = paramsFor(fastBox.input.checked ? { speed: UNFOLLOW_SPEED_FAST } : {});
       const limit = params.limit === undefined ? null : params.limit;
       const target = limit === null ? 'everyone you follow' : accounts(limit);
+      // Unfollowing a connection is not disconnecting from them, and it is not
+      // reversible by itself either — which is exactly the thing somebody
+      // ticking that box needs told before they confirm, not after.
+      const alsoConnections =
+        params.scope === UNFOLLOW_SCOPE_EVERYONE
+          ? ' Your connections are included: you stay connected, but anyone you want in your ' +
+            'feed has to be followed again by hand.'
+          : '';
 
       const sure = await confirmDialog({
         title: limit === null ? 'Unfollow everyone?' : `Unfollow up to ${fmtNumber(limit)}?`,
-        message: `This will unfollow ${target}. ${UNFOLLOW_WARNING}`,
+        message: `This will unfollow ${target}.${alsoConnections} ${UNFOLLOW_WARNING}`,
         confirmLabel: limit === null ? 'Unfollow all' : `Unfollow ${fmtNumber(limit)}`,
         danger: true,
       });
@@ -766,17 +859,25 @@ export function unfollowCard() {
 
     unsubscribe = onEvent((name, payload) => {
       if (name !== EVENTS.UNFOLLOW_PROGRESS) return;
+      if (payload.phase === UNFOLLOW_PHASE_SCANNING) {
+        showScan(Number(payload.done) || 0, Number(payload.total) || 0);
+        return;
+      }
       showProgress(Number(payload.done) || 0, Number(payload.total) || expected, '');
     });
 
     pollTimer = setInterval(async () => {
       try {
         const state = await call(ACTIONS.NETWORK_UNFOLLOW_STATUS, {});
-        showProgress(
-          Number(state.done) || 0,
-          Number(state.total) || expected,
-          state.lastName || '',
-        );
+        if (state.phase === UNFOLLOW_PHASE_SCANNING) {
+          showScan(Number(state.scanned) || 0, Number(state.scannedTotal) || 0);
+        } else {
+          showProgress(
+            Number(state.done) || 0,
+            Number(state.total) || expected,
+            state.lastName || '',
+          );
+        }
         if (!state.running) {
           stopWatching();
           stopBtn.disabled = true;
@@ -787,10 +888,27 @@ export function unfollowCard() {
     }, UNFOLLOW_POLL_MS);
   }
 
+  /**
+   * The lighter half of `startWatching`, for the two buttons that scan without
+   * unfollowing: Check count and Preview with the connections box ticked. They
+   * have no run to poll and no Stop to offer — only the scan's own heartbeat.
+   */
+  function watchScan() {
+    stopWatching();
+    showScan(0, 0);
+    unsubscribe = onEvent((name, payload) => {
+      if (name !== EVENTS.UNFOLLOW_PROGRESS) return;
+      if (payload.phase !== UNFOLLOW_PHASE_SCANNING) return;
+      showScan(Number(payload.done) || 0, Number(payload.total) || 0);
+    });
+  }
+
   const node = card(
     'Mass unfollow',
     { hint: UNFOLLOW_WARNING, class: 'extract-unfollow' },
     field('Unfollow up to', limitInput, 'Leave empty to work through everyone.'),
+    checkField(everyoneBox, UNFOLLOW_EVERYONE_HINT),
+    checkField(fastBox, UNFOLLOW_FAST_HINT),
     row(countBtn, previewBtn, unfollowBtn, stopBtn),
     progressLine,
     status,
