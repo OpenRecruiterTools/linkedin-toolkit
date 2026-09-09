@@ -7,7 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `server.json` at the repo root: the manifest for the official
+  [MCP Registry](https://registry.modelcontextprotocol.io), on schema version `2025-12-11`, listing
+  the npm package `linkedin-toolkit-mcp` as a stdio server under the name
+  `io.github.OpenRecruiterTools/linkedin-toolkit`.
+- `docs/registry-publish.md` — the runbook for publishing to that registry with the
+  `mcp-publisher` CLI.
+
+### Changed
+
+- `mcp-server` is `2.0.1` and carries an `mcpName` field, which is how the registry verifies that
+  whoever publishes the listing also owns the npm package. Nothing in the server's behaviour or its
+  API contract changed; `openapi.json` and `tools.json` still report API version `2.0.0`.
 
 ## [2.0.0] — 2026-09
 

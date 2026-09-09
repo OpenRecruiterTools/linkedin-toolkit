@@ -26,7 +26,8 @@ Copy for every listing:
 - [ ] **PulseMCP** — https://www.pulsemcp.com/submit
 - [ ] **mcp.so** — https://mcp.so/submit
 - [ ] **MCP Market** — https://mcpmarket.com/submit
-- [ ] **Official MCP registry** — https://github.com/modelcontextprotocol/registry (PR)
+- [ ] **Official MCP registry** — https://registry.modelcontextprotocol.io (not a PR any more:
+      publish with the `mcp-publisher` CLI — full runbook in [`docs/registry-publish.md`](../registry-publish.md))
 - [ ] **Cursor directory** — https://cursor.directory/mcp (PR to the repo behind it)
 - [ ] **Awesome MCP Servers** — https://github.com/punkpeye/awesome-mcp-servers (PR, text below)
 - [ ] **Awesome MCP Servers (appcypher)** — https://github.com/appcypher/awesome-mcp-servers (PR)

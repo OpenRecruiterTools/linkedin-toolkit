@@ -263,7 +263,9 @@ per unit of effort. Do not start before step 5 — several of them auto-scan the
 listing created against a missing package is worse than no listing.
 
 - [ ] ↩️ Smithery, Glama, PulseMCP, mcp.so, MCP Market
-- [ ] ↩️ Official MCP registry (PR)
+- [ ] ↩️ Official MCP registry — `mcp-publisher`, not a PR. Follow `docs/registry-publish.md`;
+      it needs `linkedin-toolkit-mcp@2.0.1` on npm first (`server.json` and `mcp-server/package.json`
+      are already at 2.0.1 with the `mcpName` ownership marker).
 - [ ] ↩️ Cursor directory (PR)
 - [ ] ↩️ awesome-mcp-servers, both lists (PR each, the exact line is in the doc)
 - [ ] ↩️ The remaining sections of `docs/launch/directories.md`
