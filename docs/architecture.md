@@ -56,7 +56,7 @@ session, no telemetry, and no headless browser anywhere in the project.
 | Component | Runs | Owns |
 |---|---|---|
 | **Extension engine** (MV3 service worker) | Your Chrome | Every LinkedIn call, quotas, delays, backoff, campaign scheduling, the approval queue. The only component that talks to LinkedIn. |
-| **Content scripts** | LinkedIn tabs | Full-page capture, photo capture, and the DOM actions Voyager has no endpoint for (unfollow, some likes and comments). |
+| **Content scripts** | LinkedIn tabs | Full-page capture, photo capture, and the DOM fallbacks for actions Voyager will not serve (mass unfollow in `mode: 'dom'`, some likes and comments). Mass unfollow's default path is now the Voyager one, captured 2026-09-09. |
 | **Popup / Options** | Chrome | The human control panel: lists, campaigns, inbox, queue, settings, BYOK keys, bridge pairing. |
 | **MCP server** | Your machine (Node ≥ 20) | MCP over stdio and Streamable HTTP, the `/actions` HTTP API, `/openapi.json`, the SQLite mirror, the `lit` CLI, outbound webhooks. Holds no LinkedIn state of its own. |
 | **Clients** | Wherever your agent runs | `linkedin-toolkit` on npm and PyPI, plus framework wrappers. Thin HTTP. |

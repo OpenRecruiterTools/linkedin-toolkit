@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] — 2026-09-09
+
+### Added
+- **Mass unfollow now talks to LinkedIn directly.** `network.unfollowAll` pages the Following list through the curation-hub search (`resultType: PEOPLE_FOLLOW`) and sends the `followingStates` patch its Unfollow button sends — both captured live from client 1.13.46516. It needs no tab, it cannot be broken by a markup change, and at a randomised 0.8–1.6 s per person it is about three times faster than clicking: a 735-person list is roughly fifteen minutes rather than an hour. `network.unfollowCount` answers from `totalResultCount` in one request.
+- `network.unfollowStop` and `network.unfollowStatus` (both popup-only): Stop ends a run between people and reports `stopped: 'cancelled'`, keeping everything already done; Status is `{ running, done, total, lastName }` for a progress line.
+- Event `unfollow_progress { done, total }`, emitted every 10 successful unfollows and never during a `dryRun`.
+- The unfollow card has a live progress line, a Stop button, and the mode behind an "Advanced" toggle.
+
+### Changed
+- `network.unfollowCount` and `network.unfollowAll` take `mode: 'api' | 'dom'`, defaulting to `api`. The old tab-clicking run is `mode: 'dom'` — slower and fragile, kept because a page a human can click is what still works the day LinkedIn rotates a query id.
+- No quota bucket is charged for unfollows: the four buckets meter what LinkedIn restricts accounts over, and removing your own subscriptions is not one of them. The challenge latch still applies, and a run stands down on 401/403/429/451 or on two failures in a row.
+- `scripts/zip-extension.mjs` names the zip from `GITHUB_REF_NAME` when it looks like a version, falling back to the manifest (#20). A tagged release can no longer ship under a stale manifest version.
+
 ## [2.0.3] — 2026-09-09
 
 ### Fixed

@@ -9,9 +9,9 @@ It takes about five minutes.
 
 **Before you start, read this once.** LinkedIn's User Agreement does not allow you
 to automate your account, and LinkedIn restricts and permanently bans accounts for
-it. Mass unfollow clicks buttons on your own account, in your own browser, and
-LinkedIn cannot tell that apart from you clicking fast. That risk is yours. Do not
-use this on an account you cannot afford to lose. The longer version is in
+it. Mass unfollow makes the same requests your own browser makes when you press
+Unfollow, and LinkedIn cannot tell that apart from you doing it fast. That risk is
+yours. Do not use this on an account you cannot afford to lose. The longer version is in
 [docs/safety.md](safety.md).
 
 ---
@@ -22,7 +22,7 @@ use this on an account you cannot afford to lose. The longer version is in
 
 Go to the [Releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases)
 and, under the newest release, click the file whose name ends in `.zip` — it is
-called something like `linkedin-toolkit-extension-v2.0.0.zip`.
+called something like `linkedin-toolkit-extension-v2.0.4.zip`.
 
 ![step](assets/install-1-release.png)
 
@@ -106,9 +106,9 @@ are not the people you expected, stop here — nothing has happened.
 
 Change "Unfollow up to" to **1**, then click **Unfollow all** and confirm.
 
-Watch the LinkedIn tab: you will see it open your Following list and press one
-button. When it finishes, it tells you who it unfollowed. Check that person really
-is unfollowed on LinkedIn.
+The progress line counts up as it goes, and **Stop** ends the run after the person
+in flight — what is already unfollowed stays unfollowed. When it finishes, it tells
+you who it unfollowed. Check that person really is unfollowed on LinkedIn.
 
 That is the whole point of the number box. Try it on one person, then on five,
 before you trust it with eight hundred.
@@ -116,19 +116,28 @@ before you trust it with eight hundred.
 ### Step 3 — Then the rest
 
 Once you have seen it work, set the number to whatever you want — or clear the box
-entirely to work through everyone — and run it.
+entirely to work through everyone — and run it. It goes at about one person a
+second, so eight hundred is a bit under a quarter of an hour; leave the popup open
+if you want to watch it, and press **Stop** whenever you have had enough.
+
+Under **Advanced** there is a second way to do it, "Browser tab", which drives your
+own Following page and clicks the buttons on it. It is three times slower and it is
+there for one reason: if LinkedIn changes the API the fast mode uses, the page a
+human can click still works. Leave it alone unless the fast mode has stopped
+working.
 
 While it runs:
 
-- **Leave the tab alone.** It clicks the tab you pointed it at. If you navigate
-  that tab somewhere else, the run stops immediately and tells you so; it will
-  never follow you to another tab.
-- **It is slow on purpose.** One person every 2–5 seconds. A burst of clicks is
-  exactly what gets accounts restricted, so it does not do that. Eight hundred
-  people takes roughly an hour. You can carry on working in other tabs.
-- **If LinkedIn interrupts** with a security check or a "we noticed unusual
-  activity" page, the run stops on the spot and reports how far it got. Do not
-  restart it that day.
+- **It is slower than it could be, on purpose.** One person every 0.8–1.6
+  seconds, at a randomised interval. A burst is exactly the shape that gets
+  accounts restricted, so it does not make one. ("Browser tab" mode is slower
+  still, at 2–5 seconds, because clicking a page costs more than a request.)
+- **You can leave.** The fast mode needs no tab, so carry on working; closing the
+  popup does not stop the run, and reopening it picks the count back up.
+- **If LinkedIn interrupts** — a rate limit, a security check, a "we noticed
+  unusual activity" page — the run stops on the spot and reports how far it got.
+  Do not restart it that day. In "Browser tab" mode, navigating that tab
+  somewhere else stops it too; it will never follow you to another tab.
 - **There is no undo.** Unfollowing 800 people cannot be reversed in bulk; you
   would have to re-follow each of them by hand.
 
@@ -142,13 +151,16 @@ names, without changing anything.
 **The icon is greyed out or the popup is empty.** You are not on a LinkedIn tab,
 or you are not signed in. Open linkedin.com, sign in, then click the icon again.
 
-**"Mass unfollow runs in your own browser tab…"** You reached the action from
-somewhere other than the popup. That is deliberate — this one action can only be
-started by a person, never by an agent.
+**"Mass unfollow cannot be undone…"** You reached the action from somewhere other
+than the popup. That is deliberate — this one action can only be started by a
+person, never by an agent.
 
-**Nothing happens when you press Unfollow.** Check the LinkedIn tab is actually on
-your Following list. The toolkit will navigate there itself; give it a few seconds
-on a slow connection.
+**Nothing happens when you press Unfollow.** The fast (default) mode talks to
+LinkedIn directly and needs no tab; watch the progress line, which updates as it
+goes, and press Stop if you want it to end early. In the slower **Browser tab**
+mode, under "Advanced", check the LinkedIn tab is actually on your Following
+list — the toolkit will navigate there itself, so give it a few seconds on a slow
+connection.
 
 **Chrome says the extension is corrupted, or it vanishes after a restart.** The
 folder moved or was deleted. Re-download, unzip somewhere permanent, and load it
