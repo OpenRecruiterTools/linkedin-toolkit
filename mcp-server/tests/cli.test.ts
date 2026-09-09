@@ -365,6 +365,34 @@ describe('inbox and queue', () => {
     expect(stdout()).toContain('Ada Lovelace');
   });
 
+  it.each(['pending', 'approved', 'sent', 'failed', 'rejected'])(
+    'lists the queue filtered by --status %s',
+    async (status) => {
+      await startServer();
+      await run(['queue', 'list', '--status', status], io);
+      expect(harness!.ext.seen.at(-1)).toMatchObject({
+        action: 'queue.list',
+        params: { status },
+      });
+    },
+  );
+
+  it('shows why a failed item failed, not the note nobody received', async () => {
+    await startServer();
+    await run(['queue', 'list', '--status', 'failed'], io);
+    expect(stdout()).toContain('q_9');
+    expect(stdout()).toContain('CANT_RESEND_YET');
+    expect(stdout()).not.toContain('Hi Ada');
+  });
+
+  it('refuses a status the queue cannot be in', async () => {
+    await startServer();
+    const code = await run(['queue', 'list', '--status', 'posted'], io);
+    expect(code).toBe(1);
+    expect(stderr()).toContain('Unknown queue status');
+    expect(stderr()).toContain('failed');
+  });
+
   it('approves and rejects by id', async () => {
     await startServer();
     await run(['queue', 'approve', 'q_1', 'q_2'], io);
@@ -373,6 +401,9 @@ describe('inbox and queue', () => {
       params: { ids: ['q_1', 'q_2'] },
     });
     expect(stdout()).toContain('Approved 2');
+    // Approving no longer waits for the sends, so it must not imply it did.
+    expect(stdout()).toContain('Sending in the background');
+    expect(stdout()).toContain('lit queue list --status sent');
 
     out = [];
     await run(['queue', 'reject', 'q_3'], io);

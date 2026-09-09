@@ -1,7 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { ACTIONS, HARD_CAPS } from '../../src/lib/actions.js';
-import { route } from '../../src/background/index.js';
+import * as queue from '../../src/background/queue.js';
+import * as quota from '../../src/background/quota.js';
+import {
+  CAMPAIGN_TICK_ALARM,
+  QUEUE_TICK_ALARM,
+  QUEUE_TICK_MINUTES,
+  route,
+} from '../../src/background/index.js';
 
 const mock = () => globalThis.chrome.__mock;
 
@@ -18,6 +25,33 @@ describe('service worker wiring', () => {
     expect(mock().listeners.onAlarm.length).toBeGreaterThan(0);
     expect(mock().listeners.onStartup.length).toBeGreaterThan(0);
     expect(mock().listeners.onInstalled.length).toBeGreaterThan(0);
+  });
+
+  it('gives the queue its own alarm, faster than the campaign tick', () => {
+    // Approving is a human waiting, so the queue gets the shortest cadence
+    // chrome.alarms allows rather than sharing the five-minute campaign one.
+    expect(QUEUE_TICK_ALARM).toBe('queueTick');
+    expect(QUEUE_TICK_MINUTES).toBe(1);
+    expect(QUEUE_TICK_ALARM).not.toBe(CAMPAIGN_TICK_ALARM);
+  });
+
+  it('the queue alarm sends what is waiting, without running a campaign tick', async () => {
+    quota.setSleepFn(() => Promise.resolve()); // the real pacing is 8–15 s
+    const queued = await route({
+      action: ACTIONS.OUTREACH_INVITE,
+      params: { publicId: 'adalovelace', note: 'Hi' },
+      origin: 'mcp',
+    });
+    await route({ action: ACTIONS.QUEUE_APPROVE, params: { ids: [queued.data.queueId] } });
+    expect((await queue.list('approved'))).toHaveLength(1);
+
+    for (const listener of mock().listeners.onAlarm) listener({ name: QUEUE_TICK_ALARM });
+    // The listener is fire-and-forget; give the drain its turns.
+    await vi.waitFor(async () => expect(await queue.list('approved')).toHaveLength(0));
+
+    // Signed out in this suite, so it could only have failed — but it was
+    // picked up, which is the thing the alarm exists to do.
+    expect((await queue.list('failed'))).toHaveLength(1);
   });
 });
 

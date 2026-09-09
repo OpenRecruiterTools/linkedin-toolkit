@@ -88,6 +88,19 @@ export const queueItem = {
   status: 'pending' as const,
 };
 
+/** The same item after the sender could not send it. */
+export const failedQueueItem = {
+  ...queueItem,
+  id: 'q_9',
+  status: 'failed' as const,
+  result: {
+    error: {
+      code: 'LINKEDIN_ERROR',
+      message: 'LinkedIn refused the invitation (CANT_RESEND_YET): already pending.',
+    },
+  },
+};
+
 export const pack = {
   row: { name: 'Ada Lovelace', company: 'Difference Engine Ltd' },
   resolved: {
@@ -202,7 +215,8 @@ export function defaultHandlers(): Handlers {
     'campaign.resume': () => campaign,
     'campaign.delete': () => ({ ...campaign, status: 'completed' }),
     'campaign.tick': () => ({ executed: 1, queued: 0 }),
-    'queue.list': () => ({ items: [queueItem] }),
+    'queue.list': (params: any) =>
+      params?.status === 'failed' ? { items: [failedQueueItem] } : { items: [queueItem] },
     'queue.approve': (params: any) => ({ approved: (params?.ids ?? []).length }),
     'queue.reject': (params: any) => ({ rejected: (params?.ids ?? []).length }),
     'ai.complete': () => ({ output: 'Hi Ada', provider: 'none', model: 'stub' }),
