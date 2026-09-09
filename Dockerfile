@@ -2,7 +2,7 @@
 # The real product runs on the user's machine: the MCP server pairs with the Chrome extension over
 # localhost. This image starts the stdio MCP server so registries can introspect its tools; LinkedIn
 # calls will report EXTENSION_OFFLINE until an extension is paired. Do not deploy this as a service.
-FROM node:22-alpine
+FROM node:22-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY mcp-server ./mcp-server
