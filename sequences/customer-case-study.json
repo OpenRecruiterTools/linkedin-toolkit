@@ -1,0 +1,49 @@
+{
+  "name": "Customer to case study",
+  "description": "Asks a satisfied customer to share their experience publicly through a short, practical case study.",
+  "audience": "Happy customers who have achieved a useful result with your product.",
+  "tags": ["customer", "case-study", "content"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — I've enjoyed seeing how {{company|your team}} uses {{product|our product}}. Would be great to connect.",
+        "Hi {{firstName|there}}, your experience with {{product|our product}} caught my attention. I'd be glad to connect and hear how things are going."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. Your results with {{product|our product}} have been interesting. Would you be open to sharing the experience in a short customer story?",
+              "Appreciate the connection. Since {{company|your team}} has had a good experience with {{product|our product}}, would you consider being featured in a brief case study?"
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "It would be a short conversation about what you needed, what changed, and the results. We'd keep it simple and send everything to you for approval.",
+              "The format is straightforward: a short conversation about the problem, your experience, and the outcome. We'd handle the writing and share it with you before anything is published."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

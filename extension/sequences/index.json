@@ -9,16 +9,40 @@
       "audience": "Decision makers at companies matching the profile of your last three good clients — same size, same sector, same problem."
     },
     {
+      "file": "alumni-outreach.json",
+      "name": "Alumni outreach",
+      "description": "Reconnects with someone who shares your school or former employer, using the shared background as a natural reason to start a conversation.",
+      "audience": "People who attended the same school or worked at the same former employer."
+    },
+    {
       "file": "community-invite.json",
       "name": "Community invite",
       "description": "Recruits people into a community, newsletter, or working group. Sells membership by naming who is already inside and what happens there, never by describing the community as \"a place to connect\".",
       "audience": "Practitioners who would make the community better by being in it — not a broad list. Quality of the room is the product."
     },
     {
+      "file": "conference-speaker-follow-up.json",
+      "name": "Conference speaker follow-up",
+      "description": "Follows up with someone after watching their conference talk, using a specific idea from the talk as the reason to connect.",
+      "audience": "Conference speakers whose talk you watched and found relevant."
+    },
+    {
       "file": "connect-then-message.json",
       "name": "Connect then message",
       "description": "The shortest respectable sequence: an invite with a note, one message on acceptance, one polite close. Four touches total. Use it when you have volume and no time.",
       "audience": "A cold list where the value proposition does the work and personalisation beyond first name and company is not realistic."
+    },
+    {
+      "file": "customer-case-study.json",
+      "name": "Customer to case study",
+      "description": "Asks a satisfied customer to share their experience publicly through a short, practical case study.",
+      "audience": "Happy customers who have achieved a useful result with your product."
+    },
+    {
+      "file": "dormant-customer-winback.json",
+      "name": "Dormant customer win-back",
+      "description": "Reconnects with a former customer after a period of inactivity, starting with their current situation rather than immediately pitching.",
+      "audience": "Former customers who stopped using the product around six months ago."
     },
     {
       "file": "exec-search-confidential.json",
@@ -43,6 +67,12 @@
       "name": "Investor introduction",
       "description": "Cold outreach to investors. Leads with a number, not a narrative, because that is the only thing that separates you from the other two hundred messages this week. Never asks for money in the first touch.",
       "audience": "Partners and principals at funds whose stage and thesis actually match where you are. Ten to forty names, researched individually."
+    },
+    {
+      "file": "opensource-maintainer-contributor.json",
+      "name": "Open-source maintainer to contributor",
+      "description": "Reconnects with people who starred or forked a repository and opens a conversation about contributing.",
+      "audience": "Developers who starred or forked your repository and may be interested in contributing."
     },
     {
       "file": "partnership.json",
