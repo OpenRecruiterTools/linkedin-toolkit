@@ -1,0 +1,49 @@
+{
+  "name": "Alumni outreach",
+  "description": "Reconnects with someone who shares your school or former employer, using the shared background as a natural reason to start a conversation.",
+  "audience": "People who attended the same school or worked at the same former employer.",
+  "tags": ["alumni", "networking", "warm"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — noticed we both spent time at {{school|the same school}}. Always nice to connect with someone from the same community.",
+        "Hi {{firstName|there}}, saw that we both worked at {{company|the same former company}}. Thought it would be good to connect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. I'm always curious where people from {{school|our shared background}} end up. What's keeping you busy these days?",
+              "Appreciate the connect, {{firstName|there}}. It's good to see where people from {{company|our former company}} have gone. What are you working on now?"
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "Would be glad to compare notes sometime, {{firstName|there}}. Always interesting to hear how someone's path has developed since {{school|school}}.",
+              "I'll leave you to it, {{firstName|there}}. If you're ever up for a quick catch-up about {{company|our old workplace}}, happy to chat."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}
