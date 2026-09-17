@@ -1,0 +1,49 @@
+{
+  "name": "Dormant customer win-back",
+  "description": "Reconnects with a former customer after a period of inactivity, starting with their current situation rather than immediately pitching.",
+  "audience": "Former customers who stopped using the product around six months ago.",
+  "tags": ["customer", "win-back", "reactivation"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — noticed {{company|your team}} previously used {{product|our product}}. Thought I'd reach out and reconnect.",
+        "Hi {{firstName|there}}, saw that {{company|your team}} worked with us before on {{product|the product}}. It would be good to reconnect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting. It's been a while since {{company|your team}} used {{product|the product}}. Curious how things have been going since then.",
+              "Appreciate the connection, {{firstName|there}}. I wanted to hear how things have changed at {{company|your company}} since you last used {{product|the product}}."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "We've made some changes since then, but I'd rather understand your current needs first. Would you be open to a conversation?",
+              "There have been a few changes since you last used {{product|the product}}. If relevant, I'd be interested in hearing what you're looking for now."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}

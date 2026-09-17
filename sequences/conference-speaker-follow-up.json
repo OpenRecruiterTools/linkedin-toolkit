@@ -1,0 +1,49 @@
+{
+  "name": "Conference speaker follow-up",
+  "description": "Follows up with someone after watching their conference talk, using a specific idea from the talk as the reason to connect.",
+  "audience": "Conference speakers whose talk you watched and found relevant.",
+  "tags": ["conference", "speaker", "networking"],
+  "steps": [
+    { "type": "view" },
+    { "type": "wait", "waitMs": 86400000 },
+    { "type": "follow" },
+    { "type": "wait", "waitMs": 86400000 },
+    {
+      "type": "invite",
+      "variants": [
+        "Hi {{firstName|there}} — I watched your talk at {{conference|the conference}} about {{topic|the topic}}. Your point on {{highlight|that idea}} stayed with me. Would be great to connect.",
+        "Hi {{firstName|there}}, caught your {{conference|conference}} talk on {{topic|the topic}}. I found the discussion around {{highlight|that point}} useful. Happy to connect."
+      ]
+    },
+    {
+      "type": "branch",
+      "branch": {
+        "on": "accepted",
+        "ms": 604800000,
+        "then": [
+          { "type": "wait", "waitMs": 172800000 },
+          {
+            "type": "message",
+            "variants": [
+              "Thanks for connecting, {{firstName|there}}. I especially liked your point about {{highlight|that idea}}. I've been thinking about how it applies to {{context|our work}}.",
+              "Appreciate the connection. Your discussion of {{topic|the topic}} gave me a useful perspective, especially around {{highlight|that point}}."
+            ]
+          },
+          { "type": "wait", "waitMs": 432000000 },
+          {
+            "type": "message",
+            "variants": [
+              "Curious whether your thinking on {{topic|the topic}} has changed since the talk. I'd enjoy comparing notes if you're open to it.",
+              "I'd be interested to hear whether you've seen anything new around {{topic|the topic}} since the conference. Happy to swap notes sometime."
+            ]
+          }
+        ],
+        "else": [
+          { "type": "wait", "waitMs": 604800000 },
+          { "type": "like" }
+        ]
+      }
+    }
+  ],
+  "settings": { "stopOnReply": true, "autopilot": false }
+}
