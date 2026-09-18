@@ -5,6 +5,45 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] — 2026-09-18 — one-command setup
+
+Server and CLI only; the extension is unchanged at 2.0.4.
+
+### Added
+- **`lit setup`, also reachable as `npx linkedin-toolkit-mcp setup`** — one idempotent command
+  between finding the repo and having a working agent. It downloads the extension zip for this
+  package's version (falling back to the latest release, and saying which it installed), checks
+  the bytes really are a zip carrying an MV3 `manifest.json`, and unpacks it to
+  `~/.linkedin-toolkit/extension` by staging beside the existing copy and swapping — a failed
+  install leaves the working one in place. It then prints the three Chrome steps with the exact
+  folder path, starts or detects the local server, prints the pairing token, and waits (default
+  120 s) for the extension to connect, reporting either outcome plainly.
+- **`lit setup --client claude-desktop|claude-code|cursor|windsurf|vscode|n8n|print`** writes that
+  client's MCP config: the right file for the right OS, VS Code's `servers` key and `stdio` type
+  where the others take `mcpServers`, every other server in the file preserved, the original
+  copied to `<file>.bak-<timestamp>` first, and a file that is not valid JSON refused rather than
+  rewritten. `n8n` and `print` print, because there is no config file on this machine to merge
+  into. Flags: `--dir`, `--no-open`, `--dry-run`, `--client`, `--version`, `--wait`.
+- **`lit endpoints doctor`** — the check, explained. Each failure names what it exercises, the
+  query whose 32-character hash went stale, the `ENDPOINTS` key in
+  `extension/src/background/voyager.js` that holds it, and the re-capture procedure; a REST
+  failure points at its decoration id instead. `--json` appends the raw report the new **Endpoint
+  drift** issue template asks for. No CI job can run either command — the check needs a signed-in
+  session in a real browser — and the docs now say so rather than implying otherwise.
+- [`docs/clients.md`](docs/clients.md): config file path and JSON shape per client, per OS.
+
+### Changed
+- The README quick start and `docs/install.md` lead with the one command and the three Chrome
+  clicks; the zip-by-hand route is kept as a collapsed section, not deleted.
+- `chrome://extensions` is offered, never claimed: Chrome ignores `chrome://` URLs given on the
+  command line in most builds, so setup asks and then tells you to type it if nothing appeared.
+
+### Fixed
+- `lit setup --version 2.0.4` no longer prints the CLI's own version: commander's program-level
+  `--version` was swallowing subcommand options, and positional options are now enabled.
+- `--help` on any subcommand no longer reaches `process.exit` — `exitOverride` was set on the root
+  command only, so an embedded `run()` could take its host down.
+
 ## [2.0.4] — 2026-09-09
 
 ### Added
