@@ -289,7 +289,8 @@ describe('Campaigns tab', () => {
       '',
       ...sequenceIndex.sequences.map((entry) => entry.file),
     ]);
-    expect(sequenceIndex.sequences.length).toBe(20);
+    // The count grows as contributors add templates; the floor is what v2.0.0 shipped with.
+    expect(sequenceIndex.sequences.length).toBeGreaterThanOrEqual(20);
 
     templateSelect.value = 'connect-then-message.json';
     clickLabelled(node, 'Load template');
