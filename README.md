@@ -21,9 +21,11 @@ all. No headless browser, no proxies, no cloud session, no telemetry, no subscri
 
 <div align="center">
 
-![LinkedIn Toolkit: ask, search, drafts in a queue, approve](docs/assets/demo-storyboard.png)
+![An agent searches LinkedIn from your own browser session, drafts five connection notes, and parks every one of them in an approval queue](docs/assets/demo.gif)
 
-<sub>*A 30-second demo GIF replaces this still shortly — see [docs/launch/record-demo.md](docs/launch/record-demo.md).*</sub>
+[**▶ Try it without installing**](https://openrecruitertools.github.io/linkedin-toolkit/try/) · [Install guide](docs/install.md) · [Full-quality MP4](docs/assets/demo.mp4)
+
+<sub>Recorded against the toolkit's own demo mode (`lit serve --http --fake`). Every tool call is real; everyone in it is invented.</sub>
 
 </div>
 
