@@ -1,11 +1,11 @@
 # Installing LinkedIn Toolkit
 
-This page is for installing the Chrome extension and using it by hand. You do not
-need to know what a terminal is, and you do not need to install anything else.
-It takes about five minutes.
+Two ways in. The first is one command and takes about a minute; the second needs no
+terminal at all and takes about five. Both end in the same place, and both leave the
+extension loaded from a folder on your own machine.
 
-(If you want to connect an AI agent to it as well, do this page first, then read
-[docs/agents](agents/README.md).)
+(If you want to connect an AI agent as well, the one command below does that too —
+see [docs/clients.md](clients.md) for every client's config.)
 
 **Before you start, read this once.** LinkedIn's User Agreement does not allow you
 to automate your account, and LinkedIn restricts and permanently bans accounts for
@@ -16,7 +16,61 @@ yours. Do not use this on an account you cannot afford to lose. The longer versi
 
 ---
 
-## Install it
+## The quick way: one command, then three clicks
+
+You need [Node.js 20 or newer](https://nodejs.org). In a terminal:
+
+```bash
+npx linkedin-toolkit-mcp setup
+```
+
+It downloads the extension, checks it really is one, unpacks it to a folder it will
+keep (`~/.linkedin-toolkit/extension`), prints that folder's exact path, prints your
+pairing token, and waits for the extension to connect. Add `--client claude-code`
+(or `claude-desktop`, `cursor`, `windsurf`, `vscode`, `n8n`, `print`) and it writes
+your agent's MCP config too, keeping any other servers already in that file and
+backing it up first. `--dry-run` shows you everything it would do and writes nothing.
+
+Then do the three steps in the next section. Chrome does not allow any installer,
+script or extension to load an unpacked extension for you — that is the point of the
+switch — so those three are yours.
+
+> `lit setup` is the same command once the package is installed. `lit setup --dir
+> ~/Documents/linkedin-toolkit` unpacks somewhere else; run it again any time to
+> update, and it swaps the new copy in only once it has unpacked cleanly.
+
+## The three clicks
+
+### 1. Open Chrome's extensions page
+
+Type `chrome://extensions` into the address bar and press Enter. (It will not
+appear in search results — it has to be typed into the address bar.)
+
+Turn on **Developer mode** with the switch in the top-right corner. Three new
+buttons appear along the top.
+
+![step](assets/install-2-extensions.png)
+
+### 2. Click "Load unpacked" and choose the folder
+
+Click **Load unpacked**. Your computer's normal folder-picker window opens — the
+same one you would get opening any file.
+
+Choose the folder *itself* — the one `setup` printed, or the one you unzipped — and
+not a file inside it (if you can see a file called `manifest.json` listed, you are in
+the right folder: click *Select Folder* / *Open* while it is highlighted).
+
+### 3. Check it loaded
+
+"LinkedIn Toolkit" now appears as a card on the extensions page.
+
+![step](assets/install-3-loaded.png)
+
+If instead you get a red error, the most common cause is picking the wrong folder —
+one level too high or too low. Delete the card and try again.
+
+<details>
+<summary><b>No terminal: installing the extension by hand</b></summary>
 
 ### 1. Download the file
 
@@ -35,42 +89,19 @@ folder with the same name.
 extension from this folder every single time it starts, so if you leave it in
 Downloads and later clear out Downloads, the extension disappears.
 
-### 3. Open Chrome's extensions page
+### 3. Then do the three clicks above
 
-Type `chrome://extensions` into the address bar and press Enter. (It will not
-appear in search results — it has to be typed into the address bar.)
+Point **Load unpacked** at that folder. Everything else on this page is the same.
 
-Turn on **Developer mode** with the switch in the top-right corner. Three new
-buttons appear along the top.
+</details>
 
-![step](assets/install-2-extensions.png)
-
-### 4. Click "Load unpacked" and choose the folder
-
-Click **Load unpacked**. Your computer's normal folder-picker window opens — the
-same one you would get opening any file.
-
-Find the folder you unzipped in step 2 and select the folder *itself* (do not open
-it and pick a file inside; if you can see a file called `manifest.json` listed,
-you are in the right folder — go up one level and select that folder, or just
-click *Select Folder* / *Open* while it is highlighted).
-
-### 5. Check it loaded
-
-"LinkedIn Toolkit" now appears as a card on the extensions page.
-
-![step](assets/install-3-loaded.png)
-
-If instead you get a red error, the most common cause is picking the wrong folder
-in step 4 — one level too high or too low. Delete the card and try again.
-
-### 6. Pin the icon so you can find it
+### Pin the icon so you can find it
 
 Click the jigsaw-piece icon at the top-right of Chrome, find "LinkedIn Toolkit" in
 the list, and click the pin next to it. Its icon now sits next to the address bar,
 where you can reach it in one click.
 
-### 7. Open LinkedIn, then open the popup
+### Open LinkedIn, then open the popup
 
 Go to [linkedin.com](https://www.linkedin.com/) and sign in as normal. Then click
 the LinkedIn Toolkit icon.
@@ -79,6 +110,16 @@ the LinkedIn Toolkit icon.
 
 The popup only works on a tab where you are signed in to LinkedIn — that is where
 it gets its access from. There is no account to create and no password to give it.
+
+### If you are connecting an agent: pair the bridge
+
+Settings → **Local bridge** → paste the pairing token `setup` printed (or run
+`lit config get token --reveal` to see it again) → enable. `lit status` then says
+"Extension: connected". Nothing here leaves your machine: the token is a local
+secret shared between the extension and the server on the same computer.
+
+Config for Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, n8n and the rest:
+[docs/clients.md](clients.md).
 
 ---
 
@@ -199,9 +240,16 @@ connection.
 folder moved or was deleted. Re-download, unzip somewhere permanent, and load it
 again.
 
-**Updating to a new version.** Download the new zip, unzip it over (or next to)
-the old folder, then click the refresh arrow on the extension's card at
-`chrome://extensions`.
+**Updating to a new version.** Run `npx linkedin-toolkit-mcp setup` again — it
+unpacks the new copy beside the old one and swaps it in, so the folder Chrome
+points at never changes. Then click the refresh arrow on the extension's card at
+`chrome://extensions`. By hand: download the new zip and unzip it over the old
+folder, then refresh the same way.
+
+**`setup` said the download is not a zip.** GitHub served something else — an error
+page, or a proxy's login page. Check the
+[Releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases) in a
+browser; nothing was unpacked, and your previous copy is untouched.
 
 ---
 

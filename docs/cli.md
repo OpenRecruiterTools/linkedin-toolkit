@@ -8,6 +8,33 @@ npm i -g linkedin-toolkit-mcp   # or just use npx
 lit status
 ```
 
+## Setup
+
+```bash
+npx linkedin-toolkit-mcp setup                 # nothing installed yet? start here
+lit setup --client claude-code                 # ...or once the package is on your PATH
+lit setup --client cursor --dry-run            # print everything it would do; write nothing
+lit setup --dir ~/Documents/lit-extension      # unpack somewhere other than ~/.linkedin-toolkit
+lit setup --version 2.0.4 --no-open --wait 0   # a specific release, no Chrome, no pairing wait
+```
+
+Downloads the extension zip for this package's version (falling back to the latest release, and
+saying so), checks it is a zip carrying an MV3 `manifest.json`, and unpacks it to
+`~/.linkedin-toolkit/extension` — staged beside the old copy and swapped in, so a failed run
+leaves a working extension. Then it prints the three Chrome steps with the exact folder path,
+starts or detects a server, prints the pairing token, waits (default 120s, `--wait 0` to skip) for
+the extension to connect, and merges the MCP config into your client's own file.
+
+`--client` takes `claude-desktop`, `claude-code`, `cursor`, `windsurf`, `vscode`, `n8n` or
+`print`. The file-backed ones are backed up to `<file>.bak-<timestamp>` before they are touched,
+every other server in them is preserved, and a file that is not valid JSON is refused rather than
+rewritten. `n8n` and `print` only print, because there is no file on this machine to merge into.
+Paths and shapes per client: [`clients.md`](clients.md).
+
+Chrome ignores `chrome://` URLs handed to it on the command line in most builds, so setup asks and
+then tells you to type the URL if nothing appeared — it never claims a page opened. `--no-open`
+skips even asking.
+
 ## Server
 
 ```bash
@@ -25,15 +52,22 @@ Bearer token is `token` in `~/.linkedin-toolkit/config.json`, or run `lit config
 lit endpoints check                    # self-test every LinkedIn endpoint the extension uses
 lit endpoints check --post <post-url>  # also check the reactions endpoint
 lit endpoints check --json             # the raw status.get { verify: true } envelope
+lit endpoints doctor                   # the same run, explained: which hash is stale, and where
+lit endpoints doctor --json            # explained, with the raw envelope underneath
 ```
 
 Run this first when anything returns `LINKEDIN_ERROR`. One read-only call per endpoint, reported as
 `ok`, `failed`, `unverified` (never checked against the current LinkedIn client) or `skipped`
 (nothing on this account to check it against), each with the client version the endpoint table was
-captured against. **Exits 2 if any endpoint failed**, so CI can watch for a LinkedIn release
-breaking a query id: a `failed` row means LinkedIn moved, not that the toolkit is broken — see
-[`voyager-endpoints.md`](voyager-endpoints.md) for how to recapture. The pass costs one search
-result and one profile visit against the daily caps, metered exactly as the real actions are.
+captured against. **Both exit 2 if any endpoint failed**, so a script can tell "an endpoint broke"
+from "the command could not run": a `failed` row means LinkedIn moved, not that the toolkit is
+broken. `doctor` names the query whose id went stale, the `ENDPOINTS` key holding it, the file, and
+the re-capture procedure — see [`voyager-endpoints.md`](voyager-endpoints.md#re-capturing).
+
+**No hosted CI can run these**, here or in a fork: they need a signed-in LinkedIn session in a real
+browser on your own machine. Drift is found by whoever hits it first, and reported with the
+`--json` output through the endpoint drift issue template. The pass costs one search result and one
+profile visit against the daily caps, metered exactly as the real actions are.
 
 ## Read
 

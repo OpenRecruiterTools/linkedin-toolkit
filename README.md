@@ -27,40 +27,55 @@ all. No headless browser, no proxies, no cloud session, no telemetry, no subscri
 
 </div>
 
-## Install in 3 lines
+## Quick start
+
+One command, then three clicks in Chrome.
 
 ```bash
-# 1. Get the extension: download linkedin-toolkit-extension-v2.0.4.zip from Releases, unzip it,
-#    then chrome://extensions → Developer mode → Load unpacked → pick the folder
-# 2. Start the server (it prints a pairing token)
-npx linkedin-toolkit-mcp
-# 3. Paste the token into the extension popup → Settings → Local bridge
+npx linkedin-toolkit-mcp setup --client claude-code
 ```
 
-Never installed an unpacked Chrome extension before, or only want the extension and not
-the agent half? [**docs/install.md**](docs/install.md) walks through it with screenshots,
-and shows how to clean up your feed with mass unfollow — Preview first, then a small
-number, then the rest. Read the "Connections are followed too" part before you decide
-the feature is broken: LinkedIn's Following list does not include your connections,
-who are followed automatically when you connect, so emptying that list to zero leaves
-a feed still full of posts. Ticking "Also unfollow my connections" scans your
-followers list instead, which is the only place that state is visible.
+That downloads the extension for your version, checks it, unpacks it to
+`~/.linkedin-toolkit/extension`, prints the pairing token, waits for the extension to connect,
+and writes the MCP config block into your client's own config file — keeping every other
+server in it and backing the file up first. `--client` takes `claude-desktop`, `claude-code`,
+`cursor`, `windsurf`, `vscode`, `n8n` or `print`; add `--dry-run` to see what it would do
+without touching anything.
 
-Then point your agent at it. Claude Code, `.mcp.json` in your project root:
+Then the three steps Chrome does not let any installer do for you:
 
-```json
-{
-  "mcpServers": {
-    "linkedin-toolkit": {
-      "command": "npx",
-      "args": ["-y", "linkedin-toolkit-mcp"]
-    }
-  }
-}
+1. Open `chrome://extensions` — type it in the address bar; it does not come up in search.
+2. Turn on **Developer mode**, top right.
+3. Click **Load unpacked** and choose the folder setup printed.
+
+Paste the pairing token into the popup → Settings → Local bridge, and check it took:
+
+```bash
+lit status
 ```
 
-That block works, verbatim, in Claude Desktop, Cursor, Windsurf, Cline and OpenClaw too. Zed,
-Codex CLI and Gemini CLI want a slightly different shape — [one page each](docs/agents/README.md).
+<details>
+<summary>Rather do it by hand, or only want the extension and no agent?</summary>
+
+Download `linkedin-toolkit-extension-v*.zip` from the
+[Releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases), unzip it
+somewhere permanent (Chrome loads it from that folder on every start), then do the three steps
+above. Run `npx linkedin-toolkit-mcp` for the pairing token, and copy the config block for your
+client out of [**docs/clients.md**](docs/clients.md).
+
+[**docs/install.md**](docs/install.md) is the same thing with screenshots, written for somebody
+who has never loaded an unpacked extension.
+</details>
+
+Mass unfollow — Preview first, then a small number, then the rest — is in
+[**docs/install.md**](docs/install.md). Read the "Connections are followed too" part before you
+decide the feature is broken: LinkedIn's Following list does not include your connections, who
+are followed automatically when you connect, so emptying that list to zero leaves a feed still
+full of posts. Ticking "Also unfollow my connections" scans your followers list instead, which
+is the only place that state is visible.
+
+Every client's config file, path and shape: [**docs/clients.md**](docs/clients.md) ·
+[one page per ecosystem](docs/agents/README.md).
 
 Not using MCP? `lit serve --http` gives you `POST /actions/{action}` and a generated
 `GET /openapi.json`. [Examples in seven languages](examples/).
@@ -128,7 +143,8 @@ with each web client release (current: 1.13.46474). The old REST Voyager paths t
 wave. This extension calls the same GraphQL queries the page calls, from inside your own tab, and
 keeps every query ID in one refreshable table with its capture date and client version:
 [docs/voyager-endpoints.md](docs/voyager-endpoints.md). `lit endpoints check` reports which are ok,
-failed or unverified, so drift is a maintenance task rather than an architecture change.
+failed or unverified, and `lit endpoints doctor` names the query id whose hash went stale and the
+key in the table that holds it, so drift is a maintenance task rather than an architecture change.
 
 Honestly: those IDs **will** drift, and re-capturing them is the contribution this project most
 needs. It is a table edit, not a rewrite — open DevTools on LinkedIn, filter the Network tab for
@@ -245,6 +261,7 @@ there is no path around them — there is only one path. [Full architecture](doc
 `lit` ships in the same npm package as the server.
 
 ```bash
+lit setup --client cursor                                # install, pair, configure. Start here
 lit status
 lit search "CTO fintech London" --source salesnav --count 100 --csv out.csv
 lit profile https://www.linkedin.com/in/... --full --json

@@ -6,6 +6,11 @@ identically no matter how you connect.
 
 **Start here if you are an agent:** [quickstart.md](quickstart.md).
 
+**One command does all of this:** `npx linkedin-toolkit-mcp setup --client <name>` installs the
+extension, pairs it, and writes the config file below for claude-desktop, claude-code, cursor,
+windsurf or vscode. Every client's path and shape, including the ones it only prints:
+[**clients.md**](../clients.md).
+
 ## MCP over stdio — `npx linkedin-toolkit-mcp`
 
 | Client | Config file |

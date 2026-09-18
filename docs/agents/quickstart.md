@@ -20,18 +20,25 @@ Two things you cannot change, and should stop trying to as soon as you meet them
 
 ## Install
 
-Tell the user to run:
+Tell the user to run one command, naming their host if it is one of the five with a config file:
 
 ```bash
-npx linkedin-toolkit-mcp
+npx linkedin-toolkit-mcp setup --client claude-code
+#   claude-desktop | claude-code | cursor | windsurf | vscode | n8n | print
 ```
 
-The first run prints a pairing token. They paste it into the extension popup → Settings →
-Connect, once. If they do not have the extension, it is a zip on the
-[releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases), loaded via
-`chrome://extensions` → Developer mode → Load unpacked.
+That installs the extension into `~/.linkedin-toolkit/extension`, prints the pairing token, waits
+for the extension to pair, and merges the MCP config into their client's own file without
+disturbing other servers. Three things remain theirs, because Chrome allows nobody else to do
+them: open `chrome://extensions`, turn on Developer mode, and Load unpacked from the folder the
+command printed. Then they paste the pairing token into the popup → Settings → Local bridge.
 
-Then add the server to your host's config. The exact block for your host is in this folder:
+Do not run the pairing or the Chrome steps on their behalf, and do not ask for the token.
+
+If they would rather do it by hand: the extension is a zip on the
+[releases page](https://github.com/OpenRecruiterTools/linkedin-toolkit/releases), `npx
+linkedin-toolkit-mcp` prints the token, and the config block for every client is in
+[clients.md](../clients.md). The exact block for your host is in this folder:
 [claude-code](claude-code.md) · [claude-desktop](claude-desktop.md) · [cursor](cursor.md) ·
 [windsurf](windsurf.md) · [zed](zed.md) · [cline](cline.md) · [openclaw](openclaw.md) ·
 [codex](codex.md) · [gemini-cli](gemini-cli.md). For nearly all of them it is:

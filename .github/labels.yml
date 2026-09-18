@@ -13,6 +13,10 @@
   color: 0e8a16
   description: A new Voyager endpoint as an action and a tool
 
+- name: endpoint-drift
+  color: b60205
+  description: A LinkedIn query id or decoration went stale and needs re-capturing
+
 - name: sequences
   color: 1d76db
   description: Campaign templates in sequences/

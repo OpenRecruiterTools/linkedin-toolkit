@@ -196,6 +196,8 @@ response is returned under (`voyagerSearchDashClusters.…` →
 a stale id answers **400**, so this is the first thing to check when a working
 feature starts failing.
 
+<a id="re-capturing"></a>
+
 ### Re-capturing from DevTools
 
 1. Sign in to linkedin.com in a normal Chrome profile.
@@ -238,3 +240,34 @@ cannot be used to get around the caps; everything else it touches is free.
 Unverified endpoints are reported as `unverified` and are never called.
 
 This is what the `lit endpoints check` CLI command runs.
+
+### When a check fails: `lit endpoints doctor`
+
+```bash
+lit endpoints check            # the table: ok / failed / unverified / skipped, exits 2 on a failure
+lit endpoints check --json     # the raw report — this is what a bug report needs
+lit endpoints doctor           # the same run, explained
+lit endpoints doctor --json    # explained, with the raw report underneath
+```
+
+`doctor` turns each failed check into the thing you actually have to edit: which
+persisted query the check exercises, the key in the `ENDPOINTS` table whose 32
+hex characters are stale, the file it lives in, and a pointer back to
+[re-capturing](#re-capturing) above. A failure on a REST read points at its
+decoration id instead, because those drift the same way and are equally invisible.
+
+```
+search — failed: Voyager API error 400
+  It runs a one-result people search.
+  Stale hash: the 32 hex characters after "voyagerSearchDashClusters." in ENDPOINTS.queryIds.searchClusters
+  (extension/src/background/voyager.js). Re-capture it: docs/voyager-endpoints.md#re-capturing
+```
+
+**No CI job in this repository can run either command, and none ever will.** The
+check runs inside the extension, in a signed-in LinkedIn session, in a real
+browser on somebody's own machine. Putting an account in a workflow would mean
+storing LinkedIn credentials in a secret and automating a logged-in session from
+a datacentre IP — the exact thing this project exists not to do. Drift is found
+by whoever hits it first; the
+[endpoint drift issue template](https://github.com/OpenRecruiterTools/linkedin-toolkit/issues/new?template=endpoint-drift.yml)
+asks for the `--json` output and takes about a minute to fill in.

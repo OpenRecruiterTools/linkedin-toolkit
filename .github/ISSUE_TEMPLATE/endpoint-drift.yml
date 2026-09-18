@@ -1,0 +1,110 @@
+name: Endpoint drift (a LinkedIn call stopped working)
+description: A query id went stale after a LinkedIn release — report it, or claim the re-capture
+labels: [endpoint-drift, bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        LinkedIn addresses nearly everything through persisted GraphQL queries whose 32-character
+        hash changes with each web client release. A stale hash answers **400**, and the feature
+        using it stops working for everybody at once. That is not a ban and not a bug in your
+        install — it is maintenance, and it is a table edit rather than a rewrite.
+
+        **No CI job here can catch this for us.** The check runs inside the extension, in a
+        signed-in LinkedIn session, in a real browser on somebody's own machine. Putting an
+        account in a workflow would mean storing LinkedIn credentials in a secret and driving a
+        logged-in session from a datacentre IP — the exact thing this project exists not to do.
+        So drift is found by whoever hits it first. Thank you for being them.
+
+        Run this first; it is the whole report:
+
+        ```bash
+        lit endpoints doctor          # which check failed, which hash is stale, and where it lives
+        lit endpoints check --json    # the raw output — paste it below
+        ```
+
+        Re-capturing is fifteen minutes with DevTools open on linkedin.com and needs no code:
+        [docs/voyager-endpoints.md#re-capturing](../blob/master/docs/voyager-endpoints.md#re-capturing).
+
+  - type: input
+    id: what-broke
+    attributes:
+      label: What stopped working
+      description: The action, tool or CLI command, and the error it answered.
+      placeholder: 'lit search "CTO fintech" → LINKEDIN_ERROR: Voyager API error 400'
+    validations:
+      required: true
+
+  - type: textarea
+    id: check-json
+    attributes:
+      label: Output of `lit endpoints check --json`
+      description: >
+        Paste it whole. It carries which endpoints answered, the error per failure, and the client
+        version the endpoint table was captured against — which is the comparison that matters.
+        It contains no profile data, no cookies and no token.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `lit endpoints doctor`
+      description: Optional, but it already names the key to edit, which saves a round trip.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: client-version
+    attributes:
+      label: LinkedIn web client version you are on
+      description: >
+        On linkedin.com, open DevTools → Network, click any `voyager/api` request, and read the
+        `x-li-track` request header — `clientVersion` is in it. This is the number the table in
+        `voyager.CAPTURED` is out of date against.
+      placeholder: 1.13.46812
+    validations:
+      required: false
+
+  - type: input
+    id: versions
+    attributes:
+      label: Extension and server versions
+      description: '`lit status` prints both. The extension version is also on its card in chrome://extensions.'
+      placeholder: extension 2.0.4, server 2.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account type
+      description: Some endpoints only exist for some seats, so a failure can be an account difference rather than drift.
+      options:
+        - Free
+        - Premium
+        - Sales Navigator
+        - Recruiter
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: recapture
+    attributes:
+      label: Re-capturing it
+      options:
+        - label: I am willing to capture the new query id from DevTools and open a PR (it is one table edit)
+          required: false
+        - label: I checked this is not already reported in an open issue
+          required: true
+
+  - type: checkboxes
+    id: no-personal-data
+    attributes:
+      label: Before you post
+      options:
+        - label: My paste contains no personal data, cookies, session token or pairing token
+          required: true
