@@ -136,7 +136,7 @@ describe('lit serve --http --fake, spawned as a real process', () => {
 
   it('answers /health with the demo extension attached', async () => {
     const health = await (await fetch(`http://127.0.0.1:${httpPort}/health`)).json();
-    expect(health).toMatchObject({ ok: true, extensionConnected: true, version: '2.0.0' });
+    expect(health).toMatchObject({ ok: true, extensionConnected: true, version: '2.1.0' });
   });
 
   it('serves an OpenAPI document without a token', async () => {

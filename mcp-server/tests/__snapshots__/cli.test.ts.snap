@@ -84,7 +84,7 @@ exports[`search > prints JSON with --json 1`] = `
 `;
 
 exports[`status > prints connection, quotas, queue and campaigns 1`] = `
-"Server:    running (v2.0.0)
+"Server:    running (v2.1.0)
 Extension: connected (v2.0.0)
 LinkedIn:  logged in
 Mode:      Copilot (writes need approval)

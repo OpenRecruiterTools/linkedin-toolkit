@@ -211,7 +211,7 @@ describe('the Python client against a live server', () => {
     const out = JSON.parse(stdout);
     expect(out.clientVersion).toBe(pythonClientVersion());
     expect(out.baseUrl).toBe(`http://127.0.0.1:${httpPort}`);
-    expect(out.health).toMatchObject({ ok: true, extensionConnected: true, version: '2.0.0' });
+    expect(out.health).toMatchObject({ ok: true, extensionConnected: true, version: '2.1.0' });
   });
 
   it('reads status through the client in contract shape', async (ctx) => {

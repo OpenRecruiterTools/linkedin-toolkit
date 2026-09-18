@@ -176,7 +176,7 @@ describe('the whole flow, HTTP and MCP against one toolkit', () => {
 
   it('is healthy and paired before anything else', async () => {
     const health = await (await fetch(`${base}/health`)).json();
-    expect(health).toMatchObject({ ok: true, extensionConnected: true, version: '2.0.0' });
+    expect(health).toMatchObject({ ok: true, extensionConnected: true, version: '2.1.0' });
 
     const status = await tool('linkedin_get_status');
     expect(status.loggedIn).toBe(true);
