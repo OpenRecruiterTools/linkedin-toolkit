@@ -8,7 +8,8 @@
  * same code path.
  */
 import { Command, CommanderError } from 'commander';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -23,6 +24,24 @@ import {
   type ServerConfig,
 } from './config.js';
 import { ORIGIN_HEADER } from './contract.js';
+import { doctorReport } from './endpoints.js';
+import {
+  CLIENTS,
+  chromeLaunch,
+  chromeSteps,
+  clientTarget,
+  defaultExtensionDir,
+  installExtension,
+  packageVersion,
+  pairingTimeoutMessage,
+  realFs,
+  SERVER_KEY,
+  serverEntry,
+  SetupError,
+  writeClientConfig,
+  type ClientId,
+  type FsLike,
+} from './setup.js';
 import { TABLES } from './db.js';
 import { createDemoHandlers, FAKE_BANNER } from './fake-data.js';
 import { FakeExtensionClient } from './fake-extension.js';
@@ -387,6 +406,274 @@ export async function serve(
 }
 
 /* ------------------------------------------------------------------ *
+ * setup
+ * ------------------------------------------------------------------ */
+
+export type SetupOptions = {
+  dir?: string;
+  open?: boolean;
+  dryRun?: boolean;
+  client?: string;
+  version?: string;
+  wait?: number;
+};
+
+/** A server `lit setup` is holding open while it waits for the extension. */
+export type SetupServer = {
+  url: string;
+  startedHere: boolean;
+  connected: () => Promise<boolean>;
+  stop: () => Promise<void>;
+};
+
+/**
+ * Everything `lit setup` touches that a test must not: the network, the
+ * filesystem, the clock, Chrome, and a listening socket.
+ */
+export type SetupDeps = {
+  fetchImpl?: typeof fetch;
+  fs?: FsLike;
+  now?: () => number;
+  platform?: string;
+  env?: NodeJS.ProcessEnv;
+  home?: string;
+  cwd?: string;
+  /** Ask the OS to launch Chrome. Returns false if it could not even try. */
+  launch?: (command: string, args: string[]) => boolean;
+  exists?: (path: string) => boolean;
+  openServer?: () => Promise<SetupServer>;
+  sleep?: (ms: number) => Promise<void>;
+};
+
+const DEFAULT_WAIT_SECONDS = 120;
+
+/** Detect a running server, or start one and hold it open for the pairing. */
+async function openServerForPairing(): Promise<SetupServer> {
+  const { config } = loadConfig();
+  const api = ServerClient.fromConfig(config);
+  try {
+    const health = await api.health();
+    if (health.ok) {
+      return {
+        url: api.baseUrl,
+        startedHere: false,
+        connected: async () => (await api.health()).extensionConnected,
+        stop: async () => undefined,
+      };
+    }
+  } catch {
+    /* not running: start one below */
+  }
+
+  const quiet: Io = { out: () => undefined, err: () => undefined };
+  const handles = await serve({ http: true }, quiet);
+  return {
+    url: handles.http?.url ?? `http://127.0.0.1:${config.httpPort}`,
+    startedHere: true,
+    connected: async () => handles.toolkit.isConnected(),
+    stop: () => handles.stop(),
+  };
+}
+
+/**
+ * `lit setup` — the one command.
+ *
+ * Downloads the extension for this package's version, checks it really is an
+ * extension, unpacks it somewhere permanent, prints the three Chrome steps
+ * nobody can automate, waits for the extension to pair, and writes the MCP
+ * config for whichever client was asked for. Each step reports what it did,
+ * including when it did nothing.
+ */
+export async function runSetup(
+  options: SetupOptions,
+  io: Io,
+  deps: SetupDeps = {},
+): Promise<void> {
+  const fs = deps.fs ?? realFs;
+  const platform = deps.platform ?? process.platform;
+  const env = deps.env ?? process.env;
+  const dryRun = Boolean(options.dryRun);
+  const waitSeconds = options.wait === undefined ? DEFAULT_WAIT_SECONDS : Math.max(0, options.wait);
+
+  const version = options.version ?? packageVersion() ?? SERVER_VERSION;
+  const dir = resolve(options.dir ?? defaultExtensionDir(env.LINKEDIN_TOOLKIT_HOME));
+
+  const clientId = (options.client ?? 'print') as ClientId;
+  if (!(CLIENTS as readonly string[]).includes(clientId)) {
+    throw new CliError(
+      `"${options.client}" is not a client. Choose one of: ${CLIENTS.join(', ')}.\n` +
+        'Every other client is a paste: see docs/clients.md.',
+    );
+  }
+
+  io.out('LinkedIn Toolkit setup');
+  io.out(dryRun ? '(dry run — nothing will be written)\n' : '');
+
+  /* -- 1. the extension ------------------------------------------- */
+
+  io.out('[1/4] Extension');
+  if (dryRun) {
+    io.out(`      Would install version ${version} into ${dir}`);
+  } else {
+    let installed;
+    try {
+      installed = await installExtension({
+        version,
+        dir,
+        fetchImpl: deps.fetchImpl,
+        fs,
+        now: deps.now,
+      });
+    } catch (err) {
+      if (err instanceof SetupError) {
+        throw new CliError([err.message, err.howToFix].filter(Boolean).join('\n      '));
+      }
+      throw err;
+    }
+    if (installed.source === 'latest' && installed.version !== version.replace(/^v/, '')) {
+      io.out(
+        `      No release v${version.replace(/^v/, '')}; installed the latest instead (v${installed.version}).`,
+      );
+    }
+    io.out(`      Downloaded ${installed.url}`);
+    io.out(
+      `      Unpacked ${installed.files} files (extension v${installed.manifestVersion}) to:\n` +
+        `        ${installed.dir}`,
+    );
+    if (installed.replaced) io.out('      The previous copy was replaced.');
+  }
+
+  /* -- 2. the three clicks ---------------------------------------- */
+
+  io.out('');
+  io.out('[2/4] Three steps only you can do (Chrome does not allow any installer to do them)');
+  for (const step of chromeSteps(dir)) io.out(step);
+
+  if (options.open === false) {
+    io.out('      (--no-open: not touching Chrome.)');
+  } else if (dryRun) {
+    io.out('      (dry run: not touching Chrome.)');
+  } else {
+    const plan = chromeLaunch(platform, env, deps.exists ?? ((path) => existsSync(path)));
+    if (plan.kind === 'none') {
+      io.out(`      Not opening Chrome for you: ${plan.reason}. Type the URL above.`);
+    } else {
+      const launched = (deps.launch ?? defaultLaunch)(plan.command, plan.args);
+      io.out(
+        launched
+          ? '      Asked Chrome to open that page. Chrome ignores chrome:// URLs from the command\n' +
+              '      line in many builds, so if no tab appeared, type it in the address bar.'
+          : '      Could not start Chrome from here. Open it yourself and type the URL above.',
+      );
+    }
+  }
+
+  /* -- 3. pairing -------------------------------------------------- */
+
+  io.out('');
+  io.out('[3/4] Pairing');
+  const { config } = loadConfig();
+  io.out(`      Pairing token: ${config.token}`);
+  io.out('      In the popup: Settings -> Local bridge -> paste the token -> enable.');
+
+  if (dryRun) {
+    io.out('      (dry run: not starting a server and not waiting.)');
+  } else if (waitSeconds === 0) {
+    io.out('      (--wait 0: not waiting. Run `lit serve --http`, then `lit status`.)');
+  } else {
+    const server = await (deps.openServer ?? openServerForPairing)();
+    const sleep = deps.sleep ?? ((ms: number) => new Promise((done) => setTimeout(done, ms)));
+    try {
+      io.out(
+        server.startedHere
+          ? `      Started a server on ${server.url} and holding it open while you pair.`
+          : `      A server is already running on ${server.url}.`,
+      );
+      io.out(`      Waiting up to ${waitSeconds}s for the extension to connect...`);
+
+      let paired = await server.connected();
+      const deadline = (deps.now ?? Date.now)() + waitSeconds * 1000;
+      while (!paired && (deps.now ?? Date.now)() < deadline) {
+        await sleep(1000);
+        paired = await server.connected();
+      }
+
+      if (paired) {
+        io.out('      Paired. The extension is talking to this machine.');
+      } else {
+        for (const line of pairingTimeoutMessage(waitSeconds).split('\n')) io.out(`      ${line}`);
+      }
+    } finally {
+      await server.stop();
+      if (server.startedHere) {
+        io.out('      (That setup server has stopped. Pairing is remembered by the extension;');
+        io.out('      your agent starts its own server, or run `lit serve --http` yourself.)');
+      }
+    }
+  }
+
+  /* -- 4. the agent's config --------------------------------------- */
+
+  io.out('');
+  io.out('[4/4] Agent config');
+  const target = clientTarget(clientId, {
+    platform,
+    env,
+    home: deps.home,
+    cwd: deps.cwd,
+  });
+  const entry = serverEntry(clientId);
+  const snippet = `${JSON.stringify({ [target.key]: { [SERVER_KEY]: entry } }, null, 2)}`;
+
+  if (target.mode === 'print') {
+    io.out(`      ${target.label}: no file to write.`);
+    io.out(`      ${target.note}`);
+    io.out('');
+    for (const line of snippet.split('\n')) io.out(`      ${line}`);
+  } else {
+    let outcome;
+    try {
+      outcome = writeClientConfig({ target, entry, dryRun, fs, now: deps.now });
+    } catch (err) {
+      if (err instanceof SetupError) {
+        throw new CliError([err.message, err.howToFix].filter(Boolean).join('\n      '));
+      }
+      throw err;
+    }
+    if (outcome.action === 'dry-run') {
+      io.out(`      Would ${outcome.created ? 'create' : 'update'} ${outcome.path}:`);
+      io.out('');
+      for (const line of snippet.split('\n')) io.out(`      ${line}`);
+    } else if (outcome.action === 'unchanged') {
+      io.out(`      ${outcome.path} already has "${SERVER_KEY}". Nothing to change.`);
+    } else {
+      io.out(`      ${outcome.created ? 'Created' : 'Updated'} ${outcome.path}`);
+      if (outcome.backup) io.out(`      Backed the old one up to ${outcome.backup}`);
+    }
+    if (outcome.kept.length > 0) {
+      io.out(`      Your other MCP servers are untouched: ${outcome.kept.join(', ')}`);
+    }
+    io.out(`      ${target.note}`);
+  }
+
+  io.out('');
+  io.out('Done. `lit status` says whether the extension is connected;');
+  io.out('docs/clients.md has the config block for every other client.');
+}
+
+/** Launch Chrome, detached, ignoring its output. False if it would not start. */
+function defaultLaunch(command: string, args: string[]): boolean {
+  try {
+    const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => undefined);
+    child.unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Commands
  * ------------------------------------------------------------------ */
 
@@ -424,9 +711,42 @@ export function buildProgram(io: Io = defaultIo): Command {
         'Start the server with `lit serve --http`, then every other command talks to it.',
     )
     .version(SERVER_VERSION)
+    // Without this, commander lets the program's own `-V, --version` swallow
+    // `lit setup --version 2.1.0` and print its version instead of installing
+    // that one. Positional parsing keeps each command's flags to itself.
+    .enablePositionalOptions()
     .configureOutput({
       writeOut: (text) => io.out(text.replace(/\n$/, '')),
       writeErr: (text) => io.err(text.replace(/\n$/, '')),
+    });
+
+  program
+    .command('setup')
+    .description(
+      'Install the extension, pair it, and write your agent\'s MCP config. Start here.',
+    )
+    .option('--dir <path>', 'where to unpack the extension (default ~/.linkedin-toolkit/extension)')
+    .option('--no-open', 'do not ask Chrome to open chrome://extensions')
+    .option('--dry-run', 'say what would happen, and write nothing')
+    .option('--client <client>', `write the MCP config for: ${CLIENTS.join(' | ')}`, 'print')
+    .option('--version <version>', 'install a specific release instead of this package\'s version')
+    .option(
+      '--wait <seconds>',
+      `how long to wait for the extension to pair (default ${DEFAULT_WAIT_SECONDS}, 0 to skip)`,
+      (value) => Number(value),
+    )
+    .action(async (options) => {
+      await runSetup(
+        {
+          dir: options.dir,
+          open: options.open,
+          dryRun: options.dryRun,
+          client: options.client,
+          version: options.version,
+          wait: options.wait,
+        },
+        io,
+      );
     });
 
   program
@@ -867,6 +1187,35 @@ export function buildProgram(io: Io = defaultIo): Command {
       }
     });
 
+  endpointsCommand
+    .command('doctor')
+    .description(
+      'Run the check and explain any failure: which query id hash went stale, which file ' +
+        'holds it, and how to re-capture it. Exits 2 if any endpoint failed.',
+    )
+    .option('--post <url>', 'a post URL, so the reaction endpoint can be checked too')
+    .option('--json', 'also print the raw check output — this is what the issue template asks for')
+    .action(async (options) => {
+      const status = await client().action('status.get', {
+        verify: true,
+        ...(options.post ? { postUrl: options.post } : {}),
+      });
+      const report = doctorReport({
+        endpoints: status.endpoints ?? {},
+        errors: status.endpointErrors ?? {},
+        clientVersionCaptured: status.clientVersionCaptured,
+        endpointsCapturedAt: status.endpointsCapturedAt,
+        loggedIn: status.loggedIn,
+        extensionVersion: status.extensionVersion,
+      });
+      io.out(report.text);
+      if (options.json) {
+        io.out('');
+        io.out(JSON.stringify(status, null, 2));
+      }
+      if (report.failed.length > 0) throw new CliError('', 2);
+    });
+
   const configCommand = program
     .command('config')
     .description('Read and change this server\'s local settings (~/.linkedin-toolkit/config.json).');
@@ -1015,9 +1364,20 @@ export function buildProgram(io: Io = defaultIo): Command {
  * Entry point
  * ------------------------------------------------------------------ */
 
+/**
+ * `exitOverride` is inherited by a subcommand only if it was set before that
+ * subcommand was created, and `buildProgram` creates them all up front. Without
+ * this walk, `lit setup --help` reaches commander's `process.exit` and kills
+ * whatever embedded this CLI — including the test runner.
+ */
+function overrideExits(command: Command): void {
+  command.exitOverride();
+  for (const child of command.commands) overrideExits(child);
+}
+
 export async function run(argv: string[], io: Io = defaultIo): Promise<number> {
   const program = buildProgram(io);
-  program.exitOverride();
+  overrideExits(program);
   try {
     await program.parseAsync(argv, { from: 'user' });
     return 0;

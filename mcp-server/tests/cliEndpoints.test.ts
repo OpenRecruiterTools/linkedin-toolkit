@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { HttpServer } from '../src/http.js';
 import { saveConfig, type ServerConfig } from '../src/config.js';
 import { run, endpointNote } from '../src/cli.js';
+import { diagnose, doctorReport } from '../src/endpoints.js';
 import { makeHarness, TEST_TOKEN, type Harness } from './helpers.js';
 import { defaultHandlers, status } from './fixtures.js';
 import type { Handlers } from './fakeExtension.js';
@@ -176,6 +177,104 @@ describe('lit endpoints check', () => {
     await run(['endpoints', 'check', '--help'], io);
     expect(stdout()).toContain('--post');
     expect(stdout()).toContain('Exits 2');
+  });
+});
+
+describe('doctorReport', () => {
+  it('says nothing needs re-capturing when everything answers', () => {
+    const report = doctorReport({
+      endpoints: { me: 'ok', search: 'ok', groupMembers: 'unverified' },
+      clientVersionCaptured: '1.13.46474',
+      endpointsCapturedAt: '2026-09-08',
+    });
+    expect(report.failed).toEqual([]);
+    expect(report.text).toContain('Every verified endpoint still answers');
+    expect(report.text).toContain('1.13.46474');
+  });
+
+  it('names the stale hash, the file it lives in, and how to re-capture it', () => {
+    const report = doctorReport({
+      endpoints: { me: 'ok', search: 'failed' },
+      errors: { search: 'Voyager API error 400' },
+    });
+    expect(report.failed).toEqual(['search']);
+    expect(report.text).toContain('Voyager API error 400');
+    expect(report.text).toContain('voyagerSearchDashClusters.');
+    expect(report.text).toContain('ENDPOINTS.queryIds.searchClusters');
+    expect(report.text).toContain('extension/src/background/voyager.js');
+    expect(report.text).toContain('docs/voyager-endpoints.md#re-capturing');
+  });
+
+  it('points a REST failure at its decoration id instead of a query id', () => {
+    const report = doctorReport({ endpoints: { connections: 'failed' } });
+    expect(report.text).toContain('ENDPOINTS.decorations.connectionList');
+    expect(report.text).toContain('No query id here');
+  });
+
+  it('handles a check name it has never heard of', () => {
+    const report = doctorReport({ endpoints: { somethingNew: 'failed' } });
+    expect(report.text).toContain('not in the drift table');
+    expect(report.text).toContain('lit endpoints check --json');
+  });
+
+  it('says that no CI job can run this, because it needs a real session', () => {
+    const report = doctorReport({ endpoints: { search: 'failed' } });
+    expect(report.text).toMatch(/No CI job can run this check/);
+  });
+
+  it('diagnoses one endpoint on its own', () => {
+    expect(diagnose('memberPosts', 'HTTP 400').join('\n')).toContain(
+      'voyagerFeedDashProfileUpdates.',
+    );
+  });
+});
+
+describe('lit endpoints doctor', () => {
+  it('verifies, then explains, and exits 0 when nothing is broken', async () => {
+    await startServer(handlersReporting({ me: 'ok', search: 'ok' }));
+    const code = await run(['endpoints', 'doctor'], io);
+    expect(code).toBe(0);
+    expect(harness!.ext.seen.at(-1)).toMatchObject({
+      action: 'status.get',
+      params: { verify: true },
+    });
+    expect(stdout()).toContain('Every verified endpoint still answers');
+  });
+
+  it('exits 2 and tells the user exactly what to edit', async () => {
+    await startServer(
+      handlersReporting(
+        { me: 'ok', memberPosts: 'failed' },
+        { endpointErrors: { memberPosts: 'Voyager API error 400' } },
+      ),
+    );
+    expect(await run(['endpoints', 'doctor'], io)).toBe(2);
+    const text = stdout();
+    expect(text).toContain('memberPosts — failed: Voyager API error 400');
+    expect(text).toContain('ENDPOINTS.queryIds.memberPosts');
+    expect(text).toContain('docs/voyager-endpoints.md#re-capturing');
+  });
+
+  it('adds the raw check output with --json, for the issue template', async () => {
+    await startServer(handlersReporting({ me: 'ok', search: 'failed' }));
+    expect(await run(['endpoints', 'doctor', '--json'], io)).toBe(2);
+    const text = stdout();
+    const json = JSON.parse(text.slice(text.indexOf('{')));
+    expect(json.endpoints).toEqual({ me: 'ok', search: 'failed' });
+  });
+
+  it('takes a probe post like check does', async () => {
+    await startServer(handlersReporting({ reactions: 'ok' }));
+    await run(['endpoints', 'doctor', '--post', 'https://www.linkedin.com/feed/update/1/'], io);
+    expect(harness!.ext.seen.at(-1)?.params).toMatchObject({
+      verify: true,
+      postUrl: 'https://www.linkedin.com/feed/update/1/',
+    });
+  });
+
+  it('is documented in the help', async () => {
+    await run(['endpoints', '--help'], io);
+    expect(stdout()).toContain('doctor');
   });
 });
 

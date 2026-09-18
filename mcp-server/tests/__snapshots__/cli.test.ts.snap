@@ -12,6 +12,8 @@ Options:
   -h, --help                         display help for command
 
 Commands:
+  setup [options]                    Install the extension, pair it, and write
+                                     your agent's MCP config. Start here.
   serve [options]                    Run the bridge and the MCP server. Add
                                      --http for the HTTP API.
   status [options]                   Show the extension connection, quotas,

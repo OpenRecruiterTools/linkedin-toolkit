@@ -138,6 +138,7 @@ describe('--help', () => {
     expect(code).toBe(0);
     const help = stdout();
     for (const command of [
+      'setup',
       'serve',
       'status',
       'search',

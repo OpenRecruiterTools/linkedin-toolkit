@@ -26,6 +26,21 @@ export function isHelpRequest(argv: string[]): boolean {
 }
 
 /**
+ * Commands this binary hands to the CLI instead of starting a server.
+ *
+ * `npx linkedin-toolkit-mcp setup` is the first command in the README, and
+ * somebody running it has not installed anything yet — so it cannot be spelled
+ * `lit setup`, which only works once the package is on the PATH. Anything else
+ * still starts the MCP server, because that is what an MCP client launches
+ * this binary for.
+ */
+export const CLI_COMMANDS = ['setup'];
+
+export function isCliCommand(argv: string[]): boolean {
+  return CLI_COMMANDS.includes(argv[0] ?? '');
+}
+
+/**
  * What `npx linkedin-toolkit-mcp --help` prints above the `lit` usage.
  *
  * Someone who reaches this binary from a client's MCP settings, a registry
@@ -40,6 +55,10 @@ export const HELP_INTRO = [
   '',
   'Wire it into an MCP client with:',
   '  {"command": "npx", "args": ["-y", "linkedin-toolkit-mcp"]}',
+  '',
+  'Never installed the extension? One command does the lot — download, unpack, pair, and',
+  'write that config block for your client:',
+  '  npx linkedin-toolkit-mcp setup --client claude-code',
   '',
   'The pairing token is printed on first start and stored in ~/.linkedin-toolkit/config.json;',
   'read it back with `lit config get token --reveal` and paste it into the extension popup.',
@@ -78,14 +97,15 @@ const invokedDirectly = process.argv[1]
 
 if (invokedDirectly) {
   const argv = process.argv.slice(2);
-  const start = isCliInfoRequest(argv)
-    ? async () => {
-        if (isHelpRequest(argv)) process.stdout.write(`${HELP_INTRO}\n`);
-        const { run } = await import('./cli.js');
-        const code = await run(argv);
-        if (code !== 0) process.exit(code);
-      }
-    : startStdioServer;
+  const start =
+    isCliInfoRequest(argv) || isCliCommand(argv)
+      ? async () => {
+          if (isHelpRequest(argv)) process.stdout.write(`${HELP_INTRO}\n`);
+          const { run } = await import('./cli.js');
+          const code = await run(argv);
+          if (code !== 0) process.exit(code);
+        }
+      : startStdioServer;
 
   start().catch((err) => {
     process.stderr.write(`linkedin-toolkit-mcp: failed to start: ${String(err)}\n`);
