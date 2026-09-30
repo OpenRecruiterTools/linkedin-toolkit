@@ -4,8 +4,9 @@
  * Reads `status.get` and `config.get`; writes only through `config.set`.
  */
 
-import { el, render, fmtDate, fmtNumber, fmtDuration } from '../../ui/dom.js';
+import { el, render, fmtNumber, fmtDuration } from '../../ui/dom.js';
 import { call, ApiError } from '../../ui/api.js';
+import { challengeBanner } from '../../ui/challenge.js';
 import { ACTIONS } from '../../lib/actions.js';
 import {
   card,
@@ -62,26 +63,16 @@ export async function mount(container, ctx) {
 
     /* ---- challenge banner ---------------------------------------- */
     if (status.challenge) {
+      // Three steps for a person, and the only button that lifts the pause.
+      // Nothing else in the extension clears a challenge: see ui/challenge.js.
       nodes.push(
-        el(
-          'div',
-          { class: 'banner banner--bad', 'data-testid': 'challenge-banner' },
-          el(
-            'div',
-            null,
-            el('strong', null, 'LinkedIn asked for a security check. '),
-            `Detected ${fmtDate(status.challenge.detectedAt, { time: true })}. ` +
-              'Everything is paused until you clear it in a LinkedIn tab.',
-          ),
-          busyButton(
-            "I've cleared it",
-            async () => {
-              await call(ACTIONS.CONFIG_SET, { clearChallenge: true });
-              await draw();
-            },
-            { variant: 'primary', error: err },
-          ),
-        ),
+        challengeBanner(status.challenge, {
+          error: err,
+          onResume: async () => {
+            await call(ACTIONS.CONFIG_SET, { clearChallenge: true });
+            await draw();
+          },
+        }),
       );
     }
 

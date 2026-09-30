@@ -670,6 +670,32 @@ a {
   font-weight: 650;
 }
 
+/* The security-check banner is instructions, not an alarm: the title keeps the
+   warning colour and the steps are set in ordinary text so they can be read. */
+.banner--challenge {
+  color: var(--text);
+}
+
+.banner--challenge .banner-title {
+  font-size: 13px;
+  color: var(--bad);
+}
+
+.banner--challenge .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.banner--challenge .steps li > span {
+  display: block;
+}
+
+.banner--challenge .steps .btn {
+  margin-top: 4px;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Lists and tables                                                   */
 /* ------------------------------------------------------------------ */

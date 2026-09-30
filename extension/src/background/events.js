@@ -17,8 +17,10 @@ const KNOWN = new Set(Object.values(EVENTS));
 /** Events that raise a desktop notification. */
 const NOTIFY = {
   [EVENTS.CHALLENGE_DETECTED]: {
-    title: 'LinkedIn security challenge',
-    message: 'Open LinkedIn and complete the challenge. All writes are paused until you do.',
+    title: "LinkedIn is asking you to confirm it's you",
+    message:
+      'Everything is paused. Open LinkedIn and complete the check yourself, then open the ' +
+      'toolkit popup for what to do next. The toolkit will not try to solve it.',
   },
   [EVENTS.QUOTA_HIT]: {
     title: 'Daily limit reached',
