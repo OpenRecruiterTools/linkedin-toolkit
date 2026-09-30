@@ -73,7 +73,7 @@ body:
     attributes:
       label: Extension and server versions
       description: '`lit status` prints both. The extension version is also on its card in chrome://extensions.'
-      placeholder: extension 2.0.4, server 2.1.0
+      placeholder: extension 2.1.1, server 2.1.0
     validations:
       required: true
 

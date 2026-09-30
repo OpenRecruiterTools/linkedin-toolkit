@@ -5,6 +5,58 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] — 2026-09-30 — extension only
+
+The extension moves from 2.0.4 to 2.1.1. The server, the CLI and the clients are unchanged at
+2.1.0: no server code moved, and `openapi.json` and `tools.json` are byte-for-byte what they were.
+
+Found by reading the code, not yet seen live. Which response shapes are assumptions is written
+down in [`docs/captcha-and-security-checks.md`](docs/captcha-and-security-checks.md#what-we-have-not-seen-live).
+
+### Fixed
+- **A security check that arrives as a redirect is now recognised as one.** LinkedIn's usual way
+  of interrupting an API call is not a 451: it redirects the request to an HTML page
+  (`/checkpoint/challenge/…`, `/checkpoint/lg/…`), `fetch` follows it, and the engine was handed
+  `200 OK` and a page of markup. That fell through to `LINKEDIN_ERROR: LinkedIn returned a
+  non-JSON response` — no pause, and nothing a person could act on. Every response is now
+  classified before it is parsed; a check sets the same challenge latch a 451 sets and throws
+  `CHALLENGE_DETECTED` with a message that says what happened. The next request is refused before
+  it leaves the browser, and so is every one after it, until a person clears the latch in the
+  popup.
+- A redirect to the sign-in page (`/login`, `/uas/login`, `/m/login`, `/authwall`) is
+  `NOT_LOGGED_IN`, where it was also "non-JSON".
+- A redirected *write* is never treated as done, whatever comes back at the far end. A redirect
+  can turn a POST into a GET, so a 200 there says nothing about whether the write happened.
+
+### Added
+- `extension/src/lib/classify-response.js` — one pure function,
+  `classifyResponse({ status, url, redirected, contentType, bodySnippet })` →
+  `'ok' | 'challenge' | 'signed_out' | 'rate_limited' | 'error'`. Only the *path* of the final URL
+  is matched, so "challenge" in a query string stops nothing, and words like "captcha" inside a
+  JSON answer are somebody's profile rather than a check.
+- `voyagerFetch` sends `redirect: 'follow'` explicitly and reads `resp.url` and `resp.redirected`.
+- The Dashboard's challenge banner is now instructions for a person: **LinkedIn is asking you to
+  confirm it's you**, three numbered steps — open LinkedIn and complete the check yourself (with
+  an **Open LinkedIn** button), leave it for at least 24 hours (with the time that is), then press
+  **I've done it — resume** — and the line "This tool will never try to solve or get round a
+  security check. That is on purpose."
+- [`docs/captcha-and-security-checks.md`](docs/captcha-and-security-checks.md): what triggers a
+  check, what the toolkit does, what you should do, what we will not build and why, and a
+  troubleshooting list. Linked from the README's safety section and from `docs/safety.md`, whose
+  stand-down table gains the redirect and sign-in rows.
+
+### Changed
+- The challenge latch keeps the time of the *first* detection and announces `challenge_detected`
+  once, rather than once per request that was in flight — three streams of a fast unfollow run
+  used to be able to raise three notifications.
+- The button that clears a challenge is labelled "I've done it — resume" (was "I've cleared it").
+  The action behind it, `config.set { clearChallenge: true }` from the popup only, is unchanged.
+- Error and notification wording for a challenge says "security check" and what to do about it.
+  The codes are unchanged, so nothing an agent branches on has moved.
+
+### Not changed, on purpose
+- Nothing solves, retries past or routes round a check, and nothing clears the latch but a person.
+
 ## [2.1.0] — 2026-09-18 — one-command setup
 
 Server and CLI only; the extension is unchanged at 2.0.4.
