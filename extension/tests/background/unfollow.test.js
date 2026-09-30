@@ -37,14 +37,20 @@ import {
   unfollowStop,
   unfollowSweep,
 } from '../../src/background/unfollow.js';
-import { noteBackoff } from '../../src/background/quota.js';
+import { noteBackoff, pauseState } from '../../src/background/quota.js';
 import { EVENTS, UNFOLLOW_LIMIT_MAX } from '../../src/lib/actions.js';
 import { FOLLOWING_NAMES, mountFollowingPage } from '../fixtures/following-page.js';
 import followingPage1 from '../fixtures/voyager/following.json';
 import followingPage2 from '../fixtures/voyager/followingPage2.json';
 import followersPage1 from '../fixtures/voyager/followersFollowing.json';
 import followersPage2 from '../fixtures/voyager/followersFollowingPage2.json';
-import { seedSession, status, stubFetch } from '../helpers/net.js';
+import {
+  checkpointRedirect,
+  loginRedirect,
+  seedSession,
+  status,
+  stubFetch,
+} from '../helpers/net.js';
 import { setActiveTab } from '../setup.js';
 
 const mock = () => globalThis.chrome.__mock;
@@ -546,7 +552,10 @@ function followingWorld(net, onPost = null) {
       const profileUrn = urn.replace('urn:li:fsd_followingState:', '');
       world.posts.push(profileUrn);
 
+      // A number is a refusal by status; an object is a whole reply of the
+      // test's own making — a redirect to a check page, say.
       const failure = onPost ? onPost(world.posts.length, profileUrn, world) : null;
+      if (failure && typeof failure === 'object') return failure;
       if (failure) return status(failure, {});
 
       world.remaining = world.remaining.filter((e) => !e.entityUrn.includes(profileUrn));
@@ -718,6 +727,92 @@ describe('API mode — dry run', () => {
     await unfollowAll({ dryRun: true });
 
     expect(mock().messages.filter((m) => m.event === 'unfollow_progress')).toEqual([]);
+  });
+});
+
+/* ================================================================== */
+/*  API mode — a security check that arrives as a redirect             */
+/* ================================================================== */
+
+describe('API mode — redirected to a security check', () => {
+  let net;
+
+  beforeEach(() => {
+    seedSession();
+    net = stubFetch();
+  });
+
+  it('does not count the unfollow that was redirected, and stops there', async () => {
+    // The second POST "succeeds" with 200 — on LinkedIn's check page.
+    const world = followingWorld(net, (n) => (n === 2 ? checkpointRedirect() : null));
+
+    const result = await unfollowAll({});
+
+    expect(world.posts).toHaveLength(2);
+    expect(result.attempted).toBe(2);
+    expect(result.unfollowed).toBe(1);
+    expect(result.names).toEqual([nameFor(0)]);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/security check page/i);
+    // The person LinkedIn never unfollowed is still on the list.
+    expect(world.remaining).toHaveLength(11);
+    expect((await pauseState()).challenge).toBeTruthy();
+  });
+
+  it('sends nothing at all on the next run, until the latch is cleared', async () => {
+    const world = followingWorld(net, (n) => (n === 1 ? checkpointRedirect() : null));
+    await unfollowAll({});
+    const sent = net.calls.length;
+
+    const again = await unfollowAll({});
+
+    expect(again.unfollowed).toBe(0);
+    expect(again.stopped).toBe('error');
+    expect(again.error).toMatch(/security check/i);
+    expect(net.calls).toHaveLength(sent);
+    expect(world.posts).toHaveLength(1);
+  });
+
+  it('ends cleanly when the list read itself is redirected', async () => {
+    net.route('voyagerSearchDashClusters', checkpointRedirect());
+
+    const result = await unfollowAll({});
+
+    expect(result.unfollowed).toBe(0);
+    expect(result.attempted).toBe(0);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/security check page/i);
+    expect(net.calls.filter((c) => c.method === 'POST')).toEqual([]);
+    expect((await pauseState()).challenge).toBeTruthy();
+  });
+
+  it('a redirect to the sign-in page ends the run without counting, and without a latch', async () => {
+    const world = followingWorld(net, (n) => (n === 2 ? loginRedirect() : null));
+
+    const result = await unfollowAll({});
+
+    expect(world.posts).toHaveLength(2);
+    expect(result.unfollowed).toBe(1);
+    expect(result.stopped).toBe('error');
+    expect(result.error).toMatch(/signed out/i);
+    expect((await pauseState()).challenge).toBeUndefined();
+  });
+
+  it('fast: a check on any one stream ends all three, and is not counted', async () => {
+    const world = followingWorld(net, (n) => (n === 2 ? checkpointRedirect() : null));
+    const clock = parkingSleep();
+
+    const result = await clock.settle(unfollowAll({ speed: 'fast' }));
+
+    expect(result.stopped).toBe('error');
+    // Whichever stream noticed first gets to say so: the one that was
+    // redirected, or one beside it that found the latch already set.
+    expect(result.error).toMatch(/security check/i);
+    // Only what was already in flight when LinkedIn interrupted.
+    expect(world.posts.length).toBeLessThanOrEqual(3);
+    expect(result.unfollowed).toBeLessThanOrEqual(2);
+    expect(result.unfollowed).toBe(12 - world.remaining.length);
+    expect((await pauseState()).challenge).toBeTruthy();
   });
 });
 

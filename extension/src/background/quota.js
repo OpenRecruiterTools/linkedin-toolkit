@@ -57,6 +57,21 @@ export const BACKOFF_MS = Object.freeze({
 
 const WARMUP_FLOOR = 0.2;
 
+/**
+ * What a caller is told while the challenge latch is set, and what to do.
+ *
+ * Shared with `voyager-core.js`, so the gate in front of a quota bucket and the
+ * gate in front of the network say the same thing in the same words.
+ */
+export const CHALLENGE_PAUSED_MESSAGE =
+  'Paused: LinkedIn asked for a security check (a challenge) and nobody has confirmed it is ' +
+  'done. Nothing will be sent until a person clears it in the popup.';
+
+export const CHALLENGE_HOW_TO_FIX =
+  'Open LinkedIn in this browser and complete the check yourself. Leave automation alone for ' +
+  'a while — at least 24 hours is sensible. Then open the toolkit popup and press ' +
+  '"I\'ve done it — resume". The toolkit will never try to solve or get round a security check.';
+
 /* ================================================================== */
 /*  Injectable sleep (tests replace it; production waits for real)     */
 /* ================================================================== */
@@ -174,21 +189,45 @@ export function isWithinBusinessHours(config, now = new Date()) {
  * Anything else backs off for a minute.
  */
 export async function noteBackoff(status) {
+  if (Number(status) === 451) return noteChallenge();
+
   const now = Date.now();
-  const challenge = Number(status) === 451;
+  return withKeyLock(K.QUOTA, async () => {
+    const current = await readState(new Date(now));
+    const ms = BACKOFF_MS[Number(status)] || MINUTE;
+    current.backoffUntil = Math.max(current.backoffUntil, now + ms);
+    return writeState(current);
+  });
+}
+
+/**
+ * Set the challenge latch: LinkedIn has asked the human to confirm it is them.
+ *
+ * A 451 is one way that arrives. The usual way is not a status at all — the
+ * request is redirected to a check page and comes back `200 text/html` — so
+ * `voyagerFetch` calls this for anything `classifyResponse` calls a challenge.
+ *
+ * Every bucket is blocked from here until `clearChallenge()`, and only a
+ * person pressing a button in the popup calls that. Nothing in the engine
+ * clears it, waits it out, retries past it or routes round it.
+ *
+ * A latch that is already set keeps its original time: the first detection is
+ * the one the "wait a day" advice in the popup is counted from.
+ */
+export async function noteChallenge() {
+  const now = Date.now();
+  let fresh = false;
 
   const state = await withKeyLock(K.QUOTA, async () => {
     const current = await readState(new Date(now));
-    if (challenge) {
+    if (!current.challenge) {
       current.challenge = { detectedAt: now };
-    } else {
-      const ms = BACKOFF_MS[Number(status)] || MINUTE;
-      current.backoffUntil = Math.max(current.backoffUntil, now + ms);
+      fresh = true;
     }
     return writeState(current);
   });
 
-  if (challenge) await emit(EVENTS.CHALLENGE_DETECTED, { detectedAt: now });
+  if (fresh) await emit(EVENTS.CHALLENGE_DETECTED, { detectedAt: state.challenge.detectedAt });
   return state;
 }
 
@@ -258,11 +297,9 @@ async function gate(kind, cost) {
   const state = await readState(new Date(now));
 
   if (state.challenge) {
-    throw new EngineError(
-      ERROR.CHALLENGE_DETECTED,
-      'LinkedIn security challenge detected — open LinkedIn, complete it, then clear the challenge.',
-      { howToFix: 'Complete the challenge on linkedin.com, then press "Clear challenge".' },
-    );
+    throw new EngineError(ERROR.CHALLENGE_DETECTED, CHALLENGE_PAUSED_MESSAGE, {
+      howToFix: CHALLENGE_HOW_TO_FIX,
+    });
   }
 
   if (state.backoffUntil > now) {

@@ -46,6 +46,25 @@ export function stubFetch(responses = []) {
     const route = routes.find((r) => r.match(call.url));
     let reply = route ? route.body : queue.length ? queue.shift() : {};
     if (typeof reply === 'function') reply = reply(call.url, init);
+    call.redirect = init.redirect;
+
+    // A reply that says where it ended up and what it is — see `landed()`.
+    if (reply && reply.__landed) {
+      const raw = reply.__landed;
+      const code = raw.status === undefined ? 200 : raw.status;
+      const bodyText = raw.text === undefined ? '' : raw.text;
+      return {
+        ok: code >= 200 && code < 300,
+        status: code,
+        statusText: String(code),
+        url: raw.url === undefined ? call.url : raw.url,
+        redirected: !!raw.redirected,
+        headers: new Headers(raw.contentType ? { 'content-type': raw.contentType } : {}),
+        text: async () => bodyText,
+        json: async () => JSON.parse(bodyText),
+      };
+    }
+
     const status = reply && reply.__status ? reply.__status : 200;
     const body = reply && reply.__status ? reply.body : reply;
     const text = body === undefined ? '' : JSON.stringify(body);
@@ -83,6 +102,51 @@ export function stubFetch(responses = []) {
 /** `{ __status, body }` marker for a non-200 reply. */
 export function status(code, body = {}) {
   return { __status: code, body };
+}
+
+/**
+ * A reply shaped like a real `Response` after `fetch` has followed a redirect:
+ * it carries the URL it ended up at, whether it was redirected, a content type
+ * and a raw text body. This is what a LinkedIn security check looks like from
+ * the inside — `200 OK`, `text/html`, somewhere other than where we asked.
+ *
+ * @param {{status?: number, url?: string, redirected?: boolean,
+ *   contentType?: string, text?: string}} raw
+ */
+export function landed(raw = {}) {
+  return { __landed: raw };
+}
+
+/** An invented stand-in for LinkedIn's check page. Not a capture of a real one. */
+export const CHECK_PAGE_HTML =
+  '<!DOCTYPE html><html lang="en"><head><title>Security Verification | LinkedIn</title></head>' +
+  '<body><h1>Let\'s do a quick security check</h1><div id="captcha-internal"></div></body></html>';
+
+/** An invented stand-in for LinkedIn's sign-in page. */
+export const SIGN_IN_PAGE_HTML =
+  '<!DOCTYPE html><html lang="en"><head><title>LinkedIn Login, Sign in | LinkedIn</title></head>' +
+  '<body><h1>Sign in</h1><p>New to LinkedIn? Join LinkedIn now</p></body></html>';
+
+/** Redirected to the checkpoint, the way an interrupted XHR comes back. */
+export function checkpointRedirect(path = '/checkpoint/challenge/AgEXAMPLEONLY?ut=invented') {
+  return landed({
+    status: 200,
+    url: `https://www.linkedin.com${path}`,
+    redirected: true,
+    contentType: 'text/html; charset=utf-8',
+    text: CHECK_PAGE_HTML,
+  });
+}
+
+/** Redirected to the sign-in page, the way a request with no session comes back. */
+export function loginRedirect(path = '/uas/login?session_redirect=%2Fvoyager%2Fapi%2Fme') {
+  return landed({
+    status: 200,
+    url: `https://www.linkedin.com${path}`,
+    redirected: true,
+    contentType: 'text/html; charset=utf-8',
+    text: SIGN_IN_PAGE_HTML,
+  });
 }
 
 /**

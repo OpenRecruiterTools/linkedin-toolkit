@@ -8,7 +8,14 @@
  */
 
 import { ERROR, EngineError } from '../lib/actions.js';
-import { noteBackoff, pauseState } from './quota.js';
+import { RESPONSE, explainResponse, responseFacts } from '../lib/classify-response.js';
+import {
+  CHALLENGE_HOW_TO_FIX,
+  CHALLENGE_PAUSED_MESSAGE,
+  noteBackoff,
+  noteChallenge,
+  pauseState,
+} from './quota.js';
 
 export const VOYAGER_BASE = 'https://www.linkedin.com/voyager/api';
 export const LINKEDIN_BASE = 'https://www.linkedin.com';
@@ -46,10 +53,9 @@ export async function isLoggedIn() {
 async function assertNotPaused() {
   const state = await pauseState();
   if (state.challenge) {
-    throw new EngineError(
-      ERROR.CHALLENGE_DETECTED,
-      'LinkedIn security challenge detected — complete it, then clear the challenge.',
-    );
+    throw new EngineError(ERROR.CHALLENGE_DETECTED, CHALLENGE_PAUSED_MESSAGE, {
+      howToFix: CHALLENGE_HOW_TO_FIX,
+    });
   }
   if (state.backoffUntil && state.backoffUntil > Date.now()) {
     throw new EngineError(ERROR.RATE_LIMITED, 'Paused after a LinkedIn rate-limit response.', {
@@ -62,12 +68,53 @@ const STATUS_ERROR = {
   401: [ERROR.NOT_LOGGED_IN, 'LinkedIn session expired. Please log in again.'],
   403: [ERROR.LINKEDIN_ERROR, 'LinkedIn denied access (403). Your session may be flagged.'],
   429: [ERROR.RATE_LIMITED, 'Rate limited by LinkedIn (429). Pausing for 15 minutes.'],
-  451: [
-    ERROR.CHALLENGE_DETECTED,
-    'LinkedIn security challenge detected. Open LinkedIn and complete it.',
-  ],
   999: [ERROR.RATE_LIMITED, 'LinkedIn returned 999 (bot defence). Pausing for an hour.'],
 };
+
+/**
+ * What happened, in the words of somebody who has never heard of a 451.
+ *
+ * Keyed by which of the classifier's rules decided it, so the sentence says
+ * what was actually seen rather than guessing.
+ */
+const CHALLENGE_SEEN = {
+  path:
+    'LinkedIn did not answer this request. It sent it to a security check page instead, ' +
+    'which means LinkedIn wants you to confirm it is really you.',
+  status:
+    'LinkedIn security challenge detected (HTTP 451): LinkedIn refused the request and wants ' +
+    'you to confirm it is really you.',
+  html:
+    'LinkedIn answered with a security check page instead of data, which means LinkedIn ' +
+    'wants you to confirm it is really you.',
+  json:
+    'LinkedIn answered by asking for a security check, which means LinkedIn wants you to ' +
+    'confirm it is really you.',
+};
+
+const CHALLENGE_STOPPED =
+  ' Everything is paused, and it stays paused until you clear it in the popup.';
+
+const SIGNED_OUT_SEEN = {
+  path:
+    'LinkedIn sent this request to its sign-in page instead of answering it: you are signed ' +
+    'out of LinkedIn in this browser.',
+  html:
+    'LinkedIn answered with its sign-in page instead of data: you are signed out of LinkedIn ' +
+    'in this browser.',
+};
+
+const SIGN_IN_HOW_TO_FIX = 'Open linkedin.com in this browser, sign in, and try again.';
+
+/** The body, or nothing. A body that cannot be read is not worth failing over. */
+async function readBody(resp) {
+  if (!resp || typeof resp.text !== 'function') return '';
+  try {
+    return (await resp.text()) || '';
+  } catch {
+    return '';
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Fetch                                                             */
@@ -75,6 +122,19 @@ const STATUS_ERROR = {
 
 /**
  * Authenticated request to LinkedIn.
+ *
+ * Every response is classified before it is parsed (`lib/classify-response.js`).
+ * LinkedIn's usual security check is not an error status: the request is
+ * redirected to an HTML page, `fetch` follows it, and what comes back is
+ * `200 OK`. So the final URL, the redirect flag, the content type and the top
+ * of the body are all read first, and:
+ *
+ *   - a **challenge** sets the challenge latch — the same one a 451 sets — and
+ *     throws `CHALLENGE_DETECTED`. The next call is refused before any request
+ *     leaves, and the one after that, until a person clears it in the popup.
+ *     Nothing here solves a check, retries past one or tries another route.
+ *   - **signed out** throws `NOT_LOGGED_IN`.
+ *   - a **rate limit** backs off, as before.
  *
  * @param {string} path `/identity/...` (relative to the Voyager base) or an
  *   absolute https URL for the Sales Navigator / Recruiter APIs
@@ -95,7 +155,10 @@ export async function voyagerFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const init = { ...options, headers, credentials: 'include' };
+  // `follow` is what fetch does anyway; it is spelled out because the redirect
+  // is the whole point. The request is allowed to go where LinkedIn sends it,
+  // and then we look at where it ended up. That is all we do with a redirect.
+  const init = { ...options, headers, credentials: 'include', redirect: 'follow' };
   if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
     // A caller may pin an exact content-type — the invitation write sends the
     // `; charset=UTF-8` spelling the web client sends — so only fill it in.
@@ -104,10 +167,35 @@ export async function voyagerFetch(path, options = {}) {
   }
 
   const resp = await fetch(url, init);
+  const text = await readBody(resp);
+  const verdict = explainResponse(responseFacts(resp, text, url));
+
+  if (verdict.kind === RESPONSE.CHALLENGE) {
+    await noteChallenge();
+    const challenged = new EngineError(
+      ERROR.CHALLENGE_DETECTED,
+      `${CHALLENGE_SEEN[verdict.rule] || CHALLENGE_SEEN.html}${CHALLENGE_STOPPED}`,
+      { howToFix: CHALLENGE_HOW_TO_FIX },
+    );
+    if (!resp.ok) challenged.status = resp.status;
+    throw challenged;
+  }
+
+  if (verdict.kind === RESPONSE.SIGNED_OUT && verdict.rule !== 'status') {
+    // Sent to the sign-in page, or handed it. (A plain 401 keeps the wording
+    // and the status it has always had, below.)
+    const out = new EngineError(
+      ERROR.NOT_LOGGED_IN,
+      SIGNED_OUT_SEEN[verdict.rule] || SIGNED_OUT_SEEN.html,
+      { howToFix: SIGN_IN_HOW_TO_FIX },
+    );
+    if (!resp.ok) out.status = resp.status;
+    throw out;
+  }
 
   if (!resp.ok) {
     const known = STATUS_ERROR[resp.status];
-    if (resp.status === 429 || resp.status === 451 || resp.status === 999 || resp.status === 403) {
+    if (resp.status === 429 || resp.status === 999 || resp.status === 403) {
       await noteBackoff(resp.status);
     }
     if (known) {
@@ -120,15 +208,9 @@ export async function voyagerFetch(path, options = {}) {
       throw stood;
     }
 
-    let body = '';
-    try {
-      body = await resp.text();
-    } catch {
-      /* body is optional */
-    }
     const error = new EngineError(
       ERROR.LINKEDIN_ERROR,
-      `Voyager API error ${resp.status}: ${body.slice(0, 300)}`,
+      `Voyager API error ${resp.status}: ${text.slice(0, 300)}`,
     );
     // LinkedIn explains a refused write in the body — `{"data":{"code":…,
     // "message":…}}` for a duplicate invitation or an exhausted allowance — so
@@ -138,15 +220,37 @@ export async function voyagerFetch(path, options = {}) {
     // not something to hand to every client.
     error.status = resp.status;
     try {
-      if (body) error.response = JSON.parse(body);
+      if (text) error.response = JSON.parse(text);
     } catch {
       /* not JSON; the message already carries the text */
     }
     throw error;
   }
 
+  if (verdict.kind !== RESPONSE.OK) {
+    // A 2xx that is not an answer: a web page with nothing on it we recognise,
+    // or a redirect that ended somewhere that does not speak JSON.
+    throw new EngineError(
+      ERROR.LINKEDIN_ERROR,
+      'LinkedIn returned a web page instead of data, and not one the toolkit recognises. ' +
+        'Nothing was assumed to have happened.',
+      { howToFix: 'Open LinkedIn in this browser and see whether it is asking you for something.' },
+    );
+  }
+
+  const method = String(init.method || 'GET').toUpperCase();
+  if (resp.redirected && method !== 'GET') {
+    // A redirected write is never a success. A redirect can turn a POST into a
+    // GET on the way, so a 200 at the far end says nothing about whether the
+    // write happened — and counting it would be inventing a result.
+    throw new EngineError(
+      ERROR.LINKEDIN_ERROR,
+      'LinkedIn redirected this request instead of carrying it out, so it was not counted as done.',
+      { howToFix: 'Open LinkedIn in this browser and check whether the action went through.' },
+    );
+  }
+
   if (resp.status === 204) return { ok: true };
-  const text = await resp.text();
   if (!text) return { ok: true };
   try {
     return JSON.parse(text);
