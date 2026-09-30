@@ -75,9 +75,18 @@ window, and the caps.
 
 | LinkedIn says | The engine does | Tools return |
 |---|---|---|
-| **429** rate limited | Exponential backoff, pauses the action class, surfaces `nextAllowedAt` | `RATE_LIMITED` with `retryAfter` |
-| **451** security challenge | **Pauses every write immediately**, notifies you in the popup and by webhook, and stays paused | `CHALLENGE_DETECTED` |
+| **429** or **999** rate limited | Backs off — 15 minutes for a 429, an hour for a 999 — and surfaces `nextAllowedAt` | `RATE_LIMITED` with `retryAfter` |
+| **451** security challenge | **Pauses every request immediately**, notifies you in the popup and by webhook, and stays paused | `CHALLENGE_DETECTED` |
+| **A redirect to a check page, or an HTML page where data should be** — the request lands on `/checkpoint/…` or a `/challenge` path, or a `200` comes back as a web page mentioning a CAPTCHA or security check | Exactly the same as a 451: **pauses every request immediately** and stays paused. The request that was redirected is not counted as done | `CHALLENGE_DETECTED` |
+| **A redirect to the sign-in page** (`/login`, `/uas/login`, `/m/login`, `/authwall`), or **401** | Stops that action. No pause to clear — sign in again | `NOT_LOGGED_IN` |
 | A cap is spent | Refuses the action outright — never a silent partial | `QUOTA_EXCEEDED` with the cap |
+
+The redirect row is the common case. LinkedIn rarely answers an API call with a 451; it sends the
+request to a web page, the browser follows it, and what arrives looks like a `200`. Every response
+is classified before it is read, so that is recognised as the check it is rather than treated as a
+success. The full account, including what you should do and which of these response shapes are
+assumptions nobody has yet captured live, is in
+[captcha-and-security-checks.md](captcha-and-security-checks.md).
 
 A cap unit is **reserved before the request and stays spent when LinkedIn refuses it**. A refused
 write may still have been counted at LinkedIn's end, and over-counting our own quota is safe where
@@ -93,9 +102,11 @@ and retrying will not help. Invitation notes themselves are capped at 200 charac
 aim for 180 or fewer so a rendered name and job title cannot push a template over.
 
 A challenge does not clear itself and the engine will not clear it for you. You go to Chrome,
-complete whatever LinkedIn asks, and resume manually. There is no retry loop, no "wait and try
-again", no alternate route. That is deliberate: automatic retry after a challenge is precisely how
-a warning becomes a restriction.
+complete whatever LinkedIn asks, leave automation alone for a while — the popup suggests at least
+24 hours and shows when that is — and resume manually with the "I've done it — resume" button.
+There is no retry loop, no "wait and try again", no alternate route. That is deliberate: automatic
+retry after a challenge is precisely how a warning becomes a restriction. More in
+[captcha-and-security-checks.md](captcha-and-security-checks.md).
 
 ## Local-first, and what that actually means
 
@@ -143,7 +154,8 @@ account sees the sum, and the sum is what gets restricted.
 
 Stop and go quiet for a week if you see any of these:
 
-- A security challenge (the engine will have paused already — leave it paused).
+- A security challenge or CAPTCHA (the engine will have paused already — leave it paused, and see
+  [captcha-and-security-checks.md](captcha-and-security-checks.md)).
 - "You've reached the weekly invitation limit" — you are being throttled at the account level.
 - Invite acceptance rate falling below 10% — LinkedIn weighs ignored invites against you.
 - Anyone reporting your message as spam.

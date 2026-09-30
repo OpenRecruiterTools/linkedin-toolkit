@@ -133,12 +133,19 @@ checklist covers what only a browser can: the real service worker, real
 
 ## 9. Challenge banner
 
-| Step                                                                                                                                                                                                               | Expected                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Simulate a challenge: in the service worker console, run `chrome.storage.local.get('status')` first to see the shape, then set the engine's challenge flag (WS-B's `quota.js` records `challenge: { detectedAt }`) | —                                                                                                              |
-| Reopen the popup                                                                                                                                                                                                   | A red banner at the top of the Dashboard: "LinkedIn asked for a security check", with the time it was detected |
-| Confirm that outreach is refused while it is set                                                                                                                                                                   | Any write returns `CHALLENGE_DETECTED` on its error line                                                       |
-| Clear the challenge in a LinkedIn tab, then click **I've cleared it**                                                                                                                                              | The banner disappears and writes work again                                                                    |
+| Step | Expected |
+| --- | --- |
+| Simulate a challenge: in the service worker console, run `chrome.storage.local.get('status')` first to see the shape, then set the engine's challenge flag (`quota.js` records `challenge: { detectedAt }`) | — |
+| Reopen the popup | A banner at the top of the Dashboard titled "LinkedIn is asking you to confirm it's you", with the time it was detected, three numbered steps, and the line "This tool will never try to solve or get round a security check. That is on purpose." |
+| Read step 2 | It names the date and time 24 hours after the detection |
+| Click **Open LinkedIn** | linkedin.com/feed opens in a new tab; the banner is still there and writes are still refused |
+| Confirm that outreach is refused while it is set | Any write returns `CHALLENGE_DETECTED` on its error line, and the service worker's network log shows no request to LinkedIn |
+| Complete the check by hand in the LinkedIn tab, then click **I've done it — resume** | The banner disappears and writes work again |
+
+A real check cannot be produced on demand, so this section exercises the latch and the banner, not
+the detection. Detection is covered by the unit tests in `extension/tests/lib/classify-response.test.js`
+and `extension/tests/background/voyager-core.test.js`; what those assume about LinkedIn's responses is
+listed in [captcha-and-security-checks.md](captcha-and-security-checks.md#what-we-have-not-seen-live).
 
 ## 10. Resilience
 

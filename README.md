@@ -98,7 +98,7 @@ Not using MCP? `lit serve --http` gives you `POST /actions/{action}` and a gener
 | **Inbox** | Unified threads, unread, reply detection, sentiment tagging, saved replies, snooze. |
 | **Research Pack** | A CSV of names or domains in; a dossier, an enriched CSV and a list out. [Below](#research-pack). |
 | **Agent layer** | 39 MCP tools, 4 resources, 3 prompts, a `/actions` HTTP API with OpenAPI 3.1, Node and Python clients, an n8n node, [6 skills](skills/). |
-| **Safety** | Jittered human delays, hourly and daily caps, business hours, 14-day warm-up, account presets, approval queue, 429 backoff, 451 challenge auto-pause. |
+| **Safety** | Jittered human delays, hourly and daily caps, business hours, 14-day warm-up, account presets, approval queue, 429 backoff, auto-pause on any security check (451 or a checkpoint redirect). |
 | **Local everything** | `chrome.storage.local`, IndexedDB and a SQLite file on your machine. Read-only SQL over the lot. No server, no account, no telemetry. |
 
 ## Works with your agent
@@ -221,10 +221,14 @@ What it does do:
 - **14-day warm-up** for new or dormant accounts.
 - **Copilot mode** — every agent write queues for your approval. Autopilot is a toggle only a
   human can flip, in the popup. Approving still is not sending: the engine paces it anyway.
-- **429 → backoff. 451 → stop.** A security challenge pauses every write immediately and stays
-  paused until you clear it in Chrome. There is no retry loop anywhere in the codebase.
+- **429 → backoff. A security check → stop.** A CAPTCHA or "confirm it's you" check — whether it
+  arrives as a 451 or, as it usually does, as a redirect to LinkedIn's checkpoint page — pauses
+  every request immediately and stays paused until you have completed it yourself and said so in
+  the popup. There is no retry loop anywhere in the codebase.
 - **Never bypasses a security measure.** No CAPTCHA solving, no challenge circumvention, no
   proxies, no fingerprint spoofing, no cookie import, no account you are not signed into.
+  What triggers a check, what the toolkit does, what you should do and what we will not build:
+  [**docs/captcha-and-security-checks.md**](docs/captcha-and-security-checks.md).
 
 What it does **not** do is make you invisible. Running inside your own session removes the
 fingerprint and IP signals that get browser agents caught — it does nothing about *how much* you

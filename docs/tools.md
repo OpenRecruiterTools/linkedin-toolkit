@@ -223,9 +223,9 @@ ORDER BY a.created_at DESC;
 | Code | Means | What an agent should do |
 |---|---|---|
 | `EXTENSION_OFFLINE` | The bridge has no extension attached | Stop. Tell the human to open Chrome and check the popup's pairing. |
-| `NOT_LOGGED_IN` | No LinkedIn session in Chrome | Stop. Tell the human to log in. |
+| `NOT_LOGGED_IN` | No LinkedIn session in Chrome, or LinkedIn sent the request to its sign-in page | Stop. Tell the human to log in. |
 | `RATE_LIMITED` | LinkedIn returned 429; the engine is backing off | Stop. Report `retryAfter`. Do not retry. |
-| `CHALLENGE_DETECTED` | LinkedIn returned 451 — a security challenge | **Stop everything.** All writes are paused until a human clears it in Chrome. |
+| `CHALLENGE_DETECTED` | LinkedIn asked for a security check — a redirect to its checkpoint page, a check page in place of data, or a 451 | **Stop everything.** All requests are paused until a human completes the check and clears it in the popup. Never retry. See [captcha-and-security-checks.md](captcha-and-security-checks.md). |
 | `QUOTA_EXCEEDED` | A daily or hourly cap is spent | Stop for that action type. Report the cap. It cannot be raised. |
 | `OUTSIDE_BUSINESS_HOURS` | Outside the configured window | Reads still work. Writes wait. |
 | `INVALID_PARAMS` | Failed schema validation | Fix the call. `message` says which field. |

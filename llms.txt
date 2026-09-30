@@ -39,6 +39,7 @@ Install: `npx linkedin-toolkit-mcp setup --client <claude-desktop|claude-code|cu
 
 - [Architecture](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/architecture.md): components, the single action switch, the bridge protocol, data stores, the write path.
 - [Safety](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/safety.md): hard caps, human pacing, warm-up, Copilot mode, 429 and 451 handling, recommended settings, data protection.
+- [CAPTCHAs and security checks](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/captcha-and-security-checks.md): what triggers a check, how the engine detects one (including a redirect to the checkpoint page), what the human must do, and what the toolkit will never build.
 - [Why browser agents fail on LinkedIn](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/why-browser-agents-fail-on-linkedin.md): fingerprints, datacenter IPs, machine timing, challenge flows, and what this does instead.
 - [CLI](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/docs/cli.md): the `lit` command reference.
 - [Sequences](https://github.com/OpenRecruiterTools/linkedin-toolkit/blob/master/sequences/README.md): 20 campaign templates, the JSON Schema, and the validator.

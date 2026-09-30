@@ -153,9 +153,11 @@ Which means:
   hourly and daily caps, a business-hours window, and a 14-day warm-up ramp for new accounts. The
   caps are enforced in the extension, below every client: 100 invites, 150 messages, 500 profile
   visits, 1,000 search results per day, and no MCP call, CLI flag or config file can raise them.
-- **Challenges stop everything.** A 451 pauses every write immediately and notifies you. A 429
-  triggers exponential backoff and surfaces `nextAllowedAt`. Nothing resumes until a human clears
-  it in Chrome. There is no retry loop anywhere in the codebase.
+- **Challenges stop everything.** A security check — a 451, or the far more usual redirect to
+  LinkedIn's checkpoint page — pauses every request immediately and notifies you. A 429 backs off
+  and surfaces `nextAllowedAt`. After a check nothing resumes until a human has completed it and
+  cleared it in the popup. There is no retry loop anywhere in the codebase. See
+  [captcha-and-security-checks.md](captcha-and-security-checks.md).
 - **A human in the loop by default.** Copilot mode queues every agent-originated write for
   approval. Turning that off is a toggle in the popup that only a person can flip.
 
