@@ -41,7 +41,7 @@ describe('GET /health', () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       extensionConnected: true,
-      version: '2.1.0',
+      version: '2.1.1',
     });
   });
 
