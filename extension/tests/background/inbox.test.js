@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ACTIONS } from '../../src/lib/actions.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handle } from '../../src/background/engine.js';
-import { setConfig } from '../../src/lib/config.js';
 import * as events from '../../src/background/events.js';
 import * as inbox from '../../src/background/inbox.js';
+import { ACTIONS } from '../../src/lib/actions.js';
+import { setConfig } from '../../src/lib/config.js';
 import { routeBackground, seedSession, stubFetch } from '../helpers/net.js';
 
-import conversations from '../fixtures/voyager/conversations.json';
 import conversationEvents from '../fixtures/voyager/conversationEvents.json';
+import conversations from '../fixtures/voyager/conversations.json';
 
 let net;
 let seen;
@@ -31,6 +31,14 @@ const names = () => seen.map((f) => f.event);
 const conversationList = (payload) =>
   payload.data.data.messengerConversationsByCategoryQuery.elements;
 const messageList = (payload) => payload.data.data.messengerMessagesByConversation.elements;
+
+function conversationPage(indexes, nextCursor) {
+  const page = structuredClone(conversations);
+  const collection = page.data.data.messengerConversationsByCategoryQuery;
+  collection.elements = indexes.map((index) => collection.elements[index]);
+  if (nextCursor) collection.metadata.nextCursor = nextCursor;
+  return page;
+}
 
 /** The conversation list with one newer inbound message on thread 2-abc123. */
 function withNewReply(text, at = 1757900000000) {
@@ -67,6 +75,18 @@ describe('inbox.threads', () => {
     net.push(conversations);
     const recent = await handle(ACTIONS.INBOX_THREADS, { since: 1757000000000 });
     expect(recent.data.threads.map((t) => t.threadId)).toEqual(['2-abc123']);
+  });
+
+  it('follows LinkedIn nextCursor pages', async () => {
+    net.push(conversationPage([0], 'cursor-2'));
+    net.push(conversationPage([1]));
+
+    const res = await handle(ACTIONS.INBOX_THREADS, { count: 1 });
+
+    expect(res.data.threads).toHaveLength(2);
+    expect(net.query(0).get('variables')).toContain('category:PRIMARY_INBOX');
+    expect(net.query(0).get('variables')).not.toContain('nextCursor');
+    expect(net.query(1).get('variables')).toContain('nextCursor:cursor-2');
   });
 });
 

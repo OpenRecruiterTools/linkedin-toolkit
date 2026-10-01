@@ -15,6 +15,7 @@
  */
 
 import { ERROR, EngineError, INVITE_NOTE_FIX, INVITE_NOTE_MAX } from '../lib/actions.js';
+import { collection } from './normalized.js';
 import {
   LINKEDIN_BASE,
   generateTrackingId,
@@ -35,9 +36,9 @@ import {
   normalizeFollowingStates,
   normalizeMessages,
   normalizePosts,
+  normalizeProfileCollection,
   normalizeProfileSection,
   normalizeProfileView,
-  normalizeProfileCollection,
   normalizeReactions,
   normalizeRecruiterSearch,
   normalizeSalesNavSearch,
@@ -180,7 +181,7 @@ export const ENDPOINTS = Object.freeze({
     sentInvitations: 'voyagerRelationshipsDashSentInvitationViews.6c862840bc95d23d4c97c3844cde9981',
     /** Every category, newest first — what `inbox.threads` asks for. */
     conversations: 'messengerConversations.737b27144cf922499202658a5345016f',
-    /** One category with a `lastUpdatedBefore` cursor — used to page back. */
+    /** Primary inbox with an opaque `nextCursor` — used to page back. */
     conversationsByCategory: 'messengerConversations.9501074288a12f3ae9e3c7ea243bccbf',
     messages: 'messengerMessages.d8ea76885a52fd5dc5c317078ab7c977',
   }),
@@ -907,25 +908,28 @@ export async function unfollowProfile({ profileUrn }) {
  * different questions — the first every category newest-first, the second one
  * category with a cursor, which is how paging back through the inbox works.
  */
-export async function getConversations({ count = 20, createdBefore } = {}) {
+function conversationNextCursor(raw) {
+  const node = collection(raw);
+  const cursor = node?.metadata?.nextCursor ?? node?.nextCursor;
+  return typeof cursor === 'string' && cursor ? cursor : undefined;
+}
+
+export async function getConversations({ count = 20, nextCursor } = {}) {
   const mailboxUrn = await selfProfileUrn();
 
-  const raw = createdBefore
-    ? await messagingGraphql(ENDPOINTS.queryIds.conversationsByCategory, {
-        query: { predicateUnions: [{ conversationCategoryPredicate: { category: 'INBOX' } }] },
-        count,
-        mailboxUrn,
-        lastUpdatedBefore: createdBefore,
-      })
-    : await messagingGraphql(ENDPOINTS.queryIds.conversations, {
-        categories: ['INBOX', 'SPAM', 'ARCHIVE'],
-        count,
-        firstDegreeConnections: false,
-        mailboxUrn,
-        read: false,
-      });
+  const raw = await messagingGraphql(ENDPOINTS.queryIds.conversationsByCategory, {
+    query: {
+      predicateUnions: [{ conversationCategoryPredicate: { category: 'PRIMARY_INBOX' } }],
+    },
+    count,
+    mailboxUrn,
+    ...(nextCursor ? { nextCursor } : {}),
+  });
 
-  return { threads: normalizeConversations(raw, mailboxUrn) };
+  return {
+    threads: normalizeConversations(raw, mailboxUrn),
+    nextCursor: conversationNextCursor(raw),
+  };
 }
 
 export async function getConversationMessages({ threadId, count = 20, createdBefore }) {
