@@ -99,9 +99,17 @@ export function takeDraft(id, sender) {
 }
 
 /** When a file could not be attached, it is saved to Downloads so the person can add it by hand. */
-export async function downloadDraftFile(file) {
-  if (!file || !file.data) return { ok: false };
-  await chrome.downloads.download({ url: `data:${file.type};base64,${file.data}`, filename: file.name, saveAs: false });
+export async function downloadDraftFile(raw) {
+  // checked again: the type must be one LinkedIn takes, and the name is rebuilt from that type
+  const checked = checkDraft({ file: raw });
+  if (!checked.ok || !checked.draft.file) return { ok: false };
+  const file = checked.draft.file;
+  await chrome.downloads.download({
+    url: `data:${file.type};base64,${file.data}`,
+    filename: file.name,
+    saveAs: false,
+    conflictAction: 'uniquify',
+  });
   return { ok: true };
 }
 

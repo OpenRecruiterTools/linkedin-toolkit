@@ -55,6 +55,9 @@ you can show. A draft waits five minutes for its LinkedIn tab, and is collected 
 
 ## What the toolkit does and does not do
 
+- Only https sites can be connected (and this computer, `localhost`, for development): a draft from a
+  plain-http page could have been changed on the way.
+- A file's name comes from its checked type, never from the site, so a "PDF" is always saved as `.pdf`.
 - It only runs on sites you connected, and a connected site can do nothing but hand
   over a draft: every other toolkit action from a website tab is refused.
 - It never presses Post, Schedule or Publish.

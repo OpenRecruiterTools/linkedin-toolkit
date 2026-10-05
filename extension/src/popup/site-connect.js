@@ -7,17 +7,11 @@
  * site and puts the bridge script on it.
  */
 import { el, render } from '../ui/dom.js';
+import { siteOf } from '../lib/compose.js';     // the same https-only rule the background applies
 
 const LINKEDIN = 'https://www.linkedin.com';
 
-export function siteOf(url) {
-  try {
-    const u = new URL(url);
-    return u.protocol === 'https:' || u.protocol === 'http:' ? u.origin : null;
-  } catch {
-    return null;
-  }
-}
+export { siteOf };
 
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

@@ -130,3 +130,29 @@ describe('the router', () => {
     expect(res.ok).toBe(true);
   });
 });
+
+describe('security review fixes', () => {
+  it('only https sites (or this computer, for development) can be connected', async () => {
+    const { siteOf } = await import('../../src/lib/compose.js');
+    expect(siteOf('http://jobs.example.com/x')).toBe(null);
+    expect(siteOf('https://jobs.example.com/x')).toBe('https://jobs.example.com');
+    expect(siteOf('http://127.0.0.1:8010/studio/')).toBe('http://127.0.0.1:8010');
+    expect(siteOf('http://localhost:3000/')).toBe('http://localhost:3000');
+    expect((await connectSite('http://jobs.example.com/')).ok).toBe(false);
+  });
+
+  it('a file is named after its checked type, whatever name the site gave it', () => {
+    const out = checkDraft({ text: 'hi', file: { name: 'invoice.pdf.exe', type: 'application/pdf', data: btoa('%PDF') } });
+    expect(out.draft.file.name).toBe('invoice.pdf');
+    const img = checkDraft({ text: 'hi', file: { name: 'photo.html', type: 'image/png', data: btoa('png') } });
+    expect(img.draft.file.name).toBe('photo.png');
+  });
+
+  it('a file to save is checked again, so only a supported type is ever downloaded', async () => {
+    const bad = { name: 'run.exe', type: 'application/x-msdownload', data: btoa('MZ') };
+    expect((await handleComposeMessage({ type: 'LIT_COMPOSE_DOWNLOAD', file: bad }, fromLinkedIn)).ok).toBe(false);
+    const sneaky = { name: 'run.exe', type: 'application/pdf', data: btoa('%PDF') };
+    await handleComposeMessage({ type: 'LIT_COMPOSE_DOWNLOAD', file: sneaky }, fromLinkedIn);
+    expect(mock().downloads.at(-1).filename).toBe('run.pdf');
+  });
+});
