@@ -109,6 +109,7 @@ describe('Inbox tab', () => {
     expect(engine.paramsFor(ACTIONS.OUTREACH_MESSAGE)).toEqual({
       publicId: 'ada',
       body: 'Happy to talk Thursday.',
+      threadId: 't1',
     });
     expect(host.textContent).toContain('Queued for your approval');
   });

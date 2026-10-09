@@ -1005,9 +1005,83 @@ describe('writes', () => {
     const call = net.calls[net.calls.length - 1];
     expect(call.method).toBe('POST');
     expect(call.url).toContain('action=createMessage');
+    expect(call.headers.accept).toBe('application/json');
+    expect(call.headers['content-type']).toBe('text/plain;charset=UTF-8');
     expect(call.json.mailboxUrn).toBe(SELF_URN);
     expect(call.json.hostRecipientUrns).toEqual(['urn:li:fsd_profile:ACoAAAada']);
     expect(call.json.message.body.text).toBe('Hi');
+    expect(call.json.message.originToken).toEqual(expect.any(String));
+    expect(call.json.trackingId).toHaveLength(16);
+  });
+
+  it('matches the UI payload when replying in an existing conversation', async () => {
+    net.push({});
+    await v.sendMessage({
+      recipientUrn: 'urn:li:fsd_profile:ACoAAAada',
+      body: 'Hi again',
+      threadId: '2-thread1',
+    });
+    const call = net.calls[net.calls.length - 1];
+    expect(call.json.message.conversationUrn).toContain('2-thread1');
+    expect(call.json.message.originToken).toEqual(expect.any(String));
+    expect(call.json.hostRecipientUrns).toBeUndefined();
+  });
+
+  it('preserves a LinkedIn createMessage refusal in the surfaced error', async () => {
+    net.push(status(400, { data: { code: 'INVALID_MESSAGE', message: 'Recipient cannot be messaged.' } }));
+
+    await expect(
+      v.sendMessage({ recipientUrn: 'urn:li:fsd_profile:ACoAAAada', body: 'Hi' }),
+    ).rejects.toMatchObject({
+      code: ERROR.LINKEDIN_ERROR,
+      message: expect.stringContaining('INVALID_MESSAGE: Recipient cannot be messaged.'),
+    });
+  });
+
+  it('uploads a message attachment before creating the message', async () => {
+    net.push({
+      data: {
+        value: {
+          urn: 'urn:li:digitalmediaAsset:asset1',
+          singleUploadUrl: 'https://www.linkedin.com/dms-uploads/upload1',
+          singleUploadHeaders: { 'media-type-family': 'PAGINATEDDOCUMENT' },
+        },
+      },
+    });
+    net.push({});
+    net.push({});
+
+    await v.sendMessage({
+      recipientUrn: 'urn:li:fsd_profile:ACoAAAada',
+      body: 'Please find my CV attached.',
+      threadId: '2-thread1',
+      attachment: {
+        name: 'CV.pdf',
+        mimeType: 'application/pdf',
+        byteSize: 3,
+        dataBase64: 'YWJj',
+      },
+    });
+
+    const upload = net.calls.find((call) => call.method === 'PUT');
+    const message = net.calls[net.calls.length - 1];
+    expect(upload.url).toBe('https://www.linkedin.com/dms-uploads/upload1');
+    expect(upload.headers['content-type']).toBe('application/pdf');
+    expect(upload.headers['media-type-family']).toBe('PAGINATEDDOCUMENT');
+    expect([...upload.body]).toEqual([97, 98, 99]);
+    expect(message.json.message.conversationUrn).toContain('2-thread1');
+    expect(message.json.message.originToken).toEqual(expect.any(String));
+    expect(message.json.message.renderContentUnions).toEqual([
+      {
+        file: {
+          assetUrn: 'urn:li:digitalmediaAsset:asset1',
+          byteSize: 3,
+          mediaType: 'application/pdf',
+          name: 'CV.pdf',
+          url: expect.stringMatching(/^blob:https:\/\/www\.linkedin\.com\//),
+        },
+      },
+    ]);
   });
 
   it('sendInMail carries the subject', async () => {

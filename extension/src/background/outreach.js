@@ -57,10 +57,12 @@ const SENDERS = {
     }),
   // Resolving a urn from a public id is a profileView, so it is metered as a
   // visit on top of the message's own bucket.
-  [ACTIONS.OUTREACH_MESSAGE]: async ({ publicId, body, recipientUrn }) =>
+  [ACTIONS.OUTREACH_MESSAGE]: async ({ publicId, body, recipientUrn, threadId, attachment }) =>
     voyager.sendMessage({
       recipientUrn: recipientUrn || (await meteredProfileUrn(publicId)),
       body,
+      threadId,
+      attachment,
     }),
   [ACTIONS.OUTREACH_INMAIL]: async ({ publicId, subject, body, recipientUrn }) =>
     voyager.sendInMail({
