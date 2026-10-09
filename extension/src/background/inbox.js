@@ -91,32 +91,43 @@ async function saveMessages(threadId, incoming) {
 /*  Reads                                                             */
 /* ================================================================== */
 
-async function fetchAllThreads(count) {
-  const requested = Number.isFinite(Number(count)) ? Number(count) : 20;
-  const pageSize = Math.max(1, Math.min(Math.round(requested), 100));
+/** The most conversations one `inbox.threads` call will page through. */
+export const MAX_THREADS = 2000;
+
+/**
+ * Page through the inbox newest first, following LinkedIn's `nextCursor`,
+ * until `count` conversations are in hand, LinkedIn has no more, or (with
+ * `since`) the pages have gone older than `since`. `count` is the total:
+ * the popup's 25 is one request, not a walk through the whole inbox.
+ */
+async function fetchThreads(count, since = 0) {
+  const requested = Number.isFinite(Number(count)) ? Math.round(Number(count)) : 20;
+  const wanted = Math.max(1, Math.min(requested, MAX_THREADS));
+  const pageSize = Math.min(wanted, 100);
   const byId = new Map();
   let nextCursor;
-  let done = false;
 
-  while (!done) {
-    const params = { count: pageSize };
+  while (byId.size < wanted) {
+    const params = { count: Math.min(pageSize, wanted - byId.size) };
     if (nextCursor) params.nextCursor = nextCursor;
 
     const { threads: page = [], nextCursor: cursor } = await voyager.getConversations(params);
-    if (!page.length) {
-      done = true;
-      continue;
-    }
+    if (!page.length) break;
 
     for (const thread of page) {
       if (thread.threadId) byId.set(thread.threadId, thread);
     }
 
-    if (!cursor || cursor === nextCursor) done = true;
-    else nextCursor = cursor;
+    // Newest first: once this page reaches back past `since`, older pages
+    // cannot hold anything the caller asked for.
+    const oldest = Math.min(...page.map((t) => t.lastMessageAt || 0));
+    if (since && oldest && oldest <= since) break;
+
+    if (!cursor || cursor === nextCursor) break;
+    nextCursor = cursor;
   }
 
-  return [...byId.values()];
+  return [...byId.values()].slice(0, wanted);
 }
 
 /**
@@ -124,7 +135,7 @@ async function fetchAllThreads(count) {
  * @returns {Promise<{threads: Thread[]}>}
  */
 export async function threads({ since = 0, unreadOnly = false, count = 20 } = {}) {
-  const fetched = await fetchAllThreads(count);
+  const fetched = await fetchThreads(count, since);
   const stored = await saveThreads(fetched);
 
   let out = stored;

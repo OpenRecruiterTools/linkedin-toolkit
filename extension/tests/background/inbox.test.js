@@ -81,12 +81,43 @@ describe('inbox.threads', () => {
     net.push(conversationPage([0], 'cursor-2'));
     net.push(conversationPage([1]));
 
-    const res = await handle(ACTIONS.INBOX_THREADS, { count: 1 });
+    const res = await handle(ACTIONS.INBOX_THREADS, { count: 2 });
 
     expect(res.data.threads).toHaveLength(2);
     expect(net.query(0).get('variables')).toContain('category:PRIMARY_INBOX');
     expect(net.query(0).get('variables')).not.toContain('nextCursor');
     expect(net.query(1).get('variables')).toContain('nextCursor:cursor-2');
+  });
+});
+
+describe('inbox.threads paging is bounded', () => {
+  const inboxCalls = () => net.calls.filter((c) => c.url.includes('messengerConversations')).length;
+
+  it('treats count as the total: one page when it is enough, even with a cursor', async () => {
+    net.push(conversationPage([0], 'cursor-2'));
+    net.push(conversationPage([1]));
+
+    const res = await handle(ACTIONS.INBOX_THREADS, { count: 1 });
+
+    expect(res.data.threads).toHaveLength(1);
+    expect(inboxCalls()).toBe(1);
+  });
+
+  it('stops paging once the pages are older than since', async () => {
+    net.push(conversationPage([1], 'cursor-2'));
+    net.push(conversationPage([0]));
+
+    await handle(ACTIONS.INBOX_THREADS, { count: 100, since: 1757000000000 });
+
+    expect(inboxCalls()).toBe(1);
+  });
+
+  it('never asks LinkedIn for more than the most it will page through', async () => {
+    net.push(conversationPage([0]));
+
+    await handle(ACTIONS.INBOX_THREADS, { count: 1e9 });
+
+    expect(net.query(0).get('variables')).toContain('count:100');
   });
 });
 

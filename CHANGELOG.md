@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **The inbox reads past the first page again** (#23, thanks @kovalev-sergey). LinkedIn's messaging
+  endpoint now expects the `PRIMARY_INBOX` category and an opaque `nextCursor`; the old `INBOX`
+  plus `lastUpdatedBefore` request only ever returned the newest 25 conversations.
+  `linkedin_get_conversations` / `inbox.threads` now follows the cursor.
+- **`count` is the total, not a page size.** Paging stops once `count` conversations are in hand
+  (at most 2,000 per call, 100 per request), and with `since` it stops as soon as the pages are
+  older than `since`, so the popup's Inbox tab is still one request, not a walk through the whole
+  inbox. Spam and archived conversations are no longer included: the query reads the main inbox.
+
 ## [2.1.1] — 2026-09-30 — extension, and the server so `lit setup` fetches it
 
 The extension moves from 2.0.4 to 2.1.1. The server, the CLI and the clients are unchanged at
