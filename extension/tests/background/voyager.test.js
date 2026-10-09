@@ -692,9 +692,9 @@ describe('messaging', () => {
     // variables by exactly these names in exactly this order.
     expect(call.url).not.toContain('includeWebMetadata');
     expect(call.url).toContain(
-      `variables=(categories:List(INBOX,SPAM,ARCHIVE),count:20,firstDegreeConnections:false,mailboxUrn:${encodeURIComponent(SELF_URN)},read:false)`,
+      `variables=(query:(predicateUnions:List((conversationCategoryPredicate:(category:PRIMARY_INBOX)))),count:20,mailboxUrn:${encodeURIComponent(SELF_URN)})`,
     );
-    expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.conversations}`);
+    expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.conversationsByCategory}`);
 
     expect(out.threads).toHaveLength(2);
     expect(out.threads[0]).toMatchObject({
@@ -771,13 +771,16 @@ describe('messaging', () => {
     expect(out.messages[0].fromUrn).toBe(SELF_URN);
   });
 
-  it('pages the inbox by category with a lastUpdatedBefore cursor', async () => {
-    net.push(conversations);
-    await v.getConversations({ count: 20, createdBefore: 1757000000000 });
+  it('returns the opaque nextCursor from the inbox response', async () => {
+    const page = structuredClone(conversations);
+    page.data.data.messengerConversationsByCategoryQuery.metadata.nextCursor = 'cursor-2';
+    net.push(page);
+    const out = await v.getConversations({ count: 20, nextCursor: 'cursor-1' });
     const call = net.calls.find((c) => c.url.includes('messengerConversations'));
     expect(call.url).toContain(`queryId=${v.ENDPOINTS.queryIds.conversationsByCategory}`);
-    expect(decodeURIComponent(call.url)).toContain('conversationCategoryPredicate:(category:INBOX)');
-    expect(decodeURIComponent(call.url)).toContain('lastUpdatedBefore:1757000000000');
+    expect(decodeURIComponent(call.url)).toContain('conversationCategoryPredicate:(category:PRIMARY_INBOX)');
+    expect(decodeURIComponent(call.url)).toContain('nextCursor:cursor-1');
+    expect(out.nextCursor).toBe('cursor-2');
   });
 
   it('anchors the message read on a timestamp', async () => {

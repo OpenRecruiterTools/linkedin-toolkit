@@ -91,12 +91,40 @@ async function saveMessages(threadId, incoming) {
 /*  Reads                                                             */
 /* ================================================================== */
 
+async function fetchAllThreads(count) {
+  const requested = Number.isFinite(Number(count)) ? Number(count) : 20;
+  const pageSize = Math.max(1, Math.min(Math.round(requested), 100));
+  const byId = new Map();
+  let nextCursor;
+  let done = false;
+
+  while (!done) {
+    const params = { count: pageSize };
+    if (nextCursor) params.nextCursor = nextCursor;
+
+    const { threads: page = [], nextCursor: cursor } = await voyager.getConversations(params);
+    if (!page.length) {
+      done = true;
+      continue;
+    }
+
+    for (const thread of page) {
+      if (thread.threadId) byId.set(thread.threadId, thread);
+    }
+
+    if (!cursor || cursor === nextCursor) done = true;
+    else nextCursor = cursor;
+  }
+
+  return [...byId.values()];
+}
+
 /**
  * Refresh from LinkedIn, then filter.
  * @returns {Promise<{threads: Thread[]}>}
  */
 export async function threads({ since = 0, unreadOnly = false, count = 20 } = {}) {
-  const { threads: fetched } = await voyager.getConversations({ count });
+  const fetched = await fetchAllThreads(count);
   const stored = await saveThreads(fetched);
 
   let out = stored;

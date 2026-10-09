@@ -32,6 +32,14 @@ const conversationList = (payload) =>
   payload.data.data.messengerConversationsByCategoryQuery.elements;
 const messageList = (payload) => payload.data.data.messengerMessagesByConversation.elements;
 
+function conversationPage(indexes, nextCursor) {
+  const page = structuredClone(conversations);
+  const collection = page.data.data.messengerConversationsByCategoryQuery;
+  collection.elements = indexes.map((index) => collection.elements[index]);
+  if (nextCursor) collection.metadata.nextCursor = nextCursor;
+  return page;
+}
+
 /** The conversation list with one newer inbound message on thread 2-abc123. */
 function withNewReply(text, at = 1757900000000) {
   const clone = structuredClone(conversations);
@@ -67,6 +75,18 @@ describe('inbox.threads', () => {
     net.push(conversations);
     const recent = await handle(ACTIONS.INBOX_THREADS, { since: 1757000000000 });
     expect(recent.data.threads.map((t) => t.threadId)).toEqual(['2-abc123']);
+  });
+
+  it('follows LinkedIn nextCursor pages', async () => {
+    net.push(conversationPage([0], 'cursor-2'));
+    net.push(conversationPage([1]));
+
+    const res = await handle(ACTIONS.INBOX_THREADS, { count: 1 });
+
+    expect(res.data.threads).toHaveLength(2);
+    expect(net.query(0).get('variables')).toContain('category:PRIMARY_INBOX');
+    expect(net.query(0).get('variables')).not.toContain('nextCursor');
+    expect(net.query(1).get('variables')).toContain('nextCursor:cursor-2');
   });
 });
 
