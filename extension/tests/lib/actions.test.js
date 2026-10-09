@@ -248,6 +248,25 @@ describe('validateParams', () => {
     expect(validateParams('queue.list', { status: 'gone' }).ok).toBe(false);
   });
 
+  it('validates message attachment bytes', () => {
+    const attachment = {
+      name: 'CV.pdf',
+      mimeType: 'application/pdf',
+      byteSize: 3,
+      dataBase64: 'YWJj',
+    };
+    expect(validateParams('outreach.message', { publicId: 'dom', body: 'Hi', attachment }).ok).toBe(
+      true,
+    );
+    expect(
+      validateParams('outreach.message', {
+        publicId: 'dom',
+        body: 'Hi',
+        attachment: { ...attachment, byteSize: 4 },
+      }).ok,
+    ).toBe(false);
+  });
+
   it('has a spec for every action in ACTIONS', () => {
     for (const action of Object.values(ACTIONS)) {
       const res = validateParams(action, {});

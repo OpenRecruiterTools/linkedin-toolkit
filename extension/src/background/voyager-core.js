@@ -159,7 +159,12 @@ export async function voyagerFetch(path, options = {}) {
   // is the whole point. The request is allowed to go where LinkedIn sends it,
   // and then we look at where it ended up. That is all we do with a redirect.
   const init = { ...options, headers, credentials: 'include', redirect: 'follow' };
-  if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+  const isBinaryBody =
+    (typeof FormData !== 'undefined' && init.body instanceof FormData) ||
+    (typeof Blob !== 'undefined' && init.body instanceof Blob) ||
+    (typeof ArrayBuffer !== 'undefined' && init.body instanceof ArrayBuffer) ||
+    (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(init.body));
+  if (init.body && typeof init.body === 'object' && !isBinaryBody) {
     // A caller may pin an exact content-type — the invitation write sends the
     // `; charset=UTF-8` spelling the web client sends — so only fill it in.
     if (!headers['content-type']) headers['content-type'] = 'application/json';
@@ -270,6 +275,13 @@ export function generateTrackingId() {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+}
+
+/** The messaging web client sends its 16 random bytes as a binary string. */
+export function generateMessageTrackingId() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return String.fromCharCode(...bytes);
 }
 
 /** Build a query string, dropping undefined/null/'' values. */

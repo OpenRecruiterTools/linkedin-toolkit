@@ -96,6 +96,32 @@ export const MessageSchema = z
   })
   .passthrough();
 
+export const MessageAttachmentSchema = z
+  .object({
+    name: z.string().min(1),
+    mimeType: z.string().min(1),
+    byteSize: z.number().int().positive().max(10 * 1024 * 1024),
+    dataBase64: z
+      .string()
+      .min(1)
+      .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+  })
+  .superRefine((attachment, context) => {
+    const padding = attachment.dataBase64.endsWith('==')
+      ? 2
+      : attachment.dataBase64.endsWith('=')
+        ? 1
+        : 0;
+    const decodedBytes = Math.floor((attachment.dataBase64.length * 3) / 4) - padding;
+    if (decodedBytes !== attachment.byteSize) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['byteSize'],
+        message: 'dataBase64 does not match byteSize',
+      });
+    }
+  });
+
 export const ListSchema = z
   .object({
     listId: z.string(),
@@ -510,7 +536,12 @@ export const PARAMS = {
   'outreach.view': z.object({ publicId: z.string() }),
   'outreach.follow': z.object({ publicId: z.string() }),
   'outreach.invite': z.object({ publicId: z.string(), note: z.string().optional() }),
-  'outreach.message': z.object({ publicId: z.string(), body: z.string() }),
+  'outreach.message': z.object({
+    publicId: z.string(),
+    body: z.string(),
+    threadId: z.string().optional(),
+    attachment: MessageAttachmentSchema.optional(),
+  }),
   'outreach.inmail': z.object({ publicId: z.string(), subject: z.string(), body: z.string() }),
   'outreach.like': z.object({ postUrl: z.string() }),
   'outreach.comment': z.object({ postUrl: z.string(), body: z.string() }),

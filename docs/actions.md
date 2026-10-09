@@ -27,7 +27,7 @@ This file is the source of truth for the LinkedIn Toolkit v2 contract. Every lay
 | `outreach.view` | `{ publicId }` | `WriteResult` |
 | `outreach.follow` | `{ publicId }` | `WriteResult` |
 | `outreach.invite` | `{ publicId, note? }` | `WriteResult` — `note` is at most **200 characters**, LinkedIn's own limit; a longer one is refused with `INVALID_PARAMS` and `howToFix: 'LinkedIn limits invitation notes to 200 characters.'` before any quota is spent, and a campaign step whose rendered note overruns is truncated at a word boundary with a `campaign_note_truncated` event rather than failing. Free accounts also get only a small monthly allowance of personalised (with-note) invitations; exhausting it comes back as `LINKEDIN_ERROR` |
-| `outreach.message` | `{ publicId, body }` | `WriteResult` |
+| `outreach.message` | `{ publicId, body, threadId?, attachment?: { name, mimeType, byteSize, dataBase64 } }` | `WriteResult` — an attachment is uploaded and added to the message after approval; base64 attachments are limited to 10 MB |
 | `outreach.inmail` | `{ publicId, subject, body }` | `WriteResult` |
 | `outreach.like` | `{ postUrl }` | `WriteResult` |
 | `outreach.comment` | `{ postUrl, body }` | `WriteResult` |
