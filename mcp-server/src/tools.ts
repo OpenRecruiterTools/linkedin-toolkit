@@ -19,7 +19,7 @@ import { registerPrompts } from './prompts.js';
 import type { Toolkit } from './toolkit.js';
 
 export const SERVER_NAME = 'linkedin-toolkit';
-export const SERVER_VERSION = '2.1.1';
+export const SERVER_VERSION = '2.2.0';
 
 /**
  * A tool result: the JSON text an agent reads plus machine-readable output.

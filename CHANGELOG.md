@@ -5,9 +5,24 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] — 2026-11-11
+
+Everything moves to 2.2.0 together (extension, server and CLI, Node, Python and n8n clients) because
+the `outreach.message` contract gained two optional fields.
+
+**Not yet run against live LinkedIn:** the new message payload, attachment upload and the compose
+post-box steps are built from LinkedIn's web client and covered by offline tests only. If LinkedIn
+answers in a shape this build does not understand, the action stops with `LINKEDIN_ERROR` and
+says what LinkedIn returned; nothing retries.
 
 ### Added
+- **Message attachments** (#24, thanks @kovalev-sergey). `outreach.message` /
+  `linkedin_send_message` take an optional `attachment: { name, mimeType, byteSize, dataBase64 }`
+  (up to 10 MB), and `lit message --attachment <path>` reads a local file. The file is uploaded
+  only after approval. The approval card names the file and its size, and `queue.list` and dry runs
+  show the name, type and size but never the data.
+- **Reply into an existing conversation.** `outreach.message` takes an optional `threadId`; the
+  popup's Inbox replies now use it, so a reply lands in the same thread instead of starting a new one.
 - **Compose a post from a website.** Open the toolkit on a site and press **Connect this site**;
   that site can then hand the toolkit a draft (text and one PDF, image or video) with
   `window.postMessage`. The toolkit opens LinkedIn's post box, attaches the file, types the text
@@ -15,6 +30,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   one site only, and if LinkedIn's page has changed the file goes to Downloads with a plain note.
   See [`docs/compose-from-websites.md`](docs/compose-from-websites.md). The LinkedIn post-box steps
   are built from LinkedIn's labels and have not yet been run against the live site.
+
+### Changed
+- **The message send matches LinkedIn's web client:** an `originToken`, a binary `trackingId`, and
+  `conversationUrn` instead of `hostRecipientUrns` when replying. A refused send now says what
+  LinkedIn answered.
+- **The HTTP API accepts request bodies up to 16 MB** (was 8 MB), so a 10 MB attachment fits.
 
 ### Fixed
 - **The inbox reads past the first page again** (#23, thanks @kovalev-sergey). LinkedIn's messaging
