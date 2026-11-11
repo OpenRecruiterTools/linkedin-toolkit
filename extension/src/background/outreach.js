@@ -12,7 +12,7 @@
  * `contactedBefore`, campaign stats and `sync.pull` read.
  */
 
-import { ACTIONS, ERROR } from '../lib/actions.js';
+import { ACTIONS, ERROR, withoutAttachmentData } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { getStoredProfile, logAction, putProfile } from '../lib/storage.js';
 import { register, setRateLimitProvider } from './engine.js';
@@ -57,10 +57,12 @@ const SENDERS = {
     }),
   // Resolving a urn from a public id is a profileView, so it is metered as a
   // visit on top of the message's own bucket.
-  [ACTIONS.OUTREACH_MESSAGE]: async ({ publicId, body, recipientUrn }) =>
+  [ACTIONS.OUTREACH_MESSAGE]: async ({ publicId, body, recipientUrn, threadId, attachment }) =>
     voyager.sendMessage({
       recipientUrn: recipientUrn || (await meteredProfileUrn(publicId)),
       body,
+      threadId,
+      attachment,
     }),
   [ACTIONS.OUTREACH_INMAIL]: async ({ publicId, subject, body, recipientUrn }) =>
     voyager.sendInMail({
@@ -166,7 +168,7 @@ export async function dispatch(action, rawParams, origin) {
   const { params, context } = splitParams(rawParams, origin);
 
   if (isDryRun(rawParams)) {
-    return { status: 'dryRun', wouldSend: { action, params } };
+    return { status: 'dryRun', wouldSend: { action, params: withoutAttachmentData(params) } };
   }
 
   if (DIRECT_ORIGINS.has(origin) || !queue.isQueueable(action)) {

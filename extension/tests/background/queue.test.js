@@ -313,6 +313,43 @@ describe('the send path', () => {
   });
 });
 
+describe('message attachments', () => {
+  // "hello" — five bytes, so byteSize and the base64 agree.
+  const attachment = {
+    name: 'one-pager.pdf',
+    mimeType: 'application/pdf',
+    byteSize: 5,
+    dataBase64: 'aGVsbG8=',
+  };
+  const message = (params) =>
+    handle(
+      ACTIONS.OUTREACH_MESSAGE,
+      { publicId: 'adalovelace', body: 'Hello', attachment, ...params },
+      'mcp',
+    );
+
+  it('queue.list names the file but does not hand the file back', async () => {
+    await message();
+    const [item] = (await handle(ACTIONS.QUEUE_LIST, {})).data.items;
+    expect(item.params.attachment).toEqual({
+      name: 'one-pager.pdf',
+      mimeType: 'application/pdf',
+      byteSize: 5,
+    });
+    // The stored item keeps the data, so approving it can still upload it.
+    expect((await queue.list())[0].params.attachment.dataBase64).toBe('aGVsbG8=');
+  });
+
+  it('a dry run describes the attachment without echoing it', async () => {
+    const res = await message({ dry_run: true });
+    expect(res.data.wouldSend.params.attachment).toEqual({
+      name: 'one-pager.pdf',
+      mimeType: 'application/pdf',
+      byteSize: 5,
+    });
+  });
+});
+
 describe('queue.list / approve / reject', () => {
   it('lists by status', async () => {
     await invite('mcp');

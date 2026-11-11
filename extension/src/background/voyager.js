@@ -18,6 +18,7 @@ import { ERROR, EngineError, INVITE_NOTE_FIX, INVITE_NOTE_MAX } from '../lib/act
 import { collection } from './normalized.js';
 import {
   LINKEDIN_BASE,
+  generateMessageTrackingId,
   generateTrackingId,
   graphql,
   messagingGraphql,
@@ -223,6 +224,7 @@ export const ENDPOINTS = Object.freeze({
     recruiterSearch: `${LINKEDIN_BASE}/talent/api/talentRecruiterSearch`,
     followingStates: '/feed/dash/followingStates',
     createMessage: '/voyagerMessagingDashMessengerMessages',
+    messageAttachmentMetadata: '/voyagerVideoDashMediaUploadMetadata',
     createComment: '/feed/comments',
     createReaction: '/feed/reactions',
   }),
@@ -240,6 +242,18 @@ const ACT_ON_THESE = new Set([
   ERROR.INVALID_PARAMS,
 ]);
 
+function unverifiedDetail(error) {
+  const response = error && error.response;
+  const data = response && response.data ? response.data : response;
+  const code = data && (data.code || data.errorCode);
+  const message = data && (data.message || (data.error && data.error.message));
+  if (code || message) {
+    return ` LinkedIn said${code ? ` ${code}` : ''}${message ? `: ${message}` : ''}.`;
+  }
+  if (error && error.status) return ` LinkedIn returned HTTP ${error.status}.`;
+  return '';
+}
+
 /**
  * Run an unverified endpoint, turning "LinkedIn answered something we do not
  * recognise" into one honest error.
@@ -255,7 +269,8 @@ async function unverified(name, run) {
     if (e instanceof EngineError && ACT_ON_THESE.has(e.code)) throw e;
     throw new EngineError(
       ERROR.LINKEDIN_ERROR,
-      `LinkedIn did not answer the unverified '${name}' endpoint in a shape this build understands.`,
+      `LinkedIn did not answer the unverified '${name}' endpoint in a shape this build understands.${name === 'createMessage' ? unverifiedDetail(e) : ''
+      }`,
       { howToFix: UNVERIFIED_FIX },
     );
   }
@@ -898,6 +913,64 @@ export async function unfollowProfile({ profileUrn }) {
 /*  Messaging                                                         */
 /* ================================================================== */
 
+function decodeAttachment(dataBase64) {
+  try {
+    const binary = atob(dataBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  } catch {
+    throw new EngineError(ERROR.INVALID_PARAMS, 'Attachment data is not valid base64.');
+  }
+}
+
+async function uploadMessageAttachment(attachment) {
+  const bytes = decodeAttachment(attachment.dataBase64);
+  if (bytes.byteLength !== attachment.byteSize) {
+    throw new EngineError(ERROR.INVALID_PARAMS, 'Attachment data does not match its byte size.');
+  }
+
+  const metadata = await unverified('messageAttachmentMetadata', () =>
+    voyagerFetch(`${ENDPOINTS.unverified.messageAttachmentMetadata}?action=upload`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=UTF-8' },
+      body: {
+        mediaUploadType: 'MESSAGING_FILE_ATTACHMENT',
+        fileSize: attachment.byteSize,
+        filename: attachment.name,
+      },
+    }),
+  );
+  const value = metadata?.data?.value || metadata?.value || {};
+  if (!value.singleUploadUrl || !value.urn) {
+    throw new EngineError(
+      ERROR.LINKEDIN_ERROR,
+      'LinkedIn did not return message attachment upload metadata.',
+    );
+  }
+
+  await unverified('messageAttachmentUpload', () =>
+    voyagerFetch(value.singleUploadUrl, {
+      method: 'PUT',
+      headers: {
+        'content-type': attachment.mimeType,
+        'media-type-family': value.singleUploadHeaders?.['media-type-family'] || 'PAGINATEDDOCUMENT',
+      },
+      body: bytes,
+    }),
+  );
+
+  return {
+    assetUrn: value.urn,
+    byteSize: attachment.byteSize,
+    mediaType: attachment.mimeType,
+    name: attachment.name,
+    url: `blob:${LINKEDIN_BASE}/${crypto.randomUUID()}`,
+  };
+}
+
 /**
  * The conversation list.
  *
@@ -1148,6 +1221,8 @@ export async function sendMessage({
   body,
   subtype = 'MEMBER_TO_MEMBER',
   inmailSubject,
+  threadId,
+  attachment,
 }) {
   if (!recipientUrn) throw new EngineError(ERROR.INVALID_PARAMS, 'recipientUrn is required.');
   if (!body) throw new EngineError(ERROR.INVALID_PARAMS, 'Message body cannot be empty.');
@@ -1157,21 +1232,30 @@ export async function sendMessage({
     body: { text: body, attributes: [] },
     renderContentUnions: [],
     conversationTitle: undefined,
+    originToken: crypto.randomUUID(),
   };
+  if (threadId) message.conversationUrn = conversationUrn(mailboxUrn, threadId);
+  if (attachment) {
+    message.renderContentUnions.push({ file: await uploadMessageAttachment(attachment) });
+  }
   if (subtype === 'INMAIL' && inmailSubject) message.subject = inmailSubject;
 
   const payload = {
     message,
     mailboxUrn,
-    trackingId: generateTrackingId(),
+    trackingId: generateMessageTrackingId(),
     dedupeByClientGeneratedToken: false,
-    hostRecipientUrns: [toFsdProfileUrn(recipientUrn)],
   };
+  if (!threadId) payload.hostRecipientUrns = [toFsdProfileUrn(recipientUrn)];
   if (subtype === 'INMAIL') payload.messageSubtype = 'INMAIL';
 
   return unverified('createMessage', () =>
     voyagerFetch(`${ENDPOINTS.unverified.createMessage}?action=createMessage`, {
       method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'text/plain;charset=UTF-8',
+      },
       body: payload,
     }),
   );

@@ -9,6 +9,13 @@
 import { el, render, fmtAgo, fmtNumber } from '../../ui/dom.js';
 import { call } from '../../ui/api.js';
 import { ACTIONS } from '../../lib/actions.js';
+
+function fmtFileSize(bytes) {
+  if (!Number.isFinite(bytes)) return 'unknown size';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 import {
   card,
   row,
@@ -130,6 +137,16 @@ export async function mount(container) {
         ? el('div', { class: 'item-sub mono' }, `Subject: ${item.params.subject}`)
         : null,
       area,
+      // Whoever approves must know a file goes with the message, not just the text.
+      item.params && item.params.attachment
+        ? el(
+            'div',
+            { class: 'item-sub mono', 'data-attachment': item.id },
+            `Attachment: ${item.params.attachment.name} (${fmtFileSize(
+              item.params.attachment.byteSize,
+            )})`,
+          )
+        : null,
       el('div', { class: 'item-sub' }, `Queued ${fmtAgo(item.createdAt)}`),
       editable
         ? el(

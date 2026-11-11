@@ -234,6 +234,7 @@ export async function mount(container) {
             const result = await call(ACTIONS.OUTREACH_MESSAGE, {
               publicId: person.publicId,
               body: body.value.trim(),
+              threadId: thread.threadId,
             });
             flash.set(
               result.status === 'queued'

@@ -1093,6 +1093,24 @@ export const ACTIONS: ActionSpec[] = [
     ],
     "optional": [
       {
+        "name": "outreach_message_threadId",
+        "key": "threadId",
+        "displayName": "Thread ID",
+        "required": false,
+        "description": "The Thread ID parameter.",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "name": "outreach_message_attachment",
+        "key": "attachment",
+        "displayName": "Attachment",
+        "required": false,
+        "description": "The Attachment parameter. JSON object.",
+        "type": "json",
+        "default": "{}"
+      },
+      {
         "name": "outreach_message_dry_run",
         "key": "dry_run",
         "displayName": "Dry Run",

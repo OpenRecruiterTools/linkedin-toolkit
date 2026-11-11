@@ -320,7 +320,7 @@ class ActionMethods:
         params = {"publicId": publicId, "note": note, "dry_run": dry_run}
         return self._invoke("outreach.invite", {k: v for k, v in params.items() if v is not None})
 
-    def outreach_message(self, *, publicId: str, body: str, dry_run: Optional[bool] = None) -> Any:
+    def outreach_message(self, *, publicId: str, body: str, threadId: Optional[str] = None, attachment: Optional[dict[str, Any]] = None, dry_run: Optional[bool] = None) -> Any:
         """``outreach.message``.
 
         Send a direct message to a first-degree connection. Hard cap 150 messages/day; in
@@ -329,9 +329,11 @@ class ActionMethods:
         Args:
             publicId (str): Required.
             body (str): Required.
+            threadId (str): Optional.
+            attachment (dict[str, Any]): Optional.
             dry_run (bool): Preview the write without queueing or sending it. Optional.
         """
-        params = {"publicId": publicId, "body": body, "dry_run": dry_run}
+        params = {"publicId": publicId, "body": body, "threadId": threadId, "attachment": attachment, "dry_run": dry_run}
         return self._invoke("outreach.message", {k: v for k, v in params.items() if v is not None})
 
     def outreach_inmail(self, *, publicId: str, subject: str, body: str, dry_run: Optional[bool] = None) -> Any:
