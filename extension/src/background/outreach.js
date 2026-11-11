@@ -12,7 +12,7 @@
  * `contactedBefore`, campaign stats and `sync.pull` read.
  */
 
-import { ACTIONS, ERROR } from '../lib/actions.js';
+import { ACTIONS, ERROR, withoutAttachmentData } from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { getStoredProfile, logAction, putProfile } from '../lib/storage.js';
 import { register, setRateLimitProvider } from './engine.js';
@@ -168,7 +168,7 @@ export async function dispatch(action, rawParams, origin) {
   const { params, context } = splitParams(rawParams, origin);
 
   if (isDryRun(rawParams)) {
-    return { status: 'dryRun', wouldSend: { action, params } };
+    return { status: 'dryRun', wouldSend: { action, params: withoutAttachmentData(params) } };
   }
 
   if (DIRECT_ORIGINS.has(origin) || !queue.isQueueable(action)) {

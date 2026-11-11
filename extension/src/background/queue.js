@@ -17,7 +17,14 @@
  * imported, so the two modules do not form an import cycle.
  */
 
-import { ACTIONS, ERROR, EVENTS, EngineError, validateParams } from '../lib/actions.js';
+import {
+  ACTIONS,
+  ERROR,
+  EVENTS,
+  EngineError,
+  validateParams,
+  withoutAttachmentData,
+} from '../lib/actions.js';
 import { getConfig } from '../lib/config.js';
 import { K, get, newId, set, stamp, update, withKeyLock } from '../lib/storage.js';
 import { emit } from './events.js';
@@ -304,7 +311,12 @@ async function assertMayDecide(origin) {
   throw new EngineError(ERROR.UNAUTHORIZED, APPROVAL_IS_HUMAN);
 }
 
-register(ACTIONS.QUEUE_LIST, async ({ status }) => ({ items: await list(status) }));
+register(ACTIONS.QUEUE_LIST, async ({ status }) => ({
+  items: (await list(status)).map((item) => ({
+    ...item,
+    params: withoutAttachmentData(item.params),
+  })),
+}));
 register(ACTIONS.QUEUE_APPROVE, async ({ ids, edits }, ctx = {}) => {
   await assertMayDecide(ctx.origin);
   return approve(ids, edits);

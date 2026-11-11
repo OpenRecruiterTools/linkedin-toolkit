@@ -189,6 +189,26 @@ describe('Queue tab', () => {
     expect(host.querySelector('[data-item="q2"]').value).toBe('Hello Grace');
   });
 
+  it('tells the approver a file goes with the message', async () => {
+    queueEngine([
+      queueItemFixture({
+        action: ACTIONS.OUTREACH_MESSAGE,
+        params: {
+          publicId: 'ada',
+          body: 'CV attached',
+          attachment: { name: 'cv.pdf', mimeType: 'application/pdf', byteSize: 250_000 },
+        },
+      }),
+    ]);
+    const host = mountPoint();
+
+    await queue.mount(host);
+
+    expect(host.querySelector('[data-attachment="q1"]').textContent).toBe(
+      'Attachment: cv.pdf (244 KB)',
+    );
+  });
+
   it('approves an item with the edited body', async () => {
     const engine = queueEngine([queueItemFixture()], {
       [ACTIONS.QUEUE_APPROVE]: { approved: 1 },

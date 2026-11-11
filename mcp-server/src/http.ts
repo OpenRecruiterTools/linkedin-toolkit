@@ -27,7 +27,9 @@ import { openApiDocument } from './openapi.js';
 import { createMcpServer, runTool, SERVER_VERSION } from './tools.js';
 import type { Toolkit } from './toolkit.js';
 
-export const MAX_BODY_BYTES = 8 * 1024 * 1024;
+// A message attachment may be 10 MB, which is about 13.4 MB once it is base64
+// inside a JSON body.
+export const MAX_BODY_BYTES = 16 * 1024 * 1024;
 
 export type HttpServerOptions = {
   toolkit: Toolkit;

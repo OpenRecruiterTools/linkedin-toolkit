@@ -183,6 +183,18 @@ export function validateMessageAttachment(attachment) {
   return null;
 }
 
+/**
+ * The same params with any attachment cut down to what a person needs to see:
+ * its name, type and size. The file itself is up to 10 MB of base64, and it
+ * only has to travel once, to LinkedIn — not back out in every queue listing
+ * or dry-run answer.
+ */
+export function withoutAttachmentData(params) {
+  if (!params || !params.attachment || typeof params.attachment !== 'object') return params;
+  const { name, mimeType, byteSize } = params.attachment;
+  return { ...params, attachment: { name, mimeType, byteSize } };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Mass unfollow                                                      */
 /* ------------------------------------------------------------------ */
