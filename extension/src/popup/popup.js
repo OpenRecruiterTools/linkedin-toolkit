@@ -10,6 +10,7 @@ import { el, render } from '../ui/dom.js';
 import { send, getLocal, setLocal, UI_KEYS } from '../ui/api.js';
 import { ACTIONS } from '../lib/actions.js';
 import { pill } from '../ui/components.js';
+import { paintSiteBar } from './site-connect.js';
 
 import * as dashboard from './tabs/dashboard.js';
 import * as extract from './tabs/extract.js';
@@ -163,4 +164,5 @@ if (typeof document !== 'undefined' && document.getElementById('tabbar')) {
     version.textContent = `v${manifest.version} · local-first`;
   }
   shell.start();
+  paintSiteBar(document.getElementById('site-bar')).catch(() => {});
 }

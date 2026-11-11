@@ -976,3 +976,21 @@ th {
   justify-content: space-between;
   gap: 8px;
 }
+
+/* "Connect this site" strip: only on websites other than LinkedIn (site-connect.js) */
+.site-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  font-size: 12px;
+}
+.site-bar[hidden] {
+  display: none;
+}
+.site-bar__text {
+  flex: 1;
+  min-width: 0;
+}

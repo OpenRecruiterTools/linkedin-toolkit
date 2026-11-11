@@ -29,6 +29,7 @@ import './status.js';
 import './sync.js';
 
 import { ensureConnected, onAlarm, startKeepalive } from './bridge.js';
+import { fromOtherSite, handleComposeMessage } from './compose.js';
 
 /* ================================================================== */
 /*  Quotas and pacing live in quota.js; outreach.js wires the engine's  */
@@ -102,7 +103,17 @@ export async function route(msg) {
   return handle(msg.action, msg.params || {}, msg.origin || 'popup');
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Compose a post from a connected website (compose.js): a draft, never a contract action.
+  const composed = handleComposeMessage(msg, sender);
+  if (composed !== undefined) {
+    composed.then(sendResponse).catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+  if (fromOtherSite(sender)) {
+    sendResponse(err(null, ERROR.UNAUTHORIZED, 'A website can only hand the toolkit a draft post.'));
+    return false;
+  }
   route(msg)
     .then(sendResponse)
     .catch((e) => sendResponse(err(null, ERROR.INTERNAL, e.message)));

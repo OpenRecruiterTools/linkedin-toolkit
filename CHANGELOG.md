@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Compose a post from a website.** Open the toolkit on a site and press **Connect this site**;
+  that site can then hand the toolkit a draft (text and one PDF, image or video) with
+  `window.postMessage`. The toolkit opens LinkedIn's post box, attaches the file, types the text
+  and stops: you press Post. A connected site can do nothing else, the toolkit asks Chrome for that
+  one site only, and if LinkedIn's page has changed the file goes to Downloads with a plain note.
+  See [`docs/compose-from-websites.md`](docs/compose-from-websites.md). The LinkedIn post-box steps
+  are built from LinkedIn's labels and have not yet been run against the live site.
+
 ### Fixed
 - **The inbox reads past the first page again** (#23, thanks @kovalev-sergey). LinkedIn's messaging
   endpoint now expects the `PRIMARY_INBOX` category and an opaque `nextCursor`; the old `INBOX`
